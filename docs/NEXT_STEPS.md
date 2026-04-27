@@ -4,31 +4,38 @@
 
 Create the project foundation.
 
-## Tasks
+## Completed This Session
 
-- Choose monorepo tooling.
-- Define service folder structure.
-- Add Docker Compose for PostgreSQL, RabbitMQ, Redis, and vector store.
-- Add environment variable examples.
-- Create initial architecture diagram.
-- Define first RabbitMQ event contracts.
-- Add basic development commands.
+- Chose TypeScript-first pnpm workspace.
+- Defined service folder structure under `apps/*`.
+- Added shared packages under `packages/*`.
+- Added Docker Compose for PostgreSQL, RabbitMQ, Redis, and Qdrant.
+- Added `.env.example`.
+- Added initial RabbitMQ event contracts in `packages/contracts`.
+- Added event contract notes in `docs/contracts/events.md`.
+- Added basic monorepo scripts in root `package.json`.
 
-## Recommended First Implementation Choice
+## Immediate Tasks
 
-Use a TypeScript-first monorepo:
+- Install dependencies with `pnpm install`.
+- Run `pnpm check` and fix any TypeScript issues.
+- Add a minimal HTTP server for `apps/api`.
+- Add `/health` endpoint and structured request logging.
+- Add first unit test or Node test for shared config/logger behavior.
+- Decide whether to add a lightweight HTTP framework now, such as Fastify, or keep the first service on Node's built-in HTTP server until requirements are clearer.
 
-- `apps/web`
-- `apps/api`
-- `apps/workflow-service`
-- `apps/execution-worker`
-- `apps/ai-orchestrator`
-- `apps/observability-service`
-- `packages/contracts`
-- `packages/config`
-- `packages/logger`
+## Next Architecture Tasks
 
-Python can still be introduced later for AI-specific experimentation, but starting TypeScript-first reduces setup overhead.
+- Add database schema and migration tooling decision.
+- Define user, workspace, role, and permission models.
+- Define RabbitMQ exchange/queue naming conventions.
+- Add local service Dockerfiles after the first service process is real.
+
+## Open Questions
+
+- Should the backend use Fastify from the start for ergonomics, or stay dependency-light for one more step?
+- Should persistence start with Prisma, Drizzle, or plain SQL migrations?
+- Should the web app be initialized as Next.js immediately, or after backend APIs exist?
 
 ## Prompt For Next Chat
 
@@ -44,8 +51,9 @@ Este novo chat deve continuar o projeto sem depender de conversas anteriores. Le
 - docs/DECISIONS.md
 - docs/NEXT_STEPS.md
 
-Depois disso, me ajude com a Semana 1 do cronograma. Quero que você atue como tech lead/coding partner: revise o estado atual, proponha o plano da semana, implemente comigo passo a passo e atualize a documentação ao final.
+Estado atual: o monorepo TypeScript/pnpm já foi scaffoldado com apps, packages, Docker Compose, `.env.example`, contratos iniciais de eventos RabbitMQ e documentação atualizada. O ambiente anterior não tinha `pnpm`, `npm` ou `tsc` no PATH, então ainda falta rodar `pnpm install` e `pnpm check`.
+
+Depois disso, me ajude a continuar a Semana 1. Quero que você atue como tech lead/coding partner: primeiro rode `git status`, revise o estado atual, instale/verifique dependências se possível, implemente o primeiro backend slice pequeno (`apps/api` com `/health`, config e logging), e atualize `docs/STATUS.md`, `docs/DECISIONS.md` e `docs/NEXT_STEPS.md` ao final.
 
 Importante: este é um projeto autoral de portfólio. Não copie código, nomes internos ou detalhes proprietários de empresas anteriores.
 ```
-

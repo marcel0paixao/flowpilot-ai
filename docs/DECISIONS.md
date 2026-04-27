@@ -24,3 +24,20 @@ Decision: Keep `STATUS.md`, `DECISIONS.md`, and `NEXT_STEPS.md` updated at the e
 
 Reason: This allows a new chat to continue the project without depending on prior conversation history.
 
+## 2026-04-27: TypeScript-First pnpm Monorepo
+
+Decision: Use a TypeScript-first monorepo with pnpm workspaces, `apps/*` for deployable services, and `packages/*` for shared contracts and utilities.
+
+Reason: This keeps the first implementation cohesive, reduces setup overhead, and still leaves room to add Python later for AI experiments if that becomes valuable.
+
+## 2026-04-27: Qdrant for Initial Vector Store
+
+Decision: Start local vector search with Qdrant in Docker Compose.
+
+Reason: A separate vector store makes the RAG architecture explicit for portfolio and interview discussion. pgvector remains a possible later simplification.
+
+## 2026-04-27: Shared Event Contracts Package
+
+Decision: Define initial RabbitMQ event payloads in `packages/contracts` and document them in `docs/contracts/events.md`.
+
+Reason: Event contracts are a core integration boundary between the workflow service, execution worker, AI orchestrator, and observability service.

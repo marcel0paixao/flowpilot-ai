@@ -82,6 +82,37 @@ Redis should not be the primary queue. It will be used for:
 
 PostgreSQL stores transactional data. Vector search can use Qdrant or pgvector. The project should start with the simpler option and document the trade-off.
 
+Initial local development uses Qdrant as a separate vector store to make the RAG boundary visible in the architecture. pgvector remains a possible simplification if local operational overhead becomes more important than demonstrating service separation.
+
+## Monorepo Layout
+
+The repository starts as a TypeScript-first pnpm workspace.
+
+```txt
+apps/
+  web/                    Next.js dashboard, to be expanded after backend foundations
+  api/                    auth, users, workspaces, roles, permissions, JWT
+  workflow-service/       workflow definitions, triggers, executions, node metadata
+  execution-worker/       RabbitMQ consumer and node execution runtime
+  ai-orchestrator/        LangChain, RAG, memory, tools, provider abstraction
+  observability-service/  workflow logs and LLM traces
+packages/
+  contracts/              shared RabbitMQ event contracts
+  config/                 shared environment config loading
+  logger/                 shared structured logger
+```
+
+## Local Infrastructure
+
+`docker-compose.yml` defines the first local dependencies:
+
+- PostgreSQL
+- RabbitMQ with management UI
+- Redis
+- Qdrant
+
+Application services are not containerized yet. Dockerfiles should be added after the first service APIs and worker process are implemented.
+
 ## Security Strategy
 
 - JWT authentication
@@ -90,4 +121,3 @@ PostgreSQL stores transactional data. Vector search can use Qdrant or pgvector. 
 - Tenant-aware query filtering
 - No secrets committed to the repository
 - Explicit origin handling if iframe or embedded apps are ever introduced
-

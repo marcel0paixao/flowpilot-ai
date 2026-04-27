@@ -40,6 +40,37 @@ The project is inspired by common enterprise automation patterns, but it does no
 - Qdrant or pgvector for vector search
 - Optional Langfuse for LLM tracing
 
+## Monorepo Structure
+
+```txt
+apps/
+  web/
+  api/
+  workflow-service/
+  execution-worker/
+  ai-orchestrator/
+  observability-service/
+packages/
+  contracts/
+  config/
+  logger/
+docs/
+  contracts/
+```
+
+## Local Development
+
+This repository is set up as a TypeScript-first pnpm workspace.
+
+```bash
+pnpm install
+cp .env.example .env
+docker compose up -d
+pnpm check
+```
+
+RabbitMQ management UI will be available at `http://localhost:15672` with the local credentials from `.env.example`.
+
 ## Documentation
 
 - [Roadmap](docs/ROADMAP.md)
@@ -47,4 +78,3 @@ The project is inspired by common enterprise automation patterns, but it does no
 - [Status](docs/STATUS.md)
 - [Decisions](docs/DECISIONS.md)
 - [Next Steps](docs/NEXT_STEPS.md)
-
