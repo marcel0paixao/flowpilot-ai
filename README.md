@@ -6,7 +6,7 @@ Multi-tenant workflow automation platform with microservices, RabbitMQ, Redis, L
 
 FlowPilot AI is an original portfolio project designed to demonstrate hands-on experience with distributed systems, workflow orchestration, AI integrations, queue-based execution, and production-minded backend architecture.
 
-The project is inspired by common enterprise automation patterns, but it does not copy proprietary code, internal names, private infrastructure, or confidential implementation details from any previous employer.
+The project is inspired by common enterprise automation patterns, but it does not copy proprietary code, internal names, private infrastructure, or confidential implementation details from any company or organization.
 
 ## Core Capabilities
 
