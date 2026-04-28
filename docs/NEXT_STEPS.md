@@ -21,15 +21,18 @@ Create the project foundation.
 - Added Prisma 6 with initial `Workspace` and `User` models.
 - Added a RabbitMQ client module using `@nestjs/microservices`.
 - Fixed shared package exports so monorepo typechecking works before package builds.
+- Added the API service to Docker Compose.
+- Added `amqp-connection-manager` to satisfy NestJS `ClientRMQ` runtime requirements.
+- Added `class-validator` and `class-transformer` to satisfy NestJS `ValidationPipe` runtime requirements.
+- Added `@fastify/static` to satisfy Swagger static asset runtime requirements on Fastify.
 
 ## Immediate Tasks
 
 - Copy `.env.example` to `.env` if it does not exist.
-- Run `docker compose up -d`.
-- Run `pnpm --filter @flowpilot/api prisma:generate`.
-- Run `pnpm --filter @flowpilot/api dev`.
+- Run `docker compose up -d --force-recreate api` after dependency changes.
 - Verify `GET http://localhost:3000/api/health`.
 - Verify Swagger at `http://localhost:3000/docs`.
+- Inspect API logs with `docker compose logs -f api` if the service is still installing dependencies or generating Prisma Client.
 - Add first automated test for the health endpoint.
 
 ## Next Architecture Tasks
@@ -60,9 +63,9 @@ Este novo chat deve continuar o projeto sem depender de conversas anteriores. Le
 - docs/DECISIONS.md
 - docs/NEXT_STEPS.md
 
-Estado atual: o monorepo TypeScript/pnpm já foi scaffoldado com apps, packages, Docker Compose, `.env.example`, contratos iniciais de eventos RabbitMQ e documentação atualizada. `apps/api` já usa NestJS com Fastify, Zod/dotenv para config, Prisma 6 com schema inicial, Swagger em `/docs`, healthcheck em `/api/health`, e RabbitMQ via `@nestjs/microservices`. `pnpm -r typecheck`, `pnpm -r build` e `prisma:validate` passaram.
+Estado atual: o monorepo TypeScript/pnpm já foi scaffoldado com apps, packages, Docker Compose, `.env.example`, contratos iniciais de eventos RabbitMQ e documentação atualizada. `apps/api` já usa NestJS com Fastify, Zod/dotenv para config, Prisma 6 com schema inicial, Swagger em `/docs`, healthcheck em `/api/health`, e RabbitMQ via `@nestjs/microservices`. O Docker Compose agora também sobe o serviço `api`. `pnpm -r typecheck`, `pnpm -r build`, `prisma:validate` e `docker compose config --quiet` passaram.
 
-Depois disso, me ajude a continuar a Semana 1. Quero que você atue como tech lead/coding partner: primeiro rode `git status`, revise o estado atual, suba a infraestrutura com Docker Compose se necessário, rode `pnpm --filter @flowpilot/api dev`, verifique `/api/health` e `/docs`, adicione o primeiro teste automatizado, e prepare o próximo slice de workspaces/auth. Atualize `docs/STATUS.md`, `docs/DECISIONS.md` e `docs/NEXT_STEPS.md` ao final.
+Depois disso, me ajude a continuar a Semana 1. Quero que você atue como tech lead/coding partner: primeiro rode `git status`, revise o estado atual, suba a stack com `docker compose up -d`, verifique `/api/health` e `/docs`, adicione o primeiro teste automatizado, e prepare o próximo slice de workspaces/auth. Atualize `docs/STATUS.md`, `docs/DECISIONS.md` e `docs/NEXT_STEPS.md` ao final.
 
 Importante: este é um projeto autoral de portfólio. Não copie código, nomes internos ou detalhes proprietários de empresas anteriores.
 ```

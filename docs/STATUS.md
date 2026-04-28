@@ -25,6 +25,10 @@ Week 1 foundation.
 - Swagger setup added at `/docs`.
 - Prisma 6 added with an initial PostgreSQL schema for `Workspace` and `User`.
 - RabbitMQ client module added with `@nestjs/microservices`.
+- Docker Compose now includes the API service alongside PostgreSQL, RabbitMQ, Redis, and Qdrant.
+- Added `amqp-connection-manager`, required by NestJS `ClientRMQ`.
+- Added `class-validator` and `class-transformer`, required by NestJS `ValidationPipe`.
+- Added `@fastify/static`, required by Swagger static assets on `FastifyAdapter`.
 
 ## In Progress
 
@@ -51,6 +55,12 @@ Week 1 foundation.
 - `pnpm -r build` passed.
 - `DATABASE_URL=postgresql://flowpilot:flowpilot@localhost:5432/flowpilot pnpm --filter @flowpilot/api prisma:validate` passed.
 - `docker compose up -d` was attempted, but Docker daemon was not running locally.
+- After adding the API service to Compose, `docker compose config --quiet` passed again.
+- `pnpm -r typecheck` passed after adding `amqp-connection-manager`.
+- `pnpm -r typecheck` passed after adding `class-validator` and `class-transformer`.
+- `pnpm -r typecheck` and `pnpm --filter @flowpilot/api build` passed after adding `@fastify/static`.
+- `docker compose up -d --force-recreate api` started the API successfully.
+- `docker compose exec -T api wget -qO- http://127.0.0.1:3000/api/health` returned `status: ok`.
 
 ## Notes
 
@@ -60,7 +70,7 @@ Week 1 foundation.
 
 ## Recommended Next Step
 
-Start Docker Desktop, run the local infrastructure with Docker Compose, start `apps/api`, verify `/api/health` and `/docs`, then add the first tested API slice for workspaces.
+Rebuild/recreate the API container, verify `/api/health` and `/docs`, then add the first tested API slice for workspaces.
 
 ## Notes For Next Chat
 

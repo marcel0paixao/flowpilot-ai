@@ -1,4 +1,38 @@
 services:
+  api:
+    image: node:22-alpine
+    container_name: flowpilot-api
+    working_dir: /workspace
+    command:
+      - sh
+      - -c
+      - corepack enable && pnpm install --frozen-lockfile && pnpm --filter @flowpilot/api prisma:generate && pnpm --filter @flowpilot/api dev
+    environment:
+      NODE_ENV: development
+      LOG_LEVEL: debug
+      API_HOST: 0.0.0.0
+      API_PORT: 3000
+      CORS_ORIGIN: "*"
+      DATABASE_URL: postgresql://flowpilot:flowpilot@postgres:5432/flowpilot
+      RABBITMQ_URL: amqp://flowpilot:flowpilot@rabbitmq:5672
+      REDIS_URL: redis://redis:6379
+      QDRANT_URL: http://qdrant:6333
+    ports:
+      - "3000:3000"
+    volumes:
+      - .:/workspace
+      - api-node-modules:/workspace/node_modules
+      - api-app-node-modules:/workspace/apps/api/node_modules
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      qdrant:
+        condition: service_started
+
   postgres:
     image: postgres:16-alpine
     container_name: flowpilot-postgres
@@ -57,6 +91,8 @@ services:
       - qdrant-data:/qdrant/storage
 
 volumes:
+  api-node-modules:
+  api-app-node-modules:
   postgres-data:
   rabbitmq-data:
   redis-data:
