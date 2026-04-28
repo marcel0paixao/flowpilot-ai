@@ -32,10 +32,11 @@ Week 1 foundation.
 - Added initial Prisma migration for `Workspace`, `User`, `WorkspaceMember`, and `WorkspaceRole`.
 - Implemented `WorkspacesModule` with persisted workspace creation, listing, and detail endpoints.
 - `POST /api/workspaces` creates a workspace, owner user, and `OWNER` membership in one Prisma transaction.
+- Added API unit tests for health and workspace service behavior.
 
 ## In Progress
 
-- Week 1 backend foundation hardening and first tenant APIs.
+- Week 1 backend foundation hardening and auth preparation.
 
 ## Not Started
 
@@ -47,7 +48,7 @@ Week 1 foundation.
 - LangChain integration
 - RAG document ingestion
 - Observability persistence and trace UI
-- Tests and CI
+- CI
 
 ## Verification
 
@@ -69,6 +70,10 @@ Week 1 foundation.
 - `docker compose exec -T api wget -qO- --header='Content-Type: application/json' --post-data='{"name":"Acme Automation","slug":"acme-automation","ownerEmail":"owner@acme.test","ownerDisplayName":"Acme Owner"}' http://127.0.0.1:3000/api/workspaces` returned a persisted workspace with an `OWNER` membership.
 - `docker compose exec -T api wget -qO- http://127.0.0.1:3000/api/workspaces` returned the persisted workspace list.
 - `docker compose exec -T api wget -qO- http://127.0.0.1:3000/api/workspaces/:id` returned workspace details.
+- `pnpm --filter @flowpilot/api test` passed with 4 tests.
+- `pnpm --filter @flowpilot/api typecheck` passed after adding tests.
+- `pnpm --filter @flowpilot/api build` passed after adding tests.
+- `pnpm -r typecheck` passed after adding tests.
 
 ## Notes
 
@@ -79,7 +84,7 @@ Week 1 foundation.
 
 ## Recommended Next Step
 
-Add automated tests for health and workspaces, then implement auth registration/login with JWT and workspace-scoped role claims.
+Implement auth registration/login with JWT and workspace-scoped role claims.
 
 ## Notes For Next Chat
 
@@ -92,4 +97,4 @@ Start by reading:
 - `docs/DECISIONS.md`
 - `docs/NEXT_STEPS.md`
 
-Then continue with tests and the first auth/JWT implementation.
+Then continue with the first auth/JWT implementation.
