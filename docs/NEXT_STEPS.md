@@ -29,14 +29,18 @@ Create the project foundation.
 - Added `WorkspacesModule` with `POST /api/workspaces`, `GET /api/workspaces`, and `GET /api/workspaces/:id`.
 - Added `WorkspaceMember` and `WorkspaceRole` as the RBAC foundation.
 - Added automated API tests for health and workspace service behavior.
+- Added `AuthModule` with register/login endpoints.
+- Added password hashing with `bcryptjs`.
+- Added JWT access tokens with optional workspace role claims.
+- Added auth unit tests.
 
 ## Immediate Tasks
 
 - Add a request/response contract shape for workspace responses so user data exposure stays intentional.
-- Add auth registration/login endpoints.
-- Add JWT issuance with workspace role claims.
-- Add password hashing dependency and user credential storage strategy.
-- Add auth tests for register/login and invalid credentials.
+- Add JWT authentication guard.
+- Add current-user decorator or request context helper.
+- Add workspace role guard/decorator.
+- Protect workspace routes with the new auth/RBAC path once guard behavior is tested.
 
 ## Next Architecture Tasks
 
@@ -66,9 +70,9 @@ Este novo chat deve continuar o projeto sem depender de conversas anteriores. Le
 - docs/DECISIONS.md
 - docs/NEXT_STEPS.md
 
-Estado atual: o monorepo TypeScript/pnpm já foi scaffoldado com apps, packages, Docker Compose, `.env.example`, contratos iniciais de eventos RabbitMQ e documentação atualizada. `apps/api` usa NestJS com Fastify, Zod/dotenv para config, Prisma 6, Swagger em `/docs`, healthcheck em `/api/health`, RabbitMQ via `@nestjs/microservices`, workspace APIs persistidas e testes automatizados iniciais. O schema Prisma tem `Workspace`, `User`, `WorkspaceMember` e `WorkspaceRole` como base RBAC. O Docker Compose sobe o serviço `api`. `pnpm --filter @flowpilot/api test`, `pnpm -r typecheck`, `pnpm --filter @flowpilot/api build`, Prisma migration e testes manuais via `docker compose exec` passaram.
+Estado atual: o monorepo TypeScript/pnpm já foi scaffoldado com apps, packages, Docker Compose, `.env.example`, contratos iniciais de eventos RabbitMQ e documentação atualizada. `apps/api` usa NestJS com Fastify, Zod/dotenv para config, Prisma 6, Swagger em `/docs`, healthcheck em `/api/health`, RabbitMQ via `@nestjs/microservices`, workspace APIs persistidas e auth register/login com JWT. O schema Prisma tem `Workspace`, `User`, `WorkspaceMember`, `WorkspaceRole` e `User.passwordHash` como base de auth/RBAC. O Docker Compose sobe o serviço `api`. `pnpm --filter @flowpilot/api test`, `pnpm -r typecheck`, `pnpm --filter @flowpilot/api build`, Prisma validation e testes manuais via `docker compose exec` passaram.
 
-Depois disso, me ajude a continuar a Semana 1. Quero que você atue como tech lead/coding partner: primeiro rode `git status`, revise o estado atual, suba a stack com `docker compose up -d`, verifique `/api/health`, `/docs` e `/api/workspaces`, e implemente o próximo slice de auth/JWT com roles por workspace. Atualize `docs/STATUS.md`, `docs/DECISIONS.md` e `docs/NEXT_STEPS.md` ao final.
+Depois disso, me ajude a continuar a Semana 1. Quero que você atue como tech lead/coding partner: primeiro rode `git status`, revise o estado atual, suba a stack com `docker compose up -d`, verifique `/api/health`, `/docs`, `/api/workspaces` e `/api/auth/login`, e implemente JWT auth guards + workspace role guards. Atualize `docs/STATUS.md`, `docs/DECISIONS.md` e `docs/NEXT_STEPS.md` ao final.
 
 Importante: este é um projeto autoral de portfólio. Não copie código, nomes internos ou detalhes proprietários de empresas anteriores.
 ```

@@ -10,7 +10,8 @@ const schema = z.object({
   DATABASE_URL: z.string().url(),
   RABBITMQ_URL: z.string().url(),
   REDIS_URL: z.string().url(),
-  QDRANT_URL: z.string().url()
+  QDRANT_URL: z.string().url(),
+  JWT_SECRET: z.string().min(24)
 });
 
 const parsed = schema.safeParse(process.env);
@@ -27,5 +28,6 @@ export const appConfig = {
   databaseUrl: parsed.data.DATABASE_URL,
   rabbitmqUrl: parsed.data.RABBITMQ_URL,
   redisUrl: parsed.data.REDIS_URL,
-  qdrantUrl: parsed.data.QDRANT_URL
+  qdrantUrl: parsed.data.QDRANT_URL,
+  jwtSecret: parsed.data.JWT_SECRET
 } as const;

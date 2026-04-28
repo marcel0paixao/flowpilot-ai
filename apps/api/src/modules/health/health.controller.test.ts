@@ -5,6 +5,7 @@ process.env.DATABASE_URL ??= "postgresql://flowpilot:flowpilot@localhost:5432/fl
 process.env.RABBITMQ_URL ??= "amqp://flowpilot:flowpilot@localhost:5672";
 process.env.REDIS_URL ??= "redis://localhost:6379";
 process.env.QDRANT_URL ??= "http://localhost:6333";
+process.env.JWT_SECRET ??= "replace-with-local-development-secret";
 
 const { HealthController } = await import("./health.controller.js");
 

@@ -77,6 +77,11 @@ Initial workspace endpoints:
 - `GET /api/workspaces`
 - `GET /api/workspaces/:id`
 
+Initial auth endpoints:
+
+- `POST /api/auth/register`
+- `POST /api/auth/login`
+
 RabbitMQ management UI will be available at `http://localhost:15672` with the local credentials from `.env.example`.
 
 ## Documentation

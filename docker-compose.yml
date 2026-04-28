@@ -17,6 +17,7 @@ services:
       RABBITMQ_URL: amqp://flowpilot:flowpilot@rabbitmq:5672
       REDIS_URL: redis://redis:6379
       QDRANT_URL: http://qdrant:6333
+      JWT_SECRET: replace-with-local-development-secret
     ports:
       - "3000:3000"
     volumes:

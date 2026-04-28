@@ -33,17 +33,21 @@ Week 1 foundation.
 - Implemented `WorkspacesModule` with persisted workspace creation, listing, and detail endpoints.
 - `POST /api/workspaces` creates a workspace, owner user, and `OWNER` membership in one Prisma transaction.
 - Added API unit tests for health and workspace service behavior.
+- Added `AuthModule` with `POST /api/auth/register` and `POST /api/auth/login`.
+- Added `passwordHash` to `User` with a Prisma migration.
+- Added JWT access token issuance with optional `workspaceId` and `role` claims.
+- Added `bcryptjs` password hashing.
+- Added API unit tests for auth register/login behavior.
 
 ## In Progress
 
-- Week 1 backend foundation hardening and auth preparation.
+- Week 1 backend foundation hardening and authorization preparation.
 
 ## Not Started
 
-- Authentication HTTP APIs
 - RabbitMQ publishers, consumers, exchanges, and queue conventions
 - Workflow definition model
-- JWT authentication and RBAC guards
+- JWT authentication guards and RBAC guards
 - Frontend application UI
 - LangChain integration
 - RAG document ingestion
@@ -74,6 +78,14 @@ Week 1 foundation.
 - `pnpm --filter @flowpilot/api typecheck` passed after adding tests.
 - `pnpm --filter @flowpilot/api build` passed after adding tests.
 - `pnpm -r typecheck` passed after adding tests.
+- `pnpm --filter @flowpilot/api test` passed with 8 tests after adding auth tests.
+- `pnpm --filter @flowpilot/api typecheck` passed after adding auth.
+- `pnpm --filter @flowpilot/api build` passed after adding auth.
+- `pnpm -r typecheck` passed after adding auth.
+- `DATABASE_URL=postgresql://flowpilot:flowpilot@localhost:5432/flowpilot pnpm --filter @flowpilot/api prisma:validate` passed after adding `passwordHash`.
+- `docker compose up -d --force-recreate api` started the API with auth routes.
+- `docker compose exec -T api wget -qO- --header='Content-Type: application/json' --post-data='{"email":"owner@acme.test","displayName":"Acme Owner","password":"correct horse battery staple"}' http://127.0.0.1:3000/api/auth/register` returned the registered user without `passwordHash`.
+- `docker compose exec -T api wget -qO- --header='Content-Type: application/json' --post-data='{"email":"owner@acme.test","password":"correct horse battery staple","workspaceId":"5197de4a-7a9a-4795-b455-e4ab877aba9b"}' http://127.0.0.1:3000/api/auth/login` returned an access token with `OWNER` workspace context.
 
 ## Notes
 
@@ -81,10 +93,11 @@ Week 1 foundation.
 - Prisma was pinned to version 6 because Prisma 7 requires the newer datasource/client configuration flow, which is unnecessary friction at this stage.
 - `pnpm-lock.yaml` is now generated and should be committed with the backend dependency changes.
 - `@prisma/client/index` is used for generated Prisma imports under the current NodeNext setup because the default export path did not expose regenerated schema types reliably.
+- The local database had inconsistent Prisma migration metadata during auth migration testing. The `passwordHash` column was applied locally with `ALTER TABLE ... ADD COLUMN IF NOT EXISTS`; the migration file is still present for clean environments.
 
 ## Recommended Next Step
 
-Implement auth registration/login with JWT and workspace-scoped role claims.
+Add JWT authentication guards and workspace-scoped RBAC guards.
 
 ## Notes For Next Chat
 
@@ -97,4 +110,4 @@ Start by reading:
 - `docs/DECISIONS.md`
 - `docs/NEXT_STEPS.md`
 
-Then continue with the first auth/JWT implementation.
+Then continue with JWT authentication guards and workspace-scoped RBAC guards.

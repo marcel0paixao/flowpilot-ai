@@ -77,3 +77,15 @@ Reason: Users may belong to multiple workspaces with different permissions. A me
 Decision: Use explicit `@Inject(...)` on API constructors that rely on dependency injection.
 
 Reason: The development runtime uses `tsx watch`, and explicit injection avoids relying on decorator metadata behavior across ESM/transpilation paths.
+
+## 2026-04-28: JWT With Workspace Role Claims
+
+Decision: Issue JWT access tokens containing user identity plus optional `workspaceId` and `role` claims.
+
+Reason: The API is multi-tenant, so downstream guards and services need workspace-scoped authorization context rather than only user identity.
+
+## 2026-04-28: bcryptjs For Initial Password Hashing
+
+Decision: Use `bcryptjs` for password hashing in the first auth slice.
+
+Reason: It avoids native module build friction in local Docker and Codex environments while still providing bcrypt-compatible password hashing. A native implementation can be revisited later if performance becomes relevant.
