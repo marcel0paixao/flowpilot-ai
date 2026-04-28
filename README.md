@@ -71,6 +71,12 @@ pnpm check
 
 `docker compose up -d` starts PostgreSQL, RabbitMQ, Redis, Qdrant, and the API service. The API will be available at `http://localhost:3000`, with health checks at `http://localhost:3000/api/health` and Swagger documentation at `http://localhost:3000/docs`.
 
+Initial workspace endpoints:
+
+- `POST /api/workspaces`
+- `GET /api/workspaces`
+- `GET /api/workspaces/:id`
+
 RabbitMQ management UI will be available at `http://localhost:15672` with the local credentials from `.env.example`.
 
 ## Documentation

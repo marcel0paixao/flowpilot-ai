@@ -65,3 +65,15 @@ Reason: Prisma gives fast schema iteration, clear migrations, strong generated t
 Decision: Start RabbitMQ integration through `@nestjs/microservices`.
 
 Reason: It is enough for the first service boundary and keeps messaging consistent with NestJS modules. If workflow execution later needs finer control over exchanges, acknowledgements, retries, and dead-letter behavior, the project can introduce a lower-level RabbitMQ adapter.
+
+## 2026-04-28: Workspace Membership As RBAC Foundation
+
+Decision: Model tenant access through `WorkspaceMember`, linking `Workspace` and `User` with a `WorkspaceRole` enum.
+
+Reason: Users may belong to multiple workspaces with different permissions. A membership table keeps the multi-tenant boundary explicit and gives auth/JWT a clear place to derive workspace-scoped roles later.
+
+## 2026-04-28: Explicit Nest Injection In TSX Dev Runtime
+
+Decision: Use explicit `@Inject(...)` on API constructors that rely on dependency injection.
+
+Reason: The development runtime uses `tsx watch`, and explicit injection avoids relying on decorator metadata behavior across ESM/transpilation paths.

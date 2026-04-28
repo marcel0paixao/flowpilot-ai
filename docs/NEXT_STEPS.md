@@ -25,27 +25,29 @@ Create the project foundation.
 - Added `amqp-connection-manager` to satisfy NestJS `ClientRMQ` runtime requirements.
 - Added `class-validator` and `class-transformer` to satisfy NestJS `ValidationPipe` runtime requirements.
 - Added `@fastify/static` to satisfy Swagger static asset runtime requirements on Fastify.
+- Added initial Prisma migration for workspace RBAC foundations.
+- Added `WorkspacesModule` with `POST /api/workspaces`, `GET /api/workspaces`, and `GET /api/workspaces/:id`.
+- Added `WorkspaceMember` and `WorkspaceRole` as the RBAC foundation.
 
 ## Immediate Tasks
 
-- Copy `.env.example` to `.env` if it does not exist.
-- Run `docker compose up -d --force-recreate api` after dependency changes.
-- Verify `GET http://localhost:3000/api/health`.
-- Verify Swagger at `http://localhost:3000/docs`.
-- Inspect API logs with `docker compose logs -f api` if the service is still installing dependencies or generating Prisma Client.
-- Add first automated test for the health endpoint.
+- Add automated tests for `GET /api/health`.
+- Add automated tests for workspace create/list/detail behavior.
+- Add a request/response contract shape for workspace responses so user data exposure stays intentional.
+- Add auth registration/login endpoints.
+- Add JWT issuance with workspace role claims.
 
 ## Next Architecture Tasks
 
-- Define user, workspace, role, and permission models.
-- Create the first Prisma migration.
+- Define role permissions for `OWNER`, `ADMIN`, `MEMBER`, and `VIEWER`.
+- Add Nest guards/decorators for workspace-scoped authorization.
 - Define RabbitMQ exchange/queue naming conventions.
 - Decide whether the API service should connect to RabbitMQ at startup or lazily when publishing first messages.
 - Add local service Dockerfiles after the first service process is real.
 
 ## Open Questions
 
-- Should `apps/api` own all auth/workspace data, or should workspace APIs move into a separate service after the first slice?
+- Should `apps/api` own all auth/workspace data for the MVP, or should workspace APIs move into a separate service after auth stabilizes?
 - Should RabbitMQ queue/exchange declarations live in code, migration-like setup scripts, or local infrastructure scripts?
 - Should the web app be initialized as Next.js immediately, or after backend APIs exist?
 
@@ -63,9 +65,9 @@ Este novo chat deve continuar o projeto sem depender de conversas anteriores. Le
 - docs/DECISIONS.md
 - docs/NEXT_STEPS.md
 
-Estado atual: o monorepo TypeScript/pnpm já foi scaffoldado com apps, packages, Docker Compose, `.env.example`, contratos iniciais de eventos RabbitMQ e documentação atualizada. `apps/api` já usa NestJS com Fastify, Zod/dotenv para config, Prisma 6 com schema inicial, Swagger em `/docs`, healthcheck em `/api/health`, e RabbitMQ via `@nestjs/microservices`. O Docker Compose agora também sobe o serviço `api`. `pnpm -r typecheck`, `pnpm -r build`, `prisma:validate` e `docker compose config --quiet` passaram.
+Estado atual: o monorepo TypeScript/pnpm já foi scaffoldado com apps, packages, Docker Compose, `.env.example`, contratos iniciais de eventos RabbitMQ e documentação atualizada. `apps/api` usa NestJS com Fastify, Zod/dotenv para config, Prisma 6, Swagger em `/docs`, healthcheck em `/api/health`, RabbitMQ via `@nestjs/microservices`, e workspace APIs persistidas. O schema Prisma tem `Workspace`, `User`, `WorkspaceMember` e `WorkspaceRole` como base RBAC. O Docker Compose sobe o serviço `api`. `pnpm -r typecheck`, `pnpm --filter @flowpilot/api build`, Prisma migration e testes manuais via `docker compose exec` passaram.
 
-Depois disso, me ajude a continuar a Semana 1. Quero que você atue como tech lead/coding partner: primeiro rode `git status`, revise o estado atual, suba a stack com `docker compose up -d`, verifique `/api/health` e `/docs`, adicione o primeiro teste automatizado, e prepare o próximo slice de workspaces/auth. Atualize `docs/STATUS.md`, `docs/DECISIONS.md` e `docs/NEXT_STEPS.md` ao final.
+Depois disso, me ajude a continuar a Semana 1. Quero que você atue como tech lead/coding partner: primeiro rode `git status`, revise o estado atual, suba a stack com `docker compose up -d`, verifique `/api/health`, `/docs` e `/api/workspaces`, adicione testes automatizados para health/workspaces, e prepare o próximo slice de auth/JWT com roles por workspace. Atualize `docs/STATUS.md`, `docs/DECISIONS.md` e `docs/NEXT_STEPS.md` ao final.
 
 Importante: este é um projeto autoral de portfólio. Não copie código, nomes internos ou detalhes proprietários de empresas anteriores.
 ```

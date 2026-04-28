@@ -8,22 +8,43 @@ datasource db {
 }
 
 model Workspace {
-  id        String   @id @default(uuid())
+  id        String            @id @default(uuid())
   name      String
-  slug      String   @unique
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  slug      String            @unique
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
 
-  users User[]
+  members WorkspaceMember[]
 }
 
 model User {
-  id          String    @id @default(uuid())
-  email       String    @unique
+  id          String            @id @default(uuid())
+  email       String            @unique
   displayName String
-  workspaceId String
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
 
-  workspace Workspace @relation(fields: [workspaceId], references: [id])
+  memberships WorkspaceMember[]
+}
+
+model WorkspaceMember {
+  id          String        @id @default(uuid())
+  workspaceId String
+  userId      String
+  role        WorkspaceRole @default(MEMBER)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, userId])
+  @@index([userId])
+}
+
+enum WorkspaceRole {
+  OWNER
+  ADMIN
+  MEMBER
+  VIEWER
 }
