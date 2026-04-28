@@ -41,3 +41,27 @@ Reason: A separate vector store makes the RAG architecture explicit for portfoli
 Decision: Define initial RabbitMQ event payloads in `packages/contracts` and document them in `docs/contracts/events.md`.
 
 Reason: Event contracts are a core integration boundary between the workflow service, execution worker, AI orchestrator, and observability service.
+
+## 2026-04-27: NestJS With Fastify For Backend Services
+
+Decision: Use NestJS with the Fastify adapter for the first backend service implementation.
+
+Reason: NestJS provides module boundaries, dependency injection, guards, interceptors, validation, testing patterns, Swagger support, and microservice integration that match the multi-service SaaS architecture. Fastify keeps the HTTP runtime lightweight and performant.
+
+## 2026-04-27: Zod For Environment Validation
+
+Decision: Use Zod to validate API runtime configuration at startup.
+
+Reason: Zod provides explicit runtime validation with TypeScript-friendly inferred config shapes and keeps invalid local or deployed environments from failing later in request handling.
+
+## 2026-04-27: Prisma 6 For Initial Persistence
+
+Decision: Use Prisma 6 for the initial PostgreSQL persistence layer.
+
+Reason: Prisma gives fast schema iteration, clear migrations, strong generated types, and a familiar portfolio-friendly developer experience. Prisma 6 keeps the standard `schema.prisma` datasource flow while Prisma 7's newer client configuration model would add setup complexity too early.
+
+## 2026-04-27: RabbitMQ Through `@nestjs/microservices`
+
+Decision: Start RabbitMQ integration through `@nestjs/microservices`.
+
+Reason: It is enough for the first service boundary and keeps messaging consistent with NestJS modules. If workflow execution later needs finer control over exchanges, acknowledgements, retries, and dead-letter behavior, the project can introduce a lower-level RabbitMQ adapter.

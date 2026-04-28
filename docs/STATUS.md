@@ -18,16 +18,23 @@ Week 1 foundation.
 - Docker Compose infrastructure for PostgreSQL, RabbitMQ, Redis, and Qdrant.
 - `.env.example` with local development defaults.
 - Initial RabbitMQ event contract types and documentation.
+- `pnpm` installed locally and dependencies installed for the monorepo.
+- `apps/api` converted to a NestJS API using the Fastify adapter.
+- API configuration validation added with Zod and dotenv.
+- API `/api/health` endpoint added.
+- Swagger setup added at `/docs`.
+- Prisma 6 added with an initial PostgreSQL schema for `Workspace` and `User`.
+- RabbitMQ client module added with `@nestjs/microservices`.
 
 ## In Progress
 
-- Week 1 foundation hardening.
+- Week 1 backend foundation hardening.
 
 ## Not Started
 
-- Backend service HTTP APIs
-- Database schema and migrations
-- RabbitMQ publishers and consumers
+- Auth and workspace HTTP APIs
+- Prisma migrations
+- RabbitMQ publishers, consumers, exchanges, and queue conventions
 - Workflow definition model
 - Authentication and RBAC implementation
 - Frontend application UI
@@ -40,16 +47,20 @@ Week 1 foundation.
 
 - `node -e` JSON manifest parse check passed.
 - `docker compose config --quiet` passed.
-- Full TypeScript typecheck was not run because `pnpm`, `npm`, and `tsc` are not available in the current Codex environment PATH.
+- `pnpm -r typecheck` passed.
+- `pnpm -r build` passed.
+- `DATABASE_URL=postgresql://flowpilot:flowpilot@localhost:5432/flowpilot pnpm --filter @flowpilot/api prisma:validate` passed.
+- `docker compose up -d` was attempted, but Docker daemon was not running locally.
 
 ## Notes
 
 - Existing uncommitted change to this file marked GitHub publication as completed and monorepo scaffold as in progress before this session started. That change was preserved and expanded.
-- Run `pnpm install` locally before the first full `pnpm check`.
+- Prisma was pinned to version 6 because Prisma 7 requires the newer datasource/client configuration flow, which is unnecessary friction at this stage.
+- `pnpm-lock.yaml` is now generated and should be committed with the backend dependency changes.
 
 ## Recommended Next Step
 
-Install dependencies and add the first real backend slice: a minimal Auth/API service HTTP health endpoint, shared config loading, and a first test/check command once TypeScript tooling is available.
+Start Docker Desktop, run the local infrastructure with Docker Compose, start `apps/api`, verify `/api/health` and `/docs`, then add the first tested API slice for workspaces.
 
 ## Notes For Next Chat
 
@@ -62,4 +73,4 @@ Start by reading:
 - `docs/DECISIONS.md`
 - `docs/NEXT_STEPS.md`
 
-Then continue with Week 1 foundation hardening and the first service implementation.
+Then continue with Week 1 backend foundation hardening and the first workspace/auth model implementation.

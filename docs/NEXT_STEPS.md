@@ -14,27 +14,36 @@ Create the project foundation.
 - Added initial RabbitMQ event contracts in `packages/contracts`.
 - Added event contract notes in `docs/contracts/events.md`.
 - Added basic monorepo scripts in root `package.json`.
+- Installed backend dependencies for `apps/api`.
+- Converted `apps/api` to NestJS with the Fastify adapter.
+- Added Zod/dotenv runtime config validation.
+- Added `/api/health` and Swagger setup at `/docs`.
+- Added Prisma 6 with initial `Workspace` and `User` models.
+- Added a RabbitMQ client module using `@nestjs/microservices`.
+- Fixed shared package exports so monorepo typechecking works before package builds.
 
 ## Immediate Tasks
 
-- Install dependencies with `pnpm install`.
-- Run `pnpm check` and fix any TypeScript issues.
-- Add a minimal HTTP server for `apps/api`.
-- Add `/health` endpoint and structured request logging.
-- Add first unit test or Node test for shared config/logger behavior.
-- Decide whether to add a lightweight HTTP framework now, such as Fastify, or keep the first service on Node's built-in HTTP server until requirements are clearer.
+- Copy `.env.example` to `.env` if it does not exist.
+- Run `docker compose up -d`.
+- Run `pnpm --filter @flowpilot/api prisma:generate`.
+- Run `pnpm --filter @flowpilot/api dev`.
+- Verify `GET http://localhost:3000/api/health`.
+- Verify Swagger at `http://localhost:3000/docs`.
+- Add first automated test for the health endpoint.
 
 ## Next Architecture Tasks
 
-- Add database schema and migration tooling decision.
 - Define user, workspace, role, and permission models.
+- Create the first Prisma migration.
 - Define RabbitMQ exchange/queue naming conventions.
+- Decide whether the API service should connect to RabbitMQ at startup or lazily when publishing first messages.
 - Add local service Dockerfiles after the first service process is real.
 
 ## Open Questions
 
-- Should the backend use Fastify from the start for ergonomics, or stay dependency-light for one more step?
-- Should persistence start with Prisma, Drizzle, or plain SQL migrations?
+- Should `apps/api` own all auth/workspace data, or should workspace APIs move into a separate service after the first slice?
+- Should RabbitMQ queue/exchange declarations live in code, migration-like setup scripts, or local infrastructure scripts?
 - Should the web app be initialized as Next.js immediately, or after backend APIs exist?
 
 ## Prompt For Next Chat
@@ -51,9 +60,9 @@ Este novo chat deve continuar o projeto sem depender de conversas anteriores. Le
 - docs/DECISIONS.md
 - docs/NEXT_STEPS.md
 
-Estado atual: o monorepo TypeScript/pnpm já foi scaffoldado com apps, packages, Docker Compose, `.env.example`, contratos iniciais de eventos RabbitMQ e documentação atualizada. O ambiente anterior não tinha `pnpm`, `npm` ou `tsc` no PATH, então ainda falta rodar `pnpm install` e `pnpm check`.
+Estado atual: o monorepo TypeScript/pnpm já foi scaffoldado com apps, packages, Docker Compose, `.env.example`, contratos iniciais de eventos RabbitMQ e documentação atualizada. `apps/api` já usa NestJS com Fastify, Zod/dotenv para config, Prisma 6 com schema inicial, Swagger em `/docs`, healthcheck em `/api/health`, e RabbitMQ via `@nestjs/microservices`. `pnpm -r typecheck`, `pnpm -r build` e `prisma:validate` passaram.
 
-Depois disso, me ajude a continuar a Semana 1. Quero que você atue como tech lead/coding partner: primeiro rode `git status`, revise o estado atual, instale/verifique dependências se possível, implemente o primeiro backend slice pequeno (`apps/api` com `/health`, config e logging), e atualize `docs/STATUS.md`, `docs/DECISIONS.md` e `docs/NEXT_STEPS.md` ao final.
+Depois disso, me ajude a continuar a Semana 1. Quero que você atue como tech lead/coding partner: primeiro rode `git status`, revise o estado atual, suba a infraestrutura com Docker Compose se necessário, rode `pnpm --filter @flowpilot/api dev`, verifique `/api/health` e `/docs`, adicione o primeiro teste automatizado, e prepare o próximo slice de workspaces/auth. Atualize `docs/STATUS.md`, `docs/DECISIONS.md` e `docs/NEXT_STEPS.md` ao final.
 
 Importante: este é um projeto autoral de portfólio. Não copie código, nomes internos ou detalhes proprietários de empresas anteriores.
 ```
