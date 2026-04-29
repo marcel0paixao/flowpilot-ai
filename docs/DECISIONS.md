@@ -101,3 +101,9 @@ Reason: JWT claims are useful request context, but database-backed membership ch
 Decision: Add workspace member management with conservative role transitions. `OWNER` and `ADMIN` can manage members, but member management cannot assign, remove, or change `OWNER`. `ADMIN` can manage `MEMBER` and `VIEWER`, but cannot assign or modify `ADMIN`.
 
 Reason: This gives the portfolio project a real RBAC surface while avoiding dangerous ownership-transfer semantics before there is an explicit ownership policy, audit trail, or invitation lifecycle.
+
+## 2026-04-29: Explicit API Response DTOs
+
+Decision: Define explicit response DTO classes for auth, workspace, and workspace member HTTP responses and wire them into Swagger metadata.
+
+Reason: The API should expose intentional contracts instead of leaking persistence implementation details through generated shapes. DTOs keep docs clearer, make response review easier, and give future frontend/integration tests stable targets.

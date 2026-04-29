@@ -49,6 +49,8 @@ Week 1 foundation.
 - Added workspace membership endpoints for listing, adding, role updates, and removal.
 - Added conservative member-management policies: no owner assignment/removal through member management, and admins can only manage member/viewer roles.
 - Added unit tests for workspace membership role policy.
+- Added explicit response DTO contracts for auth, workspace, and workspace member responses.
+- Wired Swagger response metadata to the explicit response DTOs.
 
 ## In Progress
 
@@ -107,6 +109,8 @@ Week 1 foundation.
 - `pnpm -r typecheck` passed after adding membership management.
 - `docker compose config --quiet` passed after adding membership management.
 - Manual HTTP checks against Docker returned `200/201` for login, member listing, member creation, role update, and member removal with a bearer token.
+- `pnpm --filter @flowpilot/api test` passed with 21 tests after adding response DTO contracts.
+- `pnpm --filter @flowpilot/api typecheck` passed after adding response DTO contracts.
 
 ## Notes
 
@@ -118,7 +122,7 @@ Week 1 foundation.
 
 ## Recommended Next Step
 
-Add formal response DTOs/contracts for auth and workspace APIs, then add seed/demo scripts for repeatable local testing.
+Add seed/demo scripts for repeatable local testing, then add integration tests against a real test database.
 
 ## Notes For Next Chat
 
@@ -131,4 +135,4 @@ Start by reading:
 - `docs/DECISIONS.md`
 - `docs/NEXT_STEPS.md`
 
-Then continue with formal API response DTOs, seed/demo scripts, and RabbitMQ publishing conventions.
+Then continue with seed/demo scripts, integration tests, and RabbitMQ publishing conventions.

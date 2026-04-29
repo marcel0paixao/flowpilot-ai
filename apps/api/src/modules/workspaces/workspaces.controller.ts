@@ -20,6 +20,11 @@ import type { AuthenticatedUser } from "../auth/types/current-user.js";
 import { AddWorkspaceMemberDto } from "./dto/add-workspace-member.dto.js";
 import { CreateWorkspaceDto } from "./dto/create-workspace.dto.js";
 import { UpdateWorkspaceMemberDto } from "./dto/update-workspace-member.dto.js";
+import {
+  RemoveWorkspaceMemberResponseDto,
+  WorkspaceMemberResponseDto,
+  WorkspaceResponseDto
+} from "./dto/workspace-response.dto.js";
 import { WorkspacesService } from "./workspaces.service.js";
 
 @ApiTags("workspaces")
@@ -30,13 +35,20 @@ export class WorkspacesController {
   constructor(@Inject(WorkspacesService) private readonly workspacesService: WorkspacesService) {}
 
   @Post()
-  @ApiCreatedResponse({ description: "Workspace created with an initial owner membership." })
+  @ApiCreatedResponse({
+    description: "Workspace created with an initial owner membership.",
+    type: WorkspaceResponseDto
+  })
   create(@Body() dto: CreateWorkspaceDto, @CurrentUser() user: AuthenticatedUser) {
     return this.workspacesService.create(dto, user.sub);
   }
 
   @Get()
-  @ApiOkResponse({ description: "Workspace list." })
+  @ApiOkResponse({
+    description: "Workspace list.",
+    type: WorkspaceResponseDto,
+    isArray: true
+  })
   findAll(@CurrentUser() user: AuthenticatedUser) {
     return this.workspacesService.findAllForUser(user.sub);
   }
@@ -49,7 +61,10 @@ export class WorkspacesController {
     WorkspaceRole.MEMBER,
     WorkspaceRole.VIEWER
   )
-  @ApiOkResponse({ description: "Workspace details." })
+  @ApiOkResponse({
+    description: "Workspace details.",
+    type: WorkspaceResponseDto
+  })
   findOne(@Param("id") id: string) {
     return this.workspacesService.findOne(id);
   }
@@ -62,7 +77,11 @@ export class WorkspacesController {
     WorkspaceRole.MEMBER,
     WorkspaceRole.VIEWER
   )
-  @ApiOkResponse({ description: "Workspace members list." })
+  @ApiOkResponse({
+    description: "Workspace members list.",
+    type: WorkspaceMemberResponseDto,
+    isArray: true
+  })
   findMembers(@Param("id") id: string) {
     return this.workspacesService.findMembers(id);
   }
@@ -70,7 +89,10 @@ export class WorkspacesController {
   @Post(":id/members")
   @UseGuards(WorkspaceRolesGuard)
   @WorkspaceRoles(WorkspaceRole.OWNER, WorkspaceRole.ADMIN)
-  @ApiCreatedResponse({ description: "Workspace member added." })
+  @ApiCreatedResponse({
+    description: "Workspace member added.",
+    type: WorkspaceMemberResponseDto
+  })
   addMember(
     @Param("id") id: string,
     @Body() dto: AddWorkspaceMemberDto,
@@ -82,7 +104,10 @@ export class WorkspacesController {
   @Patch(":id/members/:memberId")
   @UseGuards(WorkspaceRolesGuard)
   @WorkspaceRoles(WorkspaceRole.OWNER, WorkspaceRole.ADMIN)
-  @ApiOkResponse({ description: "Workspace member role updated." })
+  @ApiOkResponse({
+    description: "Workspace member role updated.",
+    type: WorkspaceMemberResponseDto
+  })
   updateMember(
     @Param("id") id: string,
     @Param("memberId") memberId: string,
@@ -95,7 +120,10 @@ export class WorkspacesController {
   @Delete(":id/members/:memberId")
   @UseGuards(WorkspaceRolesGuard)
   @WorkspaceRoles(WorkspaceRole.OWNER, WorkspaceRole.ADMIN)
-  @ApiOkResponse({ description: "Workspace member removed." })
+  @ApiOkResponse({
+    description: "Workspace member removed.",
+    type: RemoveWorkspaceMemberResponseDto
+  })
   removeMember(
     @Param("id") id: string,
     @Param("memberId") memberId: string,
