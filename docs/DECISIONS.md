@@ -107,3 +107,9 @@ Reason: This gives the portfolio project a real RBAC surface while avoiding dang
 Decision: Define explicit response DTO classes for auth, workspace, and workspace member HTTP responses and wire them into Swagger metadata.
 
 Reason: The API should expose intentional contracts instead of leaking persistence implementation details through generated shapes. DTOs keep docs clearer, make response review easier, and give future frontend/integration tests stable targets.
+
+## 2026-04-29: Idempotent Demo Seed
+
+Decision: Add a local demo seed script under `apps/api/prisma` that upserts a workspace and users for each workspace role.
+
+Reason: A repeatable seed keeps local testing and portfolio demos fast without depending on manual curl setup. Upserts make the script safe to rerun while preserving the same public demo credentials.

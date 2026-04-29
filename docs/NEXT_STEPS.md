@@ -49,10 +49,10 @@ Create the project foundation.
 - Added unit tests for workspace membership permissions.
 - Added explicit response DTO contracts for auth, workspace, and workspace member responses.
 - Wired Swagger response metadata to those response DTOs.
+- Added `pnpm --filter @flowpilot/api seed:demo` for repeatable local demo data.
 
 ## Immediate Tasks
 
-- Add seed/demo scripts for a repeatable local login and membership flow.
 - Add integration tests against a real test database or testcontainers-style setup.
 - Add explicit ownership-transfer policy only when product requirements need it.
 
@@ -83,9 +83,9 @@ Este novo chat deve continuar o projeto sem depender de conversas anteriores. Le
 - docs/DECISIONS.md
 - docs/NEXT_STEPS.md
 
-Estado atual: o monorepo TypeScript/pnpm já foi scaffoldado com apps, packages, Docker Compose, `.env.example`, contratos iniciais de eventos RabbitMQ e documentação atualizada. `apps/api` usa NestJS com Fastify, Zod/dotenv para config, Prisma 6, Swagger em `/docs`, healthcheck em `/api/health`, RabbitMQ via `@nestjs/microservices`, workspace APIs persistidas e auth register/login/me com JWT. O schema Prisma tem `Workspace`, `User`, `WorkspaceMember`, `WorkspaceRole` e `User.passwordHash`. Workspace routes exigem bearer token; listagem é filtrada por membership; detalhe exige role de workspace; criação usa o usuário autenticado como `OWNER`. Há `JwtAuthGuard`, `@CurrentUser()`, `@WorkspaceRoles(...)` e `WorkspaceRolesGuard`. Também existem endpoints de membership para listar, adicionar, alterar role e remover membros. A política atual é conservadora: member management não atribui/remove/altera `OWNER`, e `ADMIN` só gerencia `MEMBER`/`VIEWER`. As respostas públicas de auth/workspace/member têm DTOs explícitos ligados ao Swagger. O Docker Compose sobe o serviço `api`. `pnpm --filter @flowpilot/api test` e `pnpm --filter @flowpilot/api typecheck` passaram após a implementação dos contratos de resposta.
+Estado atual: o monorepo TypeScript/pnpm já foi scaffoldado com apps, packages, Docker Compose, `.env.example`, contratos iniciais de eventos RabbitMQ e documentação atualizada. `apps/api` usa NestJS com Fastify, Zod/dotenv para config, Prisma 6, Swagger em `/docs`, healthcheck em `/api/health`, RabbitMQ via `@nestjs/microservices`, workspace APIs persistidas e auth register/login/me com JWT. O schema Prisma tem `Workspace`, `User`, `WorkspaceMember`, `WorkspaceRole` e `User.passwordHash`. Workspace routes exigem bearer token; listagem é filtrada por membership; detalhe exige role de workspace; criação usa o usuário autenticado como `OWNER`. Há `JwtAuthGuard`, `@CurrentUser()`, `@WorkspaceRoles(...)` e `WorkspaceRolesGuard`. Também existem endpoints de membership para listar, adicionar, alterar role e remover membros. A política atual é conservadora: member management não atribui/remove/altera `OWNER`, e `ADMIN` só gerencia `MEMBER`/`VIEWER`. As respostas públicas de auth/workspace/member têm DTOs explícitos ligados ao Swagger. Existe `pnpm --filter @flowpilot/api seed:demo` para criar dados locais repetíveis com users `OWNER`, `ADMIN`, `MEMBER` e `VIEWER`. O Docker Compose sobe o serviço `api`. `pnpm --filter @flowpilot/api test` e `pnpm --filter @flowpilot/api typecheck` passaram após a implementação dos contratos de resposta.
 
-Depois disso, me ajude a continuar a Semana 1. Quero que você atue como tech lead/coding partner: primeiro rode `git status`, revise o estado atual, suba a stack com `docker compose up -d`, verifique `/api/health`, `/docs`, `/api/auth/login`, `/api/auth/me`, `/api/workspaces` e `/api/workspaces/:id/members` com bearer token, e implemente seed/demo scripts para o fluxo local. Atualize `docs/STATUS.md`, `docs/DECISIONS.md` e `docs/NEXT_STEPS.md` ao final.
+Depois disso, me ajude a continuar a Semana 1. Quero que você atue como tech lead/coding partner: primeiro rode `git status`, revise o estado atual, suba a stack com `docker compose up -d`, rode `pnpm --filter @flowpilot/api seed:demo`, verifique `/api/health`, `/docs`, `/api/auth/login`, `/api/auth/me`, `/api/workspaces` e `/api/workspaces/:id/members` com bearer token, e implemente testes de integração HTTP com banco real/test DB. Atualize `docs/STATUS.md`, `docs/DECISIONS.md` e `docs/NEXT_STEPS.md` ao final.
 
 Importante: este é um projeto autoral de portfólio. Não copie código, nomes internos ou detalhes proprietários de empresas anteriores.
 ```

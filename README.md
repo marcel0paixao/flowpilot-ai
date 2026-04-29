@@ -71,6 +71,14 @@ pnpm check
 
 `docker compose up -d` starts PostgreSQL, RabbitMQ, Redis, Qdrant, and the API service. The API will be available at `http://localhost:3000`, with health checks at `http://localhost:3000/api/health` and Swagger documentation at `http://localhost:3000/docs`.
 
+Seed repeatable demo data after PostgreSQL is running:
+
+```bash
+pnpm --filter @flowpilot/api seed:demo
+```
+
+The demo seed creates `Acme Automation` with `OWNER`, `ADMIN`, `MEMBER`, and `VIEWER` users. All demo users use the password `correct horse battery staple`.
+
 Initial workspace endpoints:
 
 - `POST /api/workspaces` - requires a bearer token and creates an `OWNER` membership for the authenticated user.

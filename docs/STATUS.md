@@ -51,6 +51,7 @@ Week 1 foundation.
 - Added unit tests for workspace membership role policy.
 - Added explicit response DTO contracts for auth, workspace, and workspace member responses.
 - Wired Swagger response metadata to the explicit response DTOs.
+- Added an idempotent `pnpm --filter @flowpilot/api seed:demo` script for local demo data.
 
 ## In Progress
 
@@ -111,6 +112,7 @@ Week 1 foundation.
 - Manual HTTP checks against Docker returned `200/201` for login, member listing, member creation, role update, and member removal with a bearer token.
 - `pnpm --filter @flowpilot/api test` passed with 21 tests after adding response DTO contracts.
 - `pnpm --filter @flowpilot/api typecheck` passed after adding response DTO contracts.
+- `pnpm --filter @flowpilot/api seed:demo` created or updated the local demo workspace and users for `OWNER`, `ADMIN`, `MEMBER`, and `VIEWER`.
 
 ## Notes
 
@@ -122,7 +124,7 @@ Week 1 foundation.
 
 ## Recommended Next Step
 
-Add seed/demo scripts for repeatable local testing, then add integration tests against a real test database.
+Add integration tests against a real test database, then define RabbitMQ publishing conventions.
 
 ## Notes For Next Chat
 
@@ -135,4 +137,4 @@ Start by reading:
 - `docs/DECISIONS.md`
 - `docs/NEXT_STEPS.md`
 
-Then continue with seed/demo scripts, integration tests, and RabbitMQ publishing conventions.
+Then continue with integration tests and RabbitMQ publishing conventions.
