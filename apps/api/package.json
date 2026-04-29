@@ -14,6 +14,7 @@
     "prisma:validate": "prisma validate --schema prisma/schema.prisma",
     "seed:demo": "tsx prisma/seed-demo.ts",
     "test": "tsx --test \"src/**/*.test.ts\"",
+    "test:integration": "sh -c 'docker compose -f ../../docker-compose.yml exec -T postgres createdb -U flowpilot flowpilot_test 2>/dev/null || true; DATABASE_URL=${TEST_DATABASE_URL:-postgresql://flowpilot:flowpilot@localhost:5432/flowpilot_test} prisma migrate deploy --schema prisma/schema.prisma && NODE_ENV=test JWT_SECRET=replace-with-local-development-secret DATABASE_URL=${TEST_DATABASE_URL:-postgresql://flowpilot:flowpilot@localhost:5432/flowpilot_test} tsx --test \"src/**/*.integration-spec.ts\"'",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {

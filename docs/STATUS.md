@@ -52,6 +52,8 @@ Week 1 foundation.
 - Added explicit response DTO contracts for auth, workspace, and workspace member responses.
 - Wired Swagger response metadata to the explicit response DTOs.
 - Added an idempotent `pnpm --filter @flowpilot/api seed:demo` script for local demo data.
+- Added `pnpm --filter @flowpilot/api test:integration` for HTTP integration tests against a local PostgreSQL test database.
+- Added integration coverage for auth, workspace creation, member management, RBAC denial, and cross-tenant denial.
 
 ## In Progress
 
@@ -113,6 +115,7 @@ Week 1 foundation.
 - `pnpm --filter @flowpilot/api test` passed with 21 tests after adding response DTO contracts.
 - `pnpm --filter @flowpilot/api typecheck` passed after adding response DTO contracts.
 - `pnpm --filter @flowpilot/api seed:demo` created or updated the local demo workspace and users for `OWNER`, `ADMIN`, `MEMBER`, and `VIEWER`.
+- `pnpm --filter @flowpilot/api test:integration` created `flowpilot_test`, applied Prisma migrations, and passed with 2 HTTP integration tests.
 
 ## Notes
 
@@ -124,7 +127,7 @@ Week 1 foundation.
 
 ## Recommended Next Step
 
-Add integration tests against a real test database, then define RabbitMQ publishing conventions.
+Define RabbitMQ publishing conventions, then introduce the first workflow domain model.
 
 ## Notes For Next Chat
 
@@ -137,4 +140,4 @@ Start by reading:
 - `docs/DECISIONS.md`
 - `docs/NEXT_STEPS.md`
 
-Then continue with integration tests and RabbitMQ publishing conventions.
+Then continue with RabbitMQ publishing conventions and the first workflow domain model.

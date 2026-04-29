@@ -79,6 +79,15 @@ pnpm --filter @flowpilot/api seed:demo
 
 The demo seed creates `Acme Automation` with `OWNER`, `ADMIN`, `MEMBER`, and `VIEWER` users. All demo users use the password `correct horse battery staple`.
 
+Run API integration tests against a local PostgreSQL test database:
+
+```bash
+docker compose up -d postgres
+pnpm --filter @flowpilot/api test:integration
+```
+
+The integration test script creates `flowpilot_test` when needed, applies Prisma migrations, and runs the HTTP flow against the Nest/Fastify app.
+
 Initial workspace endpoints:
 
 - `POST /api/workspaces` - requires a bearer token and creates an `OWNER` membership for the authenticated user.

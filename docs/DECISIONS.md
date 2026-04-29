@@ -113,3 +113,9 @@ Reason: The API should expose intentional contracts instead of leaking persisten
 Decision: Add a local demo seed script under `apps/api/prisma` that upserts a workspace and users for each workspace role.
 
 Reason: A repeatable seed keeps local testing and portfolio demos fast without depending on manual curl setup. Upserts make the script safe to rerun while preserving the same public demo credentials.
+
+## 2026-04-29: Docker-Backed API Integration Tests
+
+Decision: Add API integration tests that run the Nest/Fastify app in-process while using a real PostgreSQL database named `flowpilot_test`.
+
+Reason: Unit tests cover service policy, but the API also needs confidence across controllers, validation pipes, guards, JWT verification, Prisma queries, and migrations. A local Docker-backed test database keeps the setup close to development infrastructure without adding another test service yet.
