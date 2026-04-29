@@ -38,16 +38,23 @@ Week 1 foundation.
 - Added JWT access token issuance with optional `workspaceId` and `role` claims.
 - Added `bcryptjs` password hashing.
 - Added API unit tests for auth register/login behavior.
+- Added `JwtAuthGuard`, `@CurrentUser()`, `@WorkspaceRoles(...)`, and `WorkspaceRolesGuard`.
+- Added `GET /api/auth/me` for the authenticated user profile and memberships.
+- Protected workspace routes with JWT authentication.
+- Scoped `GET /api/workspaces` to the authenticated user's memberships.
+- Protected `GET /api/workspaces/:id` with workspace role membership checks.
+- Changed `POST /api/workspaces` to create the workspace for the authenticated user as `OWNER`.
+- Added explicit safe user selection in workspace responses so `passwordHash` is not exposed.
+- Added unit tests for JWT guard, workspace role guard, auth profile, and workspace membership filtering.
 
 ## In Progress
 
-- Week 1 backend foundation hardening and authorization preparation.
+- Week 1 backend foundation hardening.
 
 ## Not Started
 
 - RabbitMQ publishers, consumers, exchanges, and queue conventions
 - Workflow definition model
-- JWT authentication guards and RBAC guards
 - Frontend application UI
 - LangChain integration
 - RAG document ingestion
@@ -86,6 +93,11 @@ Week 1 foundation.
 - `docker compose up -d --force-recreate api` started the API with auth routes.
 - `docker compose exec -T api wget -qO- --header='Content-Type: application/json' --post-data='{"email":"owner@acme.test","displayName":"Acme Owner","password":"correct horse battery staple"}' http://127.0.0.1:3000/api/auth/register` returned the registered user without `passwordHash`.
 - `docker compose exec -T api wget -qO- --header='Content-Type: application/json' --post-data='{"email":"owner@acme.test","password":"correct horse battery staple","workspaceId":"5197de4a-7a9a-4795-b455-e4ab877aba9b"}' http://127.0.0.1:3000/api/auth/login` returned an access token with `OWNER` workspace context.
+- `pnpm --filter @flowpilot/api test` passed with 14 tests after adding auth/RBAC guards.
+- `pnpm --filter @flowpilot/api typecheck` passed after adding auth/RBAC guards.
+- `pnpm --filter @flowpilot/api build` passed after adding auth/RBAC guards.
+- `pnpm -r typecheck` passed after adding auth/RBAC guards.
+- Manual HTTP checks against Docker returned `200` for `/api/auth/login`, `/api/auth/me`, `/api/workspaces`, and `/api/workspaces/:id` with a bearer token.
 
 ## Notes
 
@@ -97,7 +109,7 @@ Week 1 foundation.
 
 ## Recommended Next Step
 
-Add JWT authentication guards and workspace-scoped RBAC guards.
+Add role-specific write operations and a formal response contract for workspace APIs.
 
 ## Notes For Next Chat
 
@@ -110,4 +122,4 @@ Start by reading:
 - `docs/DECISIONS.md`
 - `docs/NEXT_STEPS.md`
 
-Then continue with JWT authentication guards and workspace-scoped RBAC guards.
+Then continue with role-specific workspace mutations, formal API response DTOs, and RabbitMQ publishing conventions.

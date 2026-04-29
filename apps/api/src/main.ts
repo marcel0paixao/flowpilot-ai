@@ -32,6 +32,7 @@ async function bootstrap(): Promise<void> {
     .setTitle("FlowPilot AI API")
     .setDescription("Auth, workspace, and workflow-facing HTTP API.")
     .setVersion("0.1.0")
+    .addBearerAuth()
     .build();
 
   const document = SwaggerModule.createDocument(app, swaggerConfig);

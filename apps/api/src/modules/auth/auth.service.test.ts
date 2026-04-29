@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { ConflictException, UnauthorizedException } from "@nestjs/common";
+import { ConflictException, ForbiddenException, UnauthorizedException } from "@nestjs/common";
 import { WorkspaceRole } from "@prisma/client/index";
 import { hash } from "bcryptjs";
 
@@ -97,6 +97,33 @@ test("AuthService logs in with workspace role claims", async () => {
   });
 });
 
+test("AuthService rejects login for a workspace where the user is not a member", async () => {
+  const passwordHash = await hash("correct horse battery staple", 12);
+  const prisma = {
+    user: {
+      findUnique: mockAsync({
+        id: "user-1",
+        email: "owner@example.test",
+        displayName: "Owner Example",
+        passwordHash,
+        memberships: []
+      })
+    }
+  };
+
+  const service = new AuthService(prisma as never, fakeJwtService());
+
+  await assert.rejects(
+    () =>
+      service.login({
+        email: "owner@example.test",
+        password: "correct horse battery staple",
+        workspaceId: "workspace-2"
+      }),
+    ForbiddenException
+  );
+});
+
 test("AuthService rejects invalid credentials", async () => {
   const passwordHash = await hash("correct horse battery staple", 12);
   const prisma = {
@@ -121,6 +148,36 @@ test("AuthService rejects invalid credentials", async () => {
       }),
     UnauthorizedException
   );
+});
+
+test("AuthService returns current user profile without passwordHash", async () => {
+  const user = {
+    id: "user-1",
+    email: "owner@example.test",
+    displayName: "Owner Example",
+    memberships: [
+      {
+        role: WorkspaceRole.OWNER,
+        workspace: {
+          id: "workspace-1",
+          name: "Example Workspace",
+          slug: "example-workspace"
+        }
+      }
+    ]
+  };
+  const prisma = {
+    user: {
+      findUnique: mockAsync(user)
+    }
+  };
+
+  const service = new AuthService(prisma as never, fakeJwtService());
+
+  const result = await service.me("user-1");
+
+  assert.deepEqual(result, { user });
+  assert.equal("passwordHash" in result.user, false);
 });
 
 function fakeJwtService() {

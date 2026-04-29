@@ -8,27 +8,16 @@ import { CreateWorkspaceDto } from "./dto/create-workspace.dto.js";
 export class WorkspacesService {
   constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {}
 
-  async create(dto: CreateWorkspaceDto) {
+  async create(dto: CreateWorkspaceDto, ownerUserId: string) {
     try {
       return await this.prisma.$transaction(async (tx) => {
-        const user = await tx.user.upsert({
-          where: { email: dto.ownerEmail.toLowerCase() },
-          create: {
-            email: dto.ownerEmail.toLowerCase(),
-            displayName: dto.ownerDisplayName
-          },
-          update: {
-            displayName: dto.ownerDisplayName
-          }
-        });
-
         const workspace = await tx.workspace.create({
           data: {
             name: dto.name,
             slug: dto.slug,
             members: {
               create: {
-                userId: user.id,
+                userId: ownerUserId,
                 role: WorkspaceRole.OWNER
               }
             }
@@ -40,15 +29,22 @@ export class WorkspacesService {
       });
     } catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-        throw new ConflictException("Workspace slug or owner email already exists");
+        throw new ConflictException("Workspace slug already exists");
       }
 
       throw error;
     }
   }
 
-  findAll() {
+  findAllForUser(userId: string) {
     return this.prisma.workspace.findMany({
+      where: {
+        members: {
+          some: {
+            userId
+          }
+        }
+      },
       orderBy: { createdAt: "desc" },
       include: workspaceInclude
     });
@@ -70,8 +66,20 @@ export class WorkspacesService {
 
 const workspaceInclude = {
   members: {
-    include: {
-      user: true
+    select: {
+      id: true,
+      role: true,
+      createdAt: true,
+      updatedAt: true,
+      user: {
+        select: {
+          id: true,
+          email: true,
+          displayName: true,
+          createdAt: true,
+          updatedAt: true
+        }
+      }
     },
     orderBy: {
       createdAt: "asc"

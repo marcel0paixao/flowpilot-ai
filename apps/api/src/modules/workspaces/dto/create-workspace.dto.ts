@@ -1,5 +1,13 @@
 import { ApiProperty } from "@nestjs/swagger";
-import { IsEmail, IsNotEmpty, IsString, Matches, MaxLength, MinLength } from "class-validator";
+import {
+  IsEmail,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  Matches,
+  MaxLength,
+  MinLength
+} from "class-validator";
 
 export class CreateWorkspaceDto {
   @ApiProperty({ example: "Acme Automation" })
@@ -17,13 +25,15 @@ export class CreateWorkspaceDto {
   })
   slug!: string;
 
-  @ApiProperty({ example: "owner@acme.test" })
+  @ApiProperty({ example: "owner@acme.test", required: false })
+  @IsOptional()
   @IsEmail()
-  ownerEmail!: string;
+  ownerEmail?: string;
 
-  @ApiProperty({ example: "Acme Owner" })
+  @ApiProperty({ example: "Acme Owner", required: false })
+  @IsOptional()
   @IsString()
   @IsNotEmpty()
   @MaxLength(120)
-  ownerDisplayName!: string;
+  ownerDisplayName?: string;
 }

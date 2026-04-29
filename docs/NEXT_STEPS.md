@@ -33,19 +33,24 @@ Create the project foundation.
 - Added password hashing with `bcryptjs`.
 - Added JWT access tokens with optional workspace role claims.
 - Added auth unit tests.
+- Added JWT auth guard, current-user decorator, workspace roles decorator, and workspace role guard.
+- Added `GET /api/auth/me`.
+- Protected workspace routes with JWT and workspace membership checks.
+- Changed workspace creation to use the authenticated user as `OWNER`.
+- Scoped workspace listing to the authenticated user's memberships.
+- Added safe user selection to avoid exposing `passwordHash` in workspace responses.
+- Added unit tests for auth/RBAC guards and membership filtering.
 
 ## Immediate Tasks
 
-- Add a request/response contract shape for workspace responses so user data exposure stays intentional.
-- Add JWT authentication guard.
-- Add current-user decorator or request context helper.
-- Add workspace role guard/decorator.
-- Protect workspace routes with the new auth/RBAC path once guard behavior is tested.
+- Add formal response DTOs/contracts for auth and workspace responses.
+- Add role-specific workspace mutation endpoints, starting with member invitation/removal.
+- Add integration tests against a real test database or testcontainers-style setup.
+- Add seed/demo scripts for a repeatable local login flow.
 
 ## Next Architecture Tasks
 
 - Define role permissions for `OWNER`, `ADMIN`, `MEMBER`, and `VIEWER`.
-- Add Nest guards/decorators for workspace-scoped authorization.
 - Define RabbitMQ exchange/queue naming conventions.
 - Decide whether the API service should connect to RabbitMQ at startup or lazily when publishing first messages.
 - Add local service Dockerfiles after the first service process is real.
@@ -70,9 +75,9 @@ Este novo chat deve continuar o projeto sem depender de conversas anteriores. Le
 - docs/DECISIONS.md
 - docs/NEXT_STEPS.md
 
-Estado atual: o monorepo TypeScript/pnpm já foi scaffoldado com apps, packages, Docker Compose, `.env.example`, contratos iniciais de eventos RabbitMQ e documentação atualizada. `apps/api` usa NestJS com Fastify, Zod/dotenv para config, Prisma 6, Swagger em `/docs`, healthcheck em `/api/health`, RabbitMQ via `@nestjs/microservices`, workspace APIs persistidas e auth register/login com JWT. O schema Prisma tem `Workspace`, `User`, `WorkspaceMember`, `WorkspaceRole` e `User.passwordHash` como base de auth/RBAC. O Docker Compose sobe o serviço `api`. `pnpm --filter @flowpilot/api test`, `pnpm -r typecheck`, `pnpm --filter @flowpilot/api build`, Prisma validation e testes manuais via `docker compose exec` passaram.
+Estado atual: o monorepo TypeScript/pnpm já foi scaffoldado com apps, packages, Docker Compose, `.env.example`, contratos iniciais de eventos RabbitMQ e documentação atualizada. `apps/api` usa NestJS com Fastify, Zod/dotenv para config, Prisma 6, Swagger em `/docs`, healthcheck em `/api/health`, RabbitMQ via `@nestjs/microservices`, workspace APIs persistidas e auth register/login/me com JWT. O schema Prisma tem `Workspace`, `User`, `WorkspaceMember`, `WorkspaceRole` e `User.passwordHash`. Workspace routes exigem bearer token; listagem é filtrada por membership; detalhe exige role de workspace; criação usa o usuário autenticado como `OWNER`. Há `JwtAuthGuard`, `@CurrentUser()`, `@WorkspaceRoles(...)` e `WorkspaceRolesGuard`. O Docker Compose sobe o serviço `api`. `pnpm --filter @flowpilot/api test` e `pnpm --filter @flowpilot/api typecheck` passaram após a implementação de auth/RBAC.
 
-Depois disso, me ajude a continuar a Semana 1. Quero que você atue como tech lead/coding partner: primeiro rode `git status`, revise o estado atual, suba a stack com `docker compose up -d`, verifique `/api/health`, `/docs`, `/api/workspaces` e `/api/auth/login`, e implemente JWT auth guards + workspace role guards. Atualize `docs/STATUS.md`, `docs/DECISIONS.md` e `docs/NEXT_STEPS.md` ao final.
+Depois disso, me ajude a continuar a Semana 1. Quero que você atue como tech lead/coding partner: primeiro rode `git status`, revise o estado atual, suba a stack com `docker compose up -d`, verifique `/api/health`, `/docs`, `/api/auth/login`, `/api/auth/me` e `/api/workspaces` com bearer token, e implemente os próximos endpoints de workspace membership ou contratos formais de resposta. Atualize `docs/STATUS.md`, `docs/DECISIONS.md` e `docs/NEXT_STEPS.md` ao final.
 
 Importante: este é um projeto autoral de portfólio. Não copie código, nomes internos ou detalhes proprietários de empresas anteriores.
 ```

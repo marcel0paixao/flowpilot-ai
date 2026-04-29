@@ -1,4 +1,10 @@
-import { ConflictException, Inject, Injectable, UnauthorizedException } from "@nestjs/common";
+import {
+  ConflictException,
+  ForbiddenException,
+  Inject,
+  Injectable,
+  UnauthorizedException
+} from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import { Prisma } from "@prisma/client/index";
 import { compare, hash } from "bcryptjs";
@@ -83,6 +89,11 @@ export class AuthService {
     }
 
     const membership = user.memberships[0];
+
+    if (dto.workspaceId && !membership) {
+      throw new ForbiddenException("User is not a member of this workspace");
+    }
+
     const payload = {
       sub: user.id,
       email: user.email,
@@ -104,6 +115,38 @@ export class AuthService {
           }
         : null
     };
+  }
+
+  async me(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        ...userSelect,
+        memberships: {
+          select: {
+            role: true,
+            workspace: {
+              select: {
+                id: true,
+                name: true,
+                slug: true,
+                createdAt: true,
+                updatedAt: true
+              }
+            }
+          },
+          orderBy: {
+            createdAt: "asc"
+          }
+        }
+      }
+    });
+
+    if (!user) {
+      throw new UnauthorizedException("Invalid bearer token");
+    }
+
+    return { user };
   }
 }
 

@@ -73,14 +73,15 @@ pnpm check
 
 Initial workspace endpoints:
 
-- `POST /api/workspaces`
-- `GET /api/workspaces`
-- `GET /api/workspaces/:id`
+- `POST /api/workspaces` - requires a bearer token and creates an `OWNER` membership for the authenticated user.
+- `GET /api/workspaces` - requires a bearer token and returns only workspaces where the user is a member.
+- `GET /api/workspaces/:id` - requires a bearer token and a workspace role.
 
 Initial auth endpoints:
 
 - `POST /api/auth/register`
 - `POST /api/auth/login`
+- `GET /api/auth/me`
 
 RabbitMQ management UI will be available at `http://localhost:15672` with the local credentials from `.env.example`.
 

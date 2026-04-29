@@ -7,12 +7,6 @@ import { WorkspaceRole } from "@prisma/client/index";
 import { WorkspacesService } from "./workspaces.service.js";
 
 test("WorkspacesService creates a workspace with an owner membership", async () => {
-  const owner = {
-    id: "user-1",
-    email: "owner@example.test",
-    displayName: "Owner Example"
-  };
-
   const persistedWorkspace = {
     id: "workspace-1",
     name: "Example Workspace",
@@ -20,15 +14,16 @@ test("WorkspacesService creates a workspace with an owner membership", async () 
     members: [
       {
         role: WorkspaceRole.OWNER,
-        user: owner
+        user: {
+          id: "user-1",
+          email: "owner@example.test",
+          displayName: "Owner Example"
+        }
       }
     ]
   };
 
   const tx = {
-    user: {
-      upsert: mockAsync(owner)
-    },
     workspace: {
       create: mockAsync(persistedWorkspace)
     }
@@ -42,30 +37,19 @@ test("WorkspacesService creates a workspace with an owner membership", async () 
 
   const result = await service.create({
     name: "Example Workspace",
-    slug: "example-workspace",
-    ownerEmail: "OWNER@EXAMPLE.TEST",
-    ownerDisplayName: "Owner Example"
-  });
+    slug: "example-workspace"
+  }, "user-1");
 
   assert.equal(result, persistedWorkspace);
-  assert.deepEqual(tx.user.upsert.calls[0]?.[0], {
-    where: { email: "owner@example.test" },
-    create: {
-      email: "owner@example.test",
-      displayName: "Owner Example"
-    },
-    update: {
-      displayName: "Owner Example"
-    }
-  });
   const workspaceCreateArgs = tx.workspace.create.calls[0]?.[0] as {
-    data: { members: { create: { role: WorkspaceRole } } };
+    data: { members: { create: { role: WorkspaceRole; userId: string } } };
   };
 
+  assert.equal(workspaceCreateArgs.data.members.create.userId, "user-1");
   assert.equal(workspaceCreateArgs.data.members.create.role, WorkspaceRole.OWNER);
 });
 
-test("WorkspacesService lists workspaces newest first", async () => {
+test("WorkspacesService lists only workspaces where the user is a member", async () => {
   const workspaces = [{ id: "workspace-1" }];
   const prisma = {
     workspace: {
@@ -75,13 +59,15 @@ test("WorkspacesService lists workspaces newest first", async () => {
 
   const service = new WorkspacesService(prisma as never);
 
-  const result = await service.findAll();
+  const result = await service.findAllForUser("user-1");
 
   assert.equal(result, workspaces);
   const findManyArgs = prisma.workspace.findMany.calls[0]?.[0] as {
+    where: { members: { some: { userId: string } } };
     orderBy: { createdAt: "desc" };
   };
 
+  assert.equal(findManyArgs.where.members.some.userId, "user-1");
   assert.equal(findManyArgs.orderBy.createdAt, "desc");
 });
 

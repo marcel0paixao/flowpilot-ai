@@ -89,3 +89,9 @@ Reason: The API is multi-tenant, so downstream guards and services need workspac
 Decision: Use `bcryptjs` for password hashing in the first auth slice.
 
 Reason: It avoids native module build friction in local Docker and Codex environments while still providing bcrypt-compatible password hashing. A native implementation can be revisited later if performance becomes relevant.
+
+## 2026-04-28: Workspace RBAC Enforced From Database Membership
+
+Decision: Validate workspace access through `WorkspaceMember` at request time instead of trusting only the JWT role claim.
+
+Reason: JWT claims are useful request context, but database-backed membership checks prevent stale or forged workspace access from becoming the source of truth. The token identifies the user; the guard confirms tenant membership and required role before serving workspace-scoped resources.
