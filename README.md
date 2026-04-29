@@ -76,6 +76,10 @@ Initial workspace endpoints:
 - `POST /api/workspaces` - requires a bearer token and creates an `OWNER` membership for the authenticated user.
 - `GET /api/workspaces` - requires a bearer token and returns only workspaces where the user is a member.
 - `GET /api/workspaces/:id` - requires a bearer token and a workspace role.
+- `GET /api/workspaces/:id/members` - requires a bearer token and a workspace role.
+- `POST /api/workspaces/:id/members` - requires `OWNER` or `ADMIN`.
+- `PATCH /api/workspaces/:id/members/:memberId` - requires `OWNER` or `ADMIN`.
+- `DELETE /api/workspaces/:id/members/:memberId` - requires `OWNER` or `ADMIN`.
 
 Initial auth endpoints:
 

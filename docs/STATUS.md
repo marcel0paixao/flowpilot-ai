@@ -46,6 +46,9 @@ Week 1 foundation.
 - Changed `POST /api/workspaces` to create the workspace for the authenticated user as `OWNER`.
 - Added explicit safe user selection in workspace responses so `passwordHash` is not exposed.
 - Added unit tests for JWT guard, workspace role guard, auth profile, and workspace membership filtering.
+- Added workspace membership endpoints for listing, adding, role updates, and removal.
+- Added conservative member-management policies: no owner assignment/removal through member management, and admins can only manage member/viewer roles.
+- Added unit tests for workspace membership role policy.
 
 ## In Progress
 
@@ -98,6 +101,12 @@ Week 1 foundation.
 - `pnpm --filter @flowpilot/api build` passed after adding auth/RBAC guards.
 - `pnpm -r typecheck` passed after adding auth/RBAC guards.
 - Manual HTTP checks against Docker returned `200` for `/api/auth/login`, `/api/auth/me`, `/api/workspaces`, and `/api/workspaces/:id` with a bearer token.
+- `pnpm --filter @flowpilot/api test` passed with 21 tests after adding membership management.
+- `pnpm --filter @flowpilot/api typecheck` passed after adding membership management.
+- `pnpm --filter @flowpilot/api build` passed after adding membership management.
+- `pnpm -r typecheck` passed after adding membership management.
+- `docker compose config --quiet` passed after adding membership management.
+- Manual HTTP checks against Docker returned `200/201` for login, member listing, member creation, role update, and member removal with a bearer token.
 
 ## Notes
 
@@ -109,7 +118,7 @@ Week 1 foundation.
 
 ## Recommended Next Step
 
-Add role-specific write operations and a formal response contract for workspace APIs.
+Add formal response DTOs/contracts for auth and workspace APIs, then add seed/demo scripts for repeatable local testing.
 
 ## Notes For Next Chat
 
@@ -122,4 +131,4 @@ Start by reading:
 - `docs/DECISIONS.md`
 - `docs/NEXT_STEPS.md`
 
-Then continue with role-specific workspace mutations, formal API response DTOs, and RabbitMQ publishing conventions.
+Then continue with formal API response DTOs, seed/demo scripts, and RabbitMQ publishing conventions.
