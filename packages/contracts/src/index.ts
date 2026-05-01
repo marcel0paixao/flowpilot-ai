@@ -18,6 +18,20 @@ export type WorkflowExecutionRequested = {
   correlationId: string;
 };
 
+export type WorkflowCreated = {
+  eventName: typeof FLOWPILOT_ROUTING_KEYS.workflowCreated;
+  eventId: string;
+  occurredAt: string;
+  workspaceId: string;
+  workflowId: string;
+  workflowVersionId: string;
+  version: number;
+  name: string;
+  slug: string;
+  status: "DRAFT" | "ACTIVE" | "ARCHIVED";
+  correlationId: string;
+};
+
 export type WorkflowExecutionStarted = {
   eventName: typeof FLOWPILOT_ROUTING_KEYS.workflowExecutionStarted;
   eventId: string;
@@ -117,6 +131,7 @@ export type AiTraceCreated = {
 };
 
 export type FlowPilotEvent =
+  | WorkflowCreated
   | WorkflowExecutionRequested
   | WorkflowExecutionStarted
   | NodeExecutionStarted
@@ -127,6 +142,7 @@ export type FlowPilotEvent =
   | AiTraceCreated;
 
 export const eventNames = [
+  FLOWPILOT_ROUTING_KEYS.workflowCreated,
   FLOWPILOT_ROUTING_KEYS.workflowExecutionRequested,
   FLOWPILOT_ROUTING_KEYS.workflowExecutionStarted,
   FLOWPILOT_ROUTING_KEYS.nodeExecutionStarted,

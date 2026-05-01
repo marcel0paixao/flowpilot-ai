@@ -1,14 +1,25 @@
 import { ConflictException, Inject, Injectable, NotFoundException } from "@nestjs/common";
 import { Prisma, WorkflowStatus } from "@prisma/client/index";
+import {
+  FLOWPILOT_MESSAGE_PRODUCERS,
+  FLOWPILOT_MESSAGE_SCHEMA_VERSION,
+  FLOWPILOT_ROUTING_KEYS,
+  type WorkflowCreatedMessage
+} from "@flowpilot/contracts";
+import { randomUUID } from "node:crypto";
 
+import { MessagingService } from "../messaging/messaging.service.js";
 import { PrismaService } from "../prisma/prisma.service.js";
 import { CreateWorkflowDto } from "./dto/create-workflow.dto.js";
 
 @Injectable()
 export class WorkflowsService {
-  constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {}
+  constructor(
+    @Inject(PrismaService) private readonly prisma: PrismaService,
+    @Inject(MessagingService) private readonly messagingService: Pick<MessagingService, "publishEvent">
+  ) {}
 
-  async create(workspaceId: string, dto: CreateWorkflowDto) {
+  async create(workspaceId: string, dto: CreateWorkflowDto, actorUserId: string) {
     try {
       const workflow = await this.prisma.workflow.create({
         data: {
@@ -27,7 +38,14 @@ export class WorkflowsService {
         include: workflowWithCurrentVersion
       });
 
-      return toWorkflowResponse(workflow);
+      const response = toWorkflowResponse(workflow);
+
+      await this.messagingService.publishEvent(
+        FLOWPILOT_ROUTING_KEYS.workflowCreated,
+        createWorkflowCreatedMessage(response, actorUserId)
+      );
+
+      return response;
     } catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
         throw new ConflictException("Workflow slug already exists in this workspace");
@@ -70,6 +88,34 @@ export class WorkflowsService {
   private getInitialDefinition(definition?: Record<string, unknown>): Prisma.InputJsonValue {
     return (definition ?? { nodes: [], edges: [] }) as Prisma.InputJsonObject;
   }
+}
+
+function createWorkflowCreatedMessage(
+  workflow: ReturnType<typeof toWorkflowResponse>,
+  actorUserId: string
+): WorkflowCreatedMessage {
+  return {
+    eventName: FLOWPILOT_ROUTING_KEYS.workflowCreated,
+    eventId: randomUUID(),
+    schemaVersion: FLOWPILOT_MESSAGE_SCHEMA_VERSION,
+    occurredAt: new Date().toISOString(),
+    workspaceId: workflow.workspaceId,
+    correlationId: `workflow:${workflow.id}`,
+    producer: FLOWPILOT_MESSAGE_PRODUCERS.api,
+    actor: {
+      type: "user",
+      id: actorUserId
+    },
+    idempotencyKey: `workflow.created:${workflow.id}`,
+    payload: {
+      workflowId: workflow.id,
+      workflowVersionId: workflow.currentVersion.id,
+      version: workflow.currentVersion.version,
+      name: workflow.name,
+      slug: workflow.slug,
+      status: workflow.status
+    }
+  };
 }
 
 const workflowWithCurrentVersion = {

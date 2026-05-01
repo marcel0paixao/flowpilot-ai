@@ -3,6 +3,7 @@ import { test } from "node:test";
 
 import { ConflictException, NotFoundException } from "@nestjs/common";
 import { Prisma, WorkflowStatus } from "@prisma/client/index";
+import { FLOWPILOT_ROUTING_KEYS } from "@flowpilot/contracts";
 
 import { WorkflowsService } from "./workflows.service.js";
 
@@ -13,12 +14,13 @@ test("WorkflowsService creates a workflow with an initial draft version", async 
       create: mockAsync(workflow)
     }
   };
-  const service = new WorkflowsService(prisma as never);
+  const messagingService = fakeMessagingService();
+  const service = new WorkflowsService(prisma as never, messagingService);
 
   const result = await service.create("workspace-1", {
     name: "Lead Enrichment",
     slug: "lead-enrichment"
-  });
+  }, "user-1");
 
   assert.equal(result.id, "workflow-1");
   assert.equal(result.status, WorkflowStatus.DRAFT);
@@ -37,6 +39,9 @@ test("WorkflowsService creates a workflow with an initial draft version", async 
   assert.equal(createArgs.data.status, WorkflowStatus.DRAFT);
   assert.equal(createArgs.data.versions.create.version, 1);
   assert.deepEqual(createArgs.data.versions.create.definition, { nodes: [], edges: [] });
+  assert.equal(messagingService.publishEvent.calls[0]?.[0], FLOWPILOT_ROUTING_KEYS.workflowCreated);
+  assert.equal(messagingService.publishEvent.calls[0]?.[1].payload.workflowId, "workflow-1");
+  assert.equal(messagingService.publishEvent.calls[0]?.[1].actor.id, "user-1");
 });
 
 test("WorkflowsService throws ConflictException for duplicate workflow slug", async () => {
@@ -50,14 +55,14 @@ test("WorkflowsService throws ConflictException for duplicate workflow slug", as
       )
     }
   };
-  const service = new WorkflowsService(prisma as never);
+  const service = new WorkflowsService(prisma as never, fakeMessagingService());
 
   await assert.rejects(
     () =>
       service.create("workspace-1", {
         name: "Lead Enrichment",
         slug: "lead-enrichment"
-      }),
+      }, "user-1"),
     ConflictException
   );
 });
@@ -69,7 +74,7 @@ test("WorkflowsService lists workflows for a workspace", async () => {
       findMany: mockAsync(workflows)
     }
   };
-  const service = new WorkflowsService(prisma as never);
+  const service = new WorkflowsService(prisma as never, fakeMessagingService());
 
   const result = await service.findAllForWorkspace("workspace-1");
 
@@ -91,7 +96,7 @@ test("WorkflowsService throws NotFoundException when workflow is missing", async
       findFirst: mockAsync(null)
     }
   };
-  const service = new WorkflowsService(prisma as never);
+  const service = new WorkflowsService(prisma as never, fakeMessagingService());
 
   await assert.rejects(() => service.findOne("workspace-1", "missing-workflow"), NotFoundException);
 });
@@ -142,4 +147,10 @@ function mockReject(error: unknown) {
   };
 
   return Object.assign(fn, { calls });
+}
+
+function fakeMessagingService() {
+  return {
+    publishEvent: mockAsync(undefined)
+  };
 }

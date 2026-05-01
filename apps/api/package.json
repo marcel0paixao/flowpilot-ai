@@ -22,6 +22,7 @@
     "@fastify/helmet": "^13.0.2",
     "@fastify/static": "^9.1.3",
     "@flowpilot/config": "workspace:*",
+    "@flowpilot/contracts": "workspace:*",
     "@flowpilot/logger": "workspace:*",
     "@nestjs/common": "^11.1.19",
     "@nestjs/config": "^4.0.4",

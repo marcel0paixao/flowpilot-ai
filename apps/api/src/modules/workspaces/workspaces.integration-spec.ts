@@ -137,6 +137,14 @@ test("workflow HTTP flow creates, lists, details, and enforces workspace roles",
   });
   const workspaceId = workspace.json<{ id: string }>().id;
 
+  const invalidWorkflowResponse = await app.inject({
+    method: "POST",
+    url: `/api/workspaces/${workspaceId}/workflows`,
+    headers: bearer(ownerToken),
+    payload: {}
+  });
+  assert.equal(invalidWorkflowResponse.statusCode, 400);
+
   const createWorkflowResponse = await app.inject({
     method: "POST",
     url: `/api/workspaces/${workspaceId}/workflows`,

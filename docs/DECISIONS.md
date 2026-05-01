@@ -131,3 +131,9 @@ Reason: Workflow execution will cross service boundaries, so message names, retr
 Decision: Model workflows as workspace-scoped records with a `WorkflowStatus` and separate `WorkflowVersion` rows that store the executable definition as JSON.
 
 Reason: Workflow metadata changes independently from executable definitions. A version table makes future publishing, execution replay, audit trails, and rollback easier while keeping the first API slice small.
+
+## 2026-05-01: Publish `workflow.created` From Workflow Creation
+
+Decision: Add a `workflow.created` message contract and publish it from the API workflow creation path through `MessagingService.publishEvent(...)`.
+
+Reason: Workflow creation is the first domain event that proves the API can emit meaningful workflow lifecycle events. The implementation keeps publishing behind a small service boundary so it can later be upgraded to an outbox-backed or lower-level RabbitMQ publisher without changing workflow business logic.

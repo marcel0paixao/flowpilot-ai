@@ -37,6 +37,7 @@ Routing keys use lowercase dot-separated segments:
 Examples:
 
 - `workflow.execution.requested`
+- `workflow.created`
 - `workflow.execution.started`
 - `workflow.execution.completed`
 - `node.execution.failed`
@@ -169,6 +170,7 @@ Consumers should acknowledge only after durable side effects are complete.
 
 | Message | Category | Exchange | Routing key | Primary producer | Primary consumer |
 | --- | --- | --- | --- | --- | --- |
+| `workflow.created` | Event | `flowpilot.events` | `workflow.created` | `api` or `workflow-service` | `workflow-service`, `observability-service` |
 | `workflow.execution.requested` | Command | `flowpilot.commands` | `workflow.execution.requested` | `api` or `workflow-service` | `execution-worker` |
 | `workflow.execution.started` | Event | `flowpilot.events` | `workflow.execution.started` | `execution-worker` | `workflow-service`, `observability-service` |
 | `node.execution.started` | Event | `flowpilot.events` | `node.execution.started` | `execution-worker` | `workflow-service`, `observability-service` |

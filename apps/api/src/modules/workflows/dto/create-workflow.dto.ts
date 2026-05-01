@@ -8,6 +8,24 @@ import {
   MaxLength,
   MinLength
 } from "class-validator";
+import { z } from "zod";
+
+export const createWorkflowSchema = z
+  .object({
+    name: z.string().min(1).max(120),
+    slug: z
+      .string()
+      .min(3)
+      .max(80)
+      .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, {
+        message: "slug must use lowercase letters, numbers, and single hyphens"
+      }),
+    description: z.string().max(500).optional(),
+    definition: z.record(z.string(), z.unknown()).optional()
+  })
+  .strict();
+
+export type CreateWorkflowInput = z.infer<typeof createWorkflowSchema>;
 
 export class CreateWorkflowDto {
   @ApiProperty({ example: "Lead Enrichment" })

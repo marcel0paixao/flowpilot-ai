@@ -41,6 +41,9 @@ importers:
       '@flowpilot/config':
         specifier: workspace:*
         version: link:../../packages/config
+      '@flowpilot/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
       '@flowpilot/logger':
         specifier: workspace:*
         version: link:../../packages/logger

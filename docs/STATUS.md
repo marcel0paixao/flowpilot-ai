@@ -62,6 +62,9 @@ Week 1 foundation.
 - Added RBAC for workflow routes: create allows `OWNER`, `ADMIN`, and `MEMBER`; read allows all workspace roles.
 - Added workflow response/request DTOs and unit tests for workflow service behavior.
 - Updated demo seed to create a `Lead Enrichment` workflow with version `1`.
+- Added `workflow.created` to the shared messaging contracts.
+- Added `MessagingService.publishEvent(...)` and publish `workflow.created` after workflow creation.
+- Split messaging DI tokens from `MessagingModule` so messaging services can be unit tested without loading runtime config.
 
 ## In Progress
 
@@ -135,6 +138,9 @@ Week 1 foundation.
 - `pnpm -r typecheck` passed after adding workflow models and module.
 - Local development DB migration history was repaired with `prisma migrate resolve --applied 20260428012500_add_user_password_hash`, then `prisma migrate deploy` applied the workflow migration.
 - `pnpm --filter @flowpilot/api seed:demo` created or updated the demo `Lead Enrichment` workflow.
+- `pnpm --filter @flowpilot/contracts test` passed after adding `workflow.created`.
+- `pnpm --filter @flowpilot/api test` passed after adding `workflow.created` publishing.
+- `pnpm --filter @flowpilot/api test:integration` passed after adding `workflow.created` publishing.
 
 ## Notes
 
@@ -146,7 +152,7 @@ Week 1 foundation.
 
 ## Recommended Next Step
 
-Publish workflow domain events after workflow creation, starting with a `workflow.created` contract.
+Add an outbox-backed publisher or broker declaration helper before relying on RabbitMQ publishing for durable production behavior.
 
 ## Notes For Next Chat
 
@@ -159,4 +165,4 @@ Start by reading:
 - `docs/DECISIONS.md`
 - `docs/NEXT_STEPS.md`
 
-Then continue with workflow domain events and RabbitMQ publishing from the API/workflow boundary.
+Then continue with an outbox-backed publisher or broker declaration helper before expanding workflow execution events.

@@ -2,8 +2,8 @@ import { Module } from "@nestjs/common";
 import { ClientsModule, Transport } from "@nestjs/microservices";
 
 import { appConfig } from "../config/app.config.js";
-
-export const RABBITMQ_CLIENT = Symbol("RABBITMQ_CLIENT");
+import { MessagingService } from "./messaging.service.js";
+import { RABBITMQ_CLIENT } from "./messaging.tokens.js";
 
 @Module({
   imports: [
@@ -21,6 +21,7 @@ export const RABBITMQ_CLIENT = Symbol("RABBITMQ_CLIENT");
       }
     ])
   ],
-  exports: [ClientsModule]
+  providers: [MessagingService],
+  exports: [ClientsModule, MessagingService]
 })
 export class MessagingModule {}

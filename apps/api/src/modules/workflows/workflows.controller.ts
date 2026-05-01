@@ -2,10 +2,13 @@ import { Body, Controller, Get, Inject, Param, Post, UseGuards } from "@nestjs/c
 import { ApiBearerAuth, ApiCreatedResponse, ApiOkResponse, ApiTags } from "@nestjs/swagger";
 import { WorkspaceRole } from "@prisma/client/index";
 
+import { CurrentUser } from "../auth/decorators/current-user.decorator.js";
 import { WorkspaceRoles } from "../auth/decorators/workspace-roles.decorator.js";
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard.js";
 import { WorkspaceRolesGuard } from "../auth/guards/workspace-roles.guard.js";
-import { CreateWorkflowDto } from "./dto/create-workflow.dto.js";
+import type { AuthenticatedUser } from "../auth/types/current-user.js";
+import { ZodValidationPipe } from "../common/pipes/zod-validation.pipe.js";
+import { CreateWorkflowDto, createWorkflowSchema } from "./dto/create-workflow.dto.js";
 import { WorkflowResponseDto } from "./dto/workflow-response.dto.js";
 import { WorkflowsService } from "./workflows.service.js";
 
@@ -22,8 +25,12 @@ export class WorkflowsController {
     description: "Workflow created with an initial draft version.",
     type: WorkflowResponseDto
   })
-  create(@Param("workspaceId") workspaceId: string, @Body() dto: CreateWorkflowDto) {
-    return this.workflowsService.create(workspaceId, dto);
+  create(
+    @Param("workspaceId") workspaceId: string,
+    @Body(new ZodValidationPipe(createWorkflowSchema)) dto: CreateWorkflowDto,
+    @CurrentUser() user: AuthenticatedUser
+  ) {
+    return this.workflowsService.create(workspaceId, dto, user.sub);
   }
 
   @Get()

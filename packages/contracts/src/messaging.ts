@@ -6,6 +6,7 @@ export const FLOWPILOT_EXCHANGES = {
 } as const;
 
 export const FLOWPILOT_ROUTING_KEYS = {
+  workflowCreated: "workflow.created",
   workflowExecutionRequested: "workflow.execution.requested",
   workflowExecutionStarted: "workflow.execution.started",
   nodeExecutionStarted: "node.execution.started",
@@ -95,6 +96,15 @@ export type FlowPilotMessageEnvelope<
   payload: TPayload;
 };
 
+export type WorkflowCreatedPayload = {
+  workflowId: string;
+  workflowVersionId: string;
+  version: number;
+  name: string;
+  slug: string;
+  status: "DRAFT" | "ACTIVE" | "ARCHIVED";
+};
+
 export type WorkflowExecutionRequestedPayload = {
   workflowId: string;
   workflowVersion: number;
@@ -164,6 +174,11 @@ export type AiTraceCreatedPayload = {
   status: "success" | "error";
 };
 
+export type WorkflowCreatedMessage = FlowPilotMessageEnvelope<
+  typeof FLOWPILOT_ROUTING_KEYS.workflowCreated,
+  WorkflowCreatedPayload
+>;
+
 export type WorkflowExecutionRequestedMessage = FlowPilotMessageEnvelope<
   typeof FLOWPILOT_ROUTING_KEYS.workflowExecutionRequested,
   WorkflowExecutionRequestedPayload
@@ -205,6 +220,7 @@ export type AiTraceCreatedMessage = FlowPilotMessageEnvelope<
 >;
 
 export type FlowPilotMessage =
+  | WorkflowCreatedMessage
   | WorkflowExecutionRequestedMessage
   | WorkflowExecutionStartedMessage
   | NodeExecutionStartedMessage
