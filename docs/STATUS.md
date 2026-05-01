@@ -72,14 +72,16 @@ Week 1 foundation.
 - API startup now declares `flowpilot.commands`, `flowpilot.events`, `flowpilot.retry`, `flowpilot.dlx`, initial service queues, and bindings.
 - `workflow.execution.requested` is now published to `flowpilot.commands` and routed to `flowpilot.execution-worker.workflow-executions`.
 - `workflow.created` is now published to `flowpilot.events` and routed to workflow/observability event queues.
+- Added workflow execution read APIs:
+  - `GET /api/workspaces/:workspaceId/workflows/:workflowId/executions`
+  - `GET /api/workspaces/:workspaceId/workflows/:workflowId/executions/:executionId`
 
 ## In Progress
 
-- Workflow execution read APIs
+- First execution-worker consumer
 
 ## Not Started
 
-- RabbitMQ consumers
 - Frontend application UI
 - LangChain integration
 - RAG document ingestion
@@ -157,6 +159,10 @@ Week 1 foundation.
 - `docker compose up -d --force-recreate api` started the API and logged `RabbitMQ topology declared`.
 - `rabbitmqctl list_exchanges`, `list_queues`, and `list_bindings` confirmed the declared exchanges, queues, and bindings.
 - Manual HTTP execution request created `WorkflowExecution` `8b0e06b9-3d91-4b39-a95b-0ec7332f9dda` and RabbitMQ showed the message in `flowpilot.execution-worker.workflow-executions` with `exchange=flowpilot.commands` and `routing_key=workflow.execution.requested`.
+- `pnpm --filter @flowpilot/api test` passed with 35 tests after adding workflow execution read service coverage.
+- `pnpm --filter @flowpilot/api typecheck` passed after adding workflow execution read APIs.
+- `pnpm --filter @flowpilot/api test:integration` passed after adding workflow execution read HTTP coverage.
+- Manual HTTP checks returned `200` for workflow execution list/detail and `404` for a missing execution id.
 
 ## Notes
 
@@ -168,7 +174,7 @@ Week 1 foundation.
 
 ## Recommended Next Step
 
-Add workflow execution read APIs, then implement the first execution-worker consumer for `workflow.execution.requested`.
+Implement the first execution-worker consumer for `workflow.execution.requested`.
 
 ## Notes For Next Chat
 
@@ -181,4 +187,4 @@ Start by reading:
 - `docs/DECISIONS.md`
 - `docs/NEXT_STEPS.md`
 
-Then continue with workflow execution read APIs, followed by the first execution-worker consumer for `workflow.execution.requested`.
+Then continue with the first execution-worker consumer for `workflow.execution.requested`.

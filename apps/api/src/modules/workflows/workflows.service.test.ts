@@ -185,6 +185,84 @@ test("WorkflowsService rejects execution requests for missing workflows", async 
   );
 });
 
+test("WorkflowsService lists executions after confirming workflow ownership", async () => {
+  const executions = [workflowExecutionFixture()];
+  const prisma = {
+    workflow: {
+      findFirst: mockAsync({ id: "workflow-1" })
+    },
+    workflowExecution: {
+      findMany: mockAsync(executions)
+    }
+  };
+  const service = new WorkflowsService(prisma as never, fakeMessagingService());
+
+  const result = await service.findExecutions("workspace-1", "workflow-1");
+
+  assert.equal(result.length, 1);
+  assert.equal(result[0]?.id, "execution-1");
+
+  const findManyArgs = prisma.workflowExecution.findMany.calls[0]?.[0] as {
+    where: { workspaceId: string; workflowId: string };
+    orderBy: { createdAt: "desc" };
+  };
+
+  assert.equal(findManyArgs.where.workspaceId, "workspace-1");
+  assert.equal(findManyArgs.where.workflowId, "workflow-1");
+  assert.equal(findManyArgs.orderBy.createdAt, "desc");
+});
+
+test("WorkflowsService rejects listing executions for missing workflows", async () => {
+  const prisma = {
+    workflow: {
+      findFirst: mockAsync(null)
+    }
+  };
+  const service = new WorkflowsService(prisma as never, fakeMessagingService());
+
+  await assert.rejects(
+    () => service.findExecutions("workspace-1", "missing-workflow"),
+    NotFoundException
+  );
+});
+
+test("WorkflowsService returns execution details", async () => {
+  const execution = workflowExecutionFixture();
+  const prisma = {
+    workflowExecution: {
+      findFirst: mockAsync(execution)
+    }
+  };
+  const service = new WorkflowsService(prisma as never, fakeMessagingService());
+
+  const result = await service.findExecution("workspace-1", "workflow-1", "execution-1");
+
+  assert.equal(result.id, "execution-1");
+  assert.equal(result.workflowId, "workflow-1");
+
+  const findFirstArgs = prisma.workflowExecution.findFirst.calls[0]?.[0] as {
+    where: { id: string; workspaceId: string; workflowId: string };
+  };
+
+  assert.equal(findFirstArgs.where.id, "execution-1");
+  assert.equal(findFirstArgs.where.workspaceId, "workspace-1");
+  assert.equal(findFirstArgs.where.workflowId, "workflow-1");
+});
+
+test("WorkflowsService rejects missing execution details", async () => {
+  const prisma = {
+    workflowExecution: {
+      findFirst: mockAsync(null)
+    }
+  };
+  const service = new WorkflowsService(prisma as never, fakeMessagingService());
+
+  await assert.rejects(
+    () => service.findExecution("workspace-1", "workflow-1", "missing-execution"),
+    NotFoundException
+  );
+});
+
 function workflowFixture() {
   const now = new Date("2026-05-01T12:00:00.000Z");
 

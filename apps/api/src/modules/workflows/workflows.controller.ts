@@ -69,6 +69,41 @@ export class WorkflowsController {
     return this.workflowsService.findOne(workspaceId, workflowId);
   }
 
+  @Get(":workflowId/executions")
+  @WorkspaceRoles(
+    WorkspaceRole.OWNER,
+    WorkspaceRole.ADMIN,
+    WorkspaceRole.MEMBER,
+    WorkspaceRole.VIEWER
+  )
+  @ApiOkResponse({
+    description: "Workflow execution list.",
+    type: WorkflowExecutionResponseDto,
+    isArray: true
+  })
+  findExecutions(@Param("workspaceId") workspaceId: string, @Param("workflowId") workflowId: string) {
+    return this.workflowsService.findExecutions(workspaceId, workflowId);
+  }
+
+  @Get(":workflowId/executions/:executionId")
+  @WorkspaceRoles(
+    WorkspaceRole.OWNER,
+    WorkspaceRole.ADMIN,
+    WorkspaceRole.MEMBER,
+    WorkspaceRole.VIEWER
+  )
+  @ApiOkResponse({
+    description: "Workflow execution details.",
+    type: WorkflowExecutionResponseDto
+  })
+  findExecution(
+    @Param("workspaceId") workspaceId: string,
+    @Param("workflowId") workflowId: string,
+    @Param("executionId") executionId: string
+  ) {
+    return this.workflowsService.findExecution(workspaceId, workflowId, executionId);
+  }
+
   @Post(":workflowId/executions")
   @WorkspaceRoles(WorkspaceRole.OWNER, WorkspaceRole.ADMIN, WorkspaceRole.MEMBER)
   @ApiCreatedResponse({

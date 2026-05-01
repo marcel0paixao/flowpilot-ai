@@ -134,12 +134,60 @@ export class WorkflowsService {
     return response;
   }
 
+  async findExecutions(workspaceId: string, workflowId: string) {
+    await this.ensureWorkflowExists(workspaceId, workflowId);
+
+    const executions = await this.prisma.workflowExecution.findMany({
+      where: {
+        workspaceId,
+        workflowId
+      },
+      orderBy: {
+        createdAt: "desc"
+      }
+    });
+
+    return executions.map(toWorkflowExecutionResponse);
+  }
+
+  async findExecution(workspaceId: string, workflowId: string, executionId: string) {
+    const execution = await this.prisma.workflowExecution.findFirst({
+      where: {
+        id: executionId,
+        workspaceId,
+        workflowId
+      }
+    });
+
+    if (!execution) {
+      throw new NotFoundException("Workflow execution not found");
+    }
+
+    return toWorkflowExecutionResponse(execution);
+  }
+
   private getInitialDefinition(definition?: Record<string, unknown>): Prisma.InputJsonValue {
     return (definition ?? { nodes: [], edges: [] }) as Prisma.InputJsonObject;
   }
 
   private getExecutionInput(input?: Record<string, unknown>): Prisma.InputJsonValue {
     return (input ?? {}) as Prisma.InputJsonObject;
+  }
+
+  private async ensureWorkflowExists(workspaceId: string, workflowId: string): Promise<void> {
+    const workflow = await this.prisma.workflow.findFirst({
+      where: {
+        id: workflowId,
+        workspaceId
+      },
+      select: {
+        id: true
+      }
+    });
+
+    if (!workflow) {
+      throw new NotFoundException("Workflow not found");
+    }
   }
 }
 

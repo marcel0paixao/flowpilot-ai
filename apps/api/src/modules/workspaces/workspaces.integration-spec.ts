@@ -225,6 +225,29 @@ test("workflow HTTP flow creates, lists, details, and enforces workspace roles",
   assert.equal(execution.status, "PENDING");
   assert.equal(execution.input.leadId, "lead-1");
 
+  const executionListResponse = await app.inject({
+    method: "GET",
+    url: `/api/workspaces/${workspaceId}/workflows/${workflow.id}/executions`,
+    headers: bearer(ownerToken)
+  });
+  assert.equal(executionListResponse.statusCode, 200);
+  assert.equal(executionListResponse.json<{ id: string }[]>()[0]?.id, execution.id);
+
+  const executionDetailResponse = await app.inject({
+    method: "GET",
+    url: `/api/workspaces/${workspaceId}/workflows/${workflow.id}/executions/${execution.id}`,
+    headers: bearer(ownerToken)
+  });
+  assert.equal(executionDetailResponse.statusCode, 200);
+  assert.equal(executionDetailResponse.json<{ id: string }>().id, execution.id);
+
+  const missingExecutionResponse = await app.inject({
+    method: "GET",
+    url: `/api/workspaces/${workspaceId}/workflows/${workflow.id}/executions/00000000-0000-0000-0000-000000000000`,
+    headers: bearer(ownerToken)
+  });
+  assert.equal(missingExecutionResponse.statusCode, 404);
+
   await register("viewer@example.test", "Viewer Example");
   const viewerMember = await app.inject({
     method: "POST",
@@ -250,6 +273,13 @@ test("workflow HTTP flow creates, lists, details, and enforces workspace roles",
   });
 
   assert.equal(forbiddenCreate.statusCode, 403);
+
+  const viewerExecutionList = await app.inject({
+    method: "GET",
+    url: `/api/workspaces/${workspaceId}/workflows/${workflow.id}/executions`,
+    headers: bearer(viewerToken)
+  });
+  assert.equal(viewerExecutionList.statusCode, 200);
 
   const forbiddenExecution = await app.inject({
     method: "POST",
