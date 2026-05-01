@@ -54,6 +54,9 @@ Week 1 foundation.
 - Added an idempotent `pnpm --filter @flowpilot/api seed:demo` script for local demo data.
 - Added `pnpm --filter @flowpilot/api test:integration` for HTTP integration tests against a local PostgreSQL test database.
 - Added integration coverage for auth, workspace creation, member management, RBAC denial, and cross-tenant denial.
+- Defined RabbitMQ exchange, queue, routing key, retry, dead-letter, envelope, correlation, causation, and idempotency conventions in `docs/contracts/events.md`.
+- Added RabbitMQ constants, retry policy constants, producer constants, derived messaging types, envelope types, and enveloped message payload types in `packages/contracts`.
+- Added `@flowpilot/contracts` messaging tests that keep routing keys aligned with event names and validate naming conventions.
 
 ## In Progress
 
@@ -116,6 +119,10 @@ Week 1 foundation.
 - `pnpm --filter @flowpilot/api typecheck` passed after adding response DTO contracts.
 - `pnpm --filter @flowpilot/api seed:demo` created or updated the local demo workspace and users for `OWNER`, `ADMIN`, `MEMBER`, and `VIEWER`.
 - `pnpm --filter @flowpilot/api test:integration` created `flowpilot_test`, applied Prisma migrations, and passed with 2 HTTP integration tests.
+- `pnpm --filter @flowpilot/contracts test` passed with 5 messaging contract tests.
+- `pnpm --filter @flowpilot/contracts typecheck` passed after adding messaging constants and envelope types.
+- `pnpm --filter @flowpilot/contracts build` passed after adding messaging constants and envelope types.
+- `pnpm -r typecheck` passed after formalizing messaging contracts.
 
 ## Notes
 
@@ -127,7 +134,7 @@ Week 1 foundation.
 
 ## Recommended Next Step
 
-Define RabbitMQ publishing conventions, then introduce the first workflow domain model.
+Introduce the first workflow domain model and persistence shape.
 
 ## Notes For Next Chat
 
@@ -140,4 +147,4 @@ Start by reading:
 - `docs/DECISIONS.md`
 - `docs/NEXT_STEPS.md`
 
-Then continue with RabbitMQ publishing conventions and the first workflow domain model.
+Then continue with the first workflow domain model and persistence shape.

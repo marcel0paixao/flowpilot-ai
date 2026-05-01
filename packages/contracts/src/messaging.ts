@@ -1,0 +1,215 @@
+export const FLOWPILOT_EXCHANGES = {
+  commands: "flowpilot.commands",
+  events: "flowpilot.events",
+  retry: "flowpilot.retry",
+  dlx: "flowpilot.dlx"
+} as const;
+
+export const FLOWPILOT_ROUTING_KEYS = {
+  workflowExecutionRequested: "workflow.execution.requested",
+  workflowExecutionStarted: "workflow.execution.started",
+  nodeExecutionStarted: "node.execution.started",
+  nodeExecutionCompleted: "node.execution.completed",
+  nodeExecutionFailed: "node.execution.failed",
+  workflowExecutionCompleted: "workflow.execution.completed",
+  workflowExecutionFailed: "workflow.execution.failed",
+  aiTraceCreated: "ai.trace.created"
+} as const;
+
+export const FLOWPILOT_QUEUES = {
+  executionWorkerWorkflowExecutions: "flowpilot.execution-worker.workflow-executions",
+  workflowServiceExecutionEvents: "flowpilot.workflow-service.execution-events",
+  observabilityServiceAiTraces: "flowpilot.observability-service.ai-traces",
+  observabilityServiceExecutionEvents: "flowpilot.observability-service.execution-events"
+} as const;
+
+export const FLOWPILOT_RETRY_QUEUES = {
+  executionWorkerWorkflowExecutions10s: "flowpilot.retry.execution-worker.workflow-executions.10s",
+  executionWorkerWorkflowExecutions1m: "flowpilot.retry.execution-worker.workflow-executions.1m",
+  executionWorkerWorkflowExecutions5m: "flowpilot.retry.execution-worker.workflow-executions.5m"
+} as const;
+
+export const FLOWPILOT_DEAD_LETTER_QUEUES = {
+  executionWorkerWorkflowExecutions: "flowpilot.dlq.execution-worker.workflow-executions",
+  workflowServiceExecutionEvents: "flowpilot.dlq.workflow-service.execution-events",
+  observabilityServiceAiTraces: "flowpilot.dlq.observability-service.ai-traces"
+} as const;
+
+export const FLOWPILOT_MESSAGE_PRODUCERS = {
+  api: "api",
+  workflowService: "workflow-service",
+  executionWorker: "execution-worker",
+  aiOrchestrator: "ai-orchestrator",
+  observabilityService: "observability-service"
+} as const;
+
+export const FLOWPILOT_RETRY_DELAYS = {
+  first: "10s",
+  second: "1m",
+  third: "5m"
+} as const;
+
+export const FLOWPILOT_MAX_RETRY_ATTEMPTS = 3;
+
+export const FLOWPILOT_MESSAGE_SCHEMA_VERSION = 1;
+
+export type FlowPilotExchange =
+  (typeof FLOWPILOT_EXCHANGES)[keyof typeof FLOWPILOT_EXCHANGES];
+
+export type FlowPilotRoutingKey =
+  (typeof FLOWPILOT_ROUTING_KEYS)[keyof typeof FLOWPILOT_ROUTING_KEYS];
+
+export type FlowPilotQueue = (typeof FLOWPILOT_QUEUES)[keyof typeof FLOWPILOT_QUEUES];
+
+export type FlowPilotRetryQueue =
+  (typeof FLOWPILOT_RETRY_QUEUES)[keyof typeof FLOWPILOT_RETRY_QUEUES];
+
+export type FlowPilotDeadLetterQueue =
+  (typeof FLOWPILOT_DEAD_LETTER_QUEUES)[keyof typeof FLOWPILOT_DEAD_LETTER_QUEUES];
+
+export type FlowPilotMessageProducer =
+  (typeof FLOWPILOT_MESSAGE_PRODUCERS)[keyof typeof FLOWPILOT_MESSAGE_PRODUCERS];
+
+export type FlowPilotRetryDelay =
+  (typeof FLOWPILOT_RETRY_DELAYS)[keyof typeof FLOWPILOT_RETRY_DELAYS];
+
+export type FlowPilotActor = {
+  type: "user" | "system" | "webhook";
+  id: string;
+};
+
+export type FlowPilotMessageEnvelope<
+  TEventName extends FlowPilotRoutingKey,
+  TPayload extends Record<string, unknown>
+> = {
+  eventName: TEventName;
+  eventId: string;
+  schemaVersion: typeof FLOWPILOT_MESSAGE_SCHEMA_VERSION;
+  occurredAt: string;
+  workspaceId: string;
+  correlationId: string;
+  causationId?: string;
+  producer: FlowPilotMessageProducer;
+  actor?: FlowPilotActor;
+  idempotencyKey?: string;
+  payload: TPayload;
+};
+
+export type WorkflowExecutionRequestedPayload = {
+  workflowId: string;
+  workflowVersion: number;
+  executionId: string;
+  requestedBy: FlowPilotActor;
+  input: Record<string, unknown>;
+};
+
+export type WorkflowExecutionStartedPayload = {
+  workflowId: string;
+  executionId: string;
+};
+
+export type NodeExecutionStartedPayload = {
+  workflowId: string;
+  executionId: string;
+  nodeId: string;
+  nodeType: string;
+};
+
+export type NodeExecutionCompletedPayload = {
+  workflowId: string;
+  executionId: string;
+  nodeId: string;
+  output: Record<string, unknown>;
+  durationMs: number;
+};
+
+export type FlowPilotExecutionError = {
+  code: string;
+  message: string;
+  retryable: boolean;
+};
+
+export type NodeExecutionFailedPayload = {
+  workflowId: string;
+  executionId: string;
+  nodeId: string;
+  error: FlowPilotExecutionError;
+};
+
+export type WorkflowExecutionCompletedPayload = {
+  workflowId: string;
+  executionId: string;
+  output: Record<string, unknown>;
+  durationMs: number;
+};
+
+export type WorkflowExecutionFailedPayload = {
+  workflowId: string;
+  executionId: string;
+  error: FlowPilotExecutionError;
+};
+
+export type AiTraceCreatedPayload = {
+  traceId: string;
+  executionId?: string;
+  model: string;
+  provider: string;
+  latencyMs: number;
+  tokenUsage: {
+    inputTokens: number;
+    outputTokens: number;
+    totalTokens: number;
+  };
+  estimatedCostUsd?: number;
+  status: "success" | "error";
+};
+
+export type WorkflowExecutionRequestedMessage = FlowPilotMessageEnvelope<
+  typeof FLOWPILOT_ROUTING_KEYS.workflowExecutionRequested,
+  WorkflowExecutionRequestedPayload
+>;
+
+export type WorkflowExecutionStartedMessage = FlowPilotMessageEnvelope<
+  typeof FLOWPILOT_ROUTING_KEYS.workflowExecutionStarted,
+  WorkflowExecutionStartedPayload
+>;
+
+export type NodeExecutionStartedMessage = FlowPilotMessageEnvelope<
+  typeof FLOWPILOT_ROUTING_KEYS.nodeExecutionStarted,
+  NodeExecutionStartedPayload
+>;
+
+export type NodeExecutionCompletedMessage = FlowPilotMessageEnvelope<
+  typeof FLOWPILOT_ROUTING_KEYS.nodeExecutionCompleted,
+  NodeExecutionCompletedPayload
+>;
+
+export type NodeExecutionFailedMessage = FlowPilotMessageEnvelope<
+  typeof FLOWPILOT_ROUTING_KEYS.nodeExecutionFailed,
+  NodeExecutionFailedPayload
+>;
+
+export type WorkflowExecutionCompletedMessage = FlowPilotMessageEnvelope<
+  typeof FLOWPILOT_ROUTING_KEYS.workflowExecutionCompleted,
+  WorkflowExecutionCompletedPayload
+>;
+
+export type WorkflowExecutionFailedMessage = FlowPilotMessageEnvelope<
+  typeof FLOWPILOT_ROUTING_KEYS.workflowExecutionFailed,
+  WorkflowExecutionFailedPayload
+>;
+
+export type AiTraceCreatedMessage = FlowPilotMessageEnvelope<
+  typeof FLOWPILOT_ROUTING_KEYS.aiTraceCreated,
+  AiTraceCreatedPayload
+>;
+
+export type FlowPilotMessage =
+  | WorkflowExecutionRequestedMessage
+  | WorkflowExecutionStartedMessage
+  | NodeExecutionStartedMessage
+  | NodeExecutionCompletedMessage
+  | NodeExecutionFailedMessage
+  | WorkflowExecutionCompletedMessage
+  | WorkflowExecutionFailedMessage
+  | AiTraceCreatedMessage;

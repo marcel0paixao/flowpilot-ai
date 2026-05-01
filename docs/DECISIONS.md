@@ -119,3 +119,9 @@ Reason: A repeatable seed keeps local testing and portfolio demos fast without d
 Decision: Add API integration tests that run the Nest/Fastify app in-process while using a real PostgreSQL database named `flowpilot_test`.
 
 Reason: Unit tests cover service policy, but the API also needs confidence across controllers, validation pipes, guards, JWT verification, Prisma queries, and migrations. A local Docker-backed test database keeps the setup close to development infrastructure without adding another test service yet.
+
+## 2026-04-29: RabbitMQ Naming And Delivery Conventions
+
+Decision: Use topic exchanges named `flowpilot.commands`, `flowpilot.events`, `flowpilot.retry`, and `flowpilot.dlx`; dotted routing keys matching event names; service-owned queues named `flowpilot.<service>.<purpose>`; and a standard JSON envelope with tenant, correlation, causation, producer, and schema metadata.
+
+Reason: Workflow execution will cross service boundaries, so message names, retry behavior, dead-letter handling, idempotency, and trace context must be explicit before implementing workflow persistence and publishers. This keeps the first workflow slice aligned with the future worker and observability services.

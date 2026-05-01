@@ -1,5 +1,9 @@
+export * from "./messaging.js";
+
+import { FLOWPILOT_ROUTING_KEYS } from "./messaging.js";
+
 export type WorkflowExecutionRequested = {
-  eventName: "workflow.execution.requested";
+  eventName: typeof FLOWPILOT_ROUTING_KEYS.workflowExecutionRequested;
   eventId: string;
   occurredAt: string;
   workspaceId: string;
@@ -15,7 +19,7 @@ export type WorkflowExecutionRequested = {
 };
 
 export type WorkflowExecutionStarted = {
-  eventName: "workflow.execution.started";
+  eventName: typeof FLOWPILOT_ROUTING_KEYS.workflowExecutionStarted;
   eventId: string;
   occurredAt: string;
   workspaceId: string;
@@ -25,7 +29,7 @@ export type WorkflowExecutionStarted = {
 };
 
 export type NodeExecutionStarted = {
-  eventName: "node.execution.started";
+  eventName: typeof FLOWPILOT_ROUTING_KEYS.nodeExecutionStarted;
   eventId: string;
   occurredAt: string;
   workspaceId: string;
@@ -37,7 +41,7 @@ export type NodeExecutionStarted = {
 };
 
 export type NodeExecutionCompleted = {
-  eventName: "node.execution.completed";
+  eventName: typeof FLOWPILOT_ROUTING_KEYS.nodeExecutionCompleted;
   eventId: string;
   occurredAt: string;
   workspaceId: string;
@@ -50,7 +54,7 @@ export type NodeExecutionCompleted = {
 };
 
 export type NodeExecutionFailed = {
-  eventName: "node.execution.failed";
+  eventName: typeof FLOWPILOT_ROUTING_KEYS.nodeExecutionFailed;
   eventId: string;
   occurredAt: string;
   workspaceId: string;
@@ -66,7 +70,7 @@ export type NodeExecutionFailed = {
 };
 
 export type WorkflowExecutionCompleted = {
-  eventName: "workflow.execution.completed";
+  eventName: typeof FLOWPILOT_ROUTING_KEYS.workflowExecutionCompleted;
   eventId: string;
   occurredAt: string;
   workspaceId: string;
@@ -78,7 +82,7 @@ export type WorkflowExecutionCompleted = {
 };
 
 export type WorkflowExecutionFailed = {
-  eventName: "workflow.execution.failed";
+  eventName: typeof FLOWPILOT_ROUTING_KEYS.workflowExecutionFailed;
   eventId: string;
   occurredAt: string;
   workspaceId: string;
@@ -93,7 +97,7 @@ export type WorkflowExecutionFailed = {
 };
 
 export type AiTraceCreated = {
-  eventName: "ai.trace.created";
+  eventName: typeof FLOWPILOT_ROUTING_KEYS.aiTraceCreated;
   eventId: string;
   occurredAt: string;
   workspaceId: string;
@@ -123,14 +127,14 @@ export type FlowPilotEvent =
   | AiTraceCreated;
 
 export const eventNames = [
-  "workflow.execution.requested",
-  "workflow.execution.started",
-  "node.execution.started",
-  "node.execution.completed",
-  "node.execution.failed",
-  "workflow.execution.completed",
-  "workflow.execution.failed",
-  "ai.trace.created"
+  FLOWPILOT_ROUTING_KEYS.workflowExecutionRequested,
+  FLOWPILOT_ROUTING_KEYS.workflowExecutionStarted,
+  FLOWPILOT_ROUTING_KEYS.nodeExecutionStarted,
+  FLOWPILOT_ROUTING_KEYS.nodeExecutionCompleted,
+  FLOWPILOT_ROUTING_KEYS.nodeExecutionFailed,
+  FLOWPILOT_ROUTING_KEYS.workflowExecutionCompleted,
+  FLOWPILOT_ROUTING_KEYS.workflowExecutionFailed,
+  FLOWPILOT_ROUTING_KEYS.aiTraceCreated
 ] as const;
 
 export type FlowPilotEventName = (typeof eventNames)[number];
