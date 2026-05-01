@@ -1,22 +1,25 @@
 import { ConflictException, Inject, Injectable, NotFoundException } from "@nestjs/common";
-import { Prisma, WorkflowStatus } from "@prisma/client/index";
+import { Prisma } from "@prisma/client/index";
 import {
   FLOWPILOT_MESSAGE_PRODUCERS,
   FLOWPILOT_MESSAGE_SCHEMA_VERSION,
   FLOWPILOT_ROUTING_KEYS,
-  type WorkflowCreatedMessage
+  type WorkflowCreatedMessage,
+  type WorkflowExecutionRequestedMessage
 } from "@flowpilot/contracts";
 import { randomUUID } from "node:crypto";
 
 import { MessagingService } from "../messaging/messaging.service.js";
 import { PrismaService } from "../prisma/prisma.service.js";
+import { CreateWorkflowExecutionDto } from "./dto/create-workflow-execution.dto.js";
 import { CreateWorkflowDto } from "./dto/create-workflow.dto.js";
 
 @Injectable()
 export class WorkflowsService {
   constructor(
     @Inject(PrismaService) private readonly prisma: PrismaService,
-    @Inject(MessagingService) private readonly messagingService: Pick<MessagingService, "publishEvent">
+    @Inject(MessagingService)
+    private readonly messagingService: Pick<MessagingService, "publishEvent">
   ) {}
 
   async create(workspaceId: string, dto: CreateWorkflowDto, actorUserId: string) {
@@ -27,7 +30,7 @@ export class WorkflowsService {
           name: dto.name,
           slug: dto.slug,
           description: dto.description,
-          status: WorkflowStatus.DRAFT,
+          status: "DRAFT",
           versions: {
             create: {
               version: 1,
@@ -85,8 +88,57 @@ export class WorkflowsService {
     return toWorkflowResponse(workflow);
   }
 
+  async requestExecution(
+    workspaceId: string,
+    workflowId: string,
+    dto: CreateWorkflowExecutionDto,
+    actorUserId: string
+  ) {
+    const workflow = await this.prisma.workflow.findFirst({
+      where: {
+        id: workflowId,
+        workspaceId
+      },
+      include: workflowWithCurrentVersion
+    });
+
+    if (!workflow) {
+      throw new NotFoundException("Workflow not found");
+    }
+
+    const currentVersion = workflow.versions[0];
+
+    if (!currentVersion) {
+      throw new NotFoundException("Workflow version not found");
+    }
+
+    const execution = await this.prisma.workflowExecution.create({
+      data: {
+        workspaceId,
+        workflowId,
+        workflowVersionId: currentVersion.id,
+        requestedByUserId: actorUserId,
+        status: "PENDING",
+        input: this.getExecutionInput(dto.input)
+      }
+    });
+
+    const response = toWorkflowExecutionResponse(execution);
+
+    await this.messagingService.publishEvent(
+      FLOWPILOT_ROUTING_KEYS.workflowExecutionRequested,
+      createWorkflowExecutionRequestedMessage(response, currentVersion.version, actorUserId)
+    );
+
+    return response;
+  }
+
   private getInitialDefinition(definition?: Record<string, unknown>): Prisma.InputJsonValue {
     return (definition ?? { nodes: [], edges: [] }) as Prisma.InputJsonObject;
+  }
+
+  private getExecutionInput(input?: Record<string, unknown>): Prisma.InputJsonValue {
+    return (input ?? {}) as Prisma.InputJsonObject;
   }
 }
 
@@ -118,6 +170,37 @@ function createWorkflowCreatedMessage(
   };
 }
 
+function createWorkflowExecutionRequestedMessage(
+  execution: ReturnType<typeof toWorkflowExecutionResponse>,
+  workflowVersion: number,
+  actorUserId: string
+): WorkflowExecutionRequestedMessage {
+  return {
+    eventName: FLOWPILOT_ROUTING_KEYS.workflowExecutionRequested,
+    eventId: randomUUID(),
+    schemaVersion: FLOWPILOT_MESSAGE_SCHEMA_VERSION,
+    occurredAt: new Date().toISOString(),
+    workspaceId: execution.workspaceId,
+    correlationId: `workflow-execution:${execution.id}`,
+    producer: FLOWPILOT_MESSAGE_PRODUCERS.api,
+    actor: {
+      type: "user",
+      id: actorUserId
+    },
+    idempotencyKey: `workflow.execution.requested:${execution.id}`,
+    payload: {
+      workflowId: execution.workflowId,
+      workflowVersion,
+      executionId: execution.id,
+      requestedBy: {
+        type: "user",
+        id: actorUserId
+      },
+      input: execution.input as Record<string, unknown>
+    }
+  };
+}
+
 const workflowWithCurrentVersion = {
   versions: {
     orderBy: {
@@ -130,6 +213,8 @@ const workflowWithCurrentVersion = {
 type WorkflowWithCurrentVersion = Prisma.WorkflowGetPayload<{
   include: typeof workflowWithCurrentVersion;
 }>;
+
+type WorkflowExecution = Prisma.WorkflowExecutionGetPayload<Record<string, never>>;
 
 function toWorkflowResponse(workflow: WorkflowWithCurrentVersion) {
   const currentVersion = workflow.versions[0];
@@ -154,5 +239,23 @@ function toWorkflowResponse(workflow: WorkflowWithCurrentVersion) {
       createdAt: currentVersion.createdAt,
       updatedAt: currentVersion.updatedAt
     }
+  };
+}
+
+function toWorkflowExecutionResponse(execution: WorkflowExecution) {
+  return {
+    id: execution.id,
+    workspaceId: execution.workspaceId,
+    workflowId: execution.workflowId,
+    workflowVersionId: execution.workflowVersionId,
+    requestedByUserId: execution.requestedByUserId,
+    status: execution.status,
+    input: execution.input,
+    output: execution.output,
+    error: execution.error,
+    startedAt: execution.startedAt,
+    completedAt: execution.completedAt,
+    createdAt: execution.createdAt,
+    updatedAt: execution.updatedAt
   };
 }

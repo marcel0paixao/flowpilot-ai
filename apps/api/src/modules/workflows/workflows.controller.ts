@@ -8,7 +8,12 @@ import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard.js";
 import { WorkspaceRolesGuard } from "../auth/guards/workspace-roles.guard.js";
 import type { AuthenticatedUser } from "../auth/types/current-user.js";
 import { ZodValidationPipe } from "../common/pipes/zod-validation.pipe.js";
+import {
+  CreateWorkflowExecutionDto,
+  createWorkflowExecutionSchema
+} from "./dto/create-workflow-execution.dto.js";
 import { CreateWorkflowDto, createWorkflowSchema } from "./dto/create-workflow.dto.js";
+import { WorkflowExecutionResponseDto } from "./dto/workflow-execution-response.dto.js";
 import { WorkflowResponseDto } from "./dto/workflow-response.dto.js";
 import { WorkflowsService } from "./workflows.service.js";
 
@@ -62,5 +67,20 @@ export class WorkflowsController {
   })
   findOne(@Param("workspaceId") workspaceId: string, @Param("workflowId") workflowId: string) {
     return this.workflowsService.findOne(workspaceId, workflowId);
+  }
+
+  @Post(":workflowId/executions")
+  @WorkspaceRoles(WorkspaceRole.OWNER, WorkspaceRole.ADMIN, WorkspaceRole.MEMBER)
+  @ApiCreatedResponse({
+    description: "Workflow execution requested and queued for asynchronous processing.",
+    type: WorkflowExecutionResponseDto
+  })
+  requestExecution(
+    @Param("workspaceId") workspaceId: string,
+    @Param("workflowId") workflowId: string,
+    @Body(new ZodValidationPipe(createWorkflowExecutionSchema)) dto: CreateWorkflowExecutionDto,
+    @CurrentUser() user: AuthenticatedUser
+  ) {
+    return this.workflowsService.requestExecution(workspaceId, workflowId, dto, user.sub);
   }
 }

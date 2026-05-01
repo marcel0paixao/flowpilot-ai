@@ -65,6 +65,9 @@ Week 1 foundation.
 - Added `workflow.created` to the shared messaging contracts.
 - Added `MessagingService.publishEvent(...)` and publish `workflow.created` after workflow creation.
 - Split messaging DI tokens from `MessagingModule` so messaging services can be unit tested without loading runtime config.
+- Added Prisma model and migration for `WorkflowExecution` with `WorkflowExecutionStatus`.
+- Added `POST /api/workspaces/:workspaceId/workflows/:workflowId/executions` to persist a pending execution request and publish `workflow.execution.requested`.
+- Added workflow execution request/response DTOs and Zod body validation for execution input.
 
 ## In Progress
 
@@ -72,8 +75,7 @@ Week 1 foundation.
 
 ## Not Started
 
-- RabbitMQ publishers, consumers, exchanges, and queue conventions
-- Workflow definition model
+- RabbitMQ consumers, exchanges, and queue declaration helpers
 - Frontend application UI
 - LangChain integration
 - RAG document ingestion
@@ -141,6 +143,10 @@ Week 1 foundation.
 - `pnpm --filter @flowpilot/contracts test` passed after adding `workflow.created`.
 - `pnpm --filter @flowpilot/api test` passed after adding `workflow.created` publishing.
 - `pnpm --filter @flowpilot/api test:integration` passed after adding `workflow.created` publishing.
+- `pnpm --filter @flowpilot/api prisma:generate` passed after adding workflow executions.
+- `pnpm --filter @flowpilot/api test` passed with 27 tests after adding workflow execution request service coverage.
+- `pnpm --filter @flowpilot/api typecheck` passed after adding workflow execution request APIs.
+- `pnpm --filter @flowpilot/api test:integration` applied the workflow execution migration to `flowpilot_test` and passed with 3 HTTP integration tests.
 
 ## Notes
 
@@ -152,7 +158,7 @@ Week 1 foundation.
 
 ## Recommended Next Step
 
-Add an outbox-backed publisher or broker declaration helper before relying on RabbitMQ publishing for durable production behavior.
+Add workflow execution read APIs and then an outbox-backed publisher or broker declaration helper before relying on RabbitMQ publishing for durable production behavior.
 
 ## Notes For Next Chat
 
@@ -165,4 +171,4 @@ Start by reading:
 - `docs/DECISIONS.md`
 - `docs/NEXT_STEPS.md`
 
-Then continue with an outbox-backed publisher or broker declaration helper before expanding workflow execution events.
+Then continue with workflow execution read APIs, followed by an outbox-backed publisher or broker declaration helper before expanding execution-worker consumers.

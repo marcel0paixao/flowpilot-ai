@@ -16,6 +16,7 @@ model Workspace {
 
   members WorkspaceMember[]
   workflows Workflow[]
+  workflowExecutions WorkflowExecution[]
 }
 
 model User {
@@ -27,6 +28,7 @@ model User {
   updatedAt   DateTime          @updatedAt
 
   memberships WorkspaceMember[]
+  requestedWorkflowExecutions WorkflowExecution[]
 }
 
 model WorkspaceMember {
@@ -56,6 +58,7 @@ model Workflow {
 
   workspace Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   versions  WorkflowVersion[]
+  executions WorkflowExecution[]
 
   @@unique([workspaceId, slug])
   @@index([workspaceId])
@@ -70,9 +73,37 @@ model WorkflowVersion {
   updatedAt  DateTime @updatedAt
 
   workflow Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  executions WorkflowExecution[]
 
   @@unique([workflowId, version])
   @@index([workflowId])
+}
+
+model WorkflowExecution {
+  id                String                  @id @default(uuid())
+  workspaceId       String
+  workflowId        String
+  workflowVersionId String
+  requestedByUserId String?
+  status            WorkflowExecutionStatus @default(PENDING)
+  input             Json
+  output            Json?
+  error             Json?
+  startedAt         DateTime?
+  completedAt       DateTime?
+  createdAt         DateTime                @default(now())
+  updatedAt         DateTime                @updatedAt
+
+  workspace       Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  workflow        Workflow        @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  workflowVersion WorkflowVersion @relation(fields: [workflowVersionId], references: [id], onDelete: Restrict)
+  requestedBy     User?           @relation(fields: [requestedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId])
+  @@index([workflowId])
+  @@index([workflowVersionId])
+  @@index([requestedByUserId])
+  @@index([status])
 }
 
 enum WorkspaceRole {
@@ -86,4 +117,12 @@ enum WorkflowStatus {
   DRAFT
   ACTIVE
   ARCHIVED
+}
+
+enum WorkflowExecutionStatus {
+  PENDING
+  RUNNING
+  SUCCEEDED
+  FAILED
+  CANCELLED
 }

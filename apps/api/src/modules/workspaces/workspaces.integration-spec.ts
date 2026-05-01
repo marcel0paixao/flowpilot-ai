@@ -15,6 +15,7 @@ before(async () => {
 });
 
 beforeEach(async () => {
+  await prisma.workflowExecution.deleteMany();
   await prisma.workflowVersion.deleteMany();
   await prisma.workflow.deleteMany();
   await prisma.workspaceMember.deleteMany();
@@ -163,7 +164,11 @@ test("workflow HTTP flow creates, lists, details, and enforces workspace roles",
   const workflow = createWorkflowResponse.json<{
     id: string;
     status: string;
-    currentVersion: { version: number; definition: { nodes: unknown[]; edges: unknown[] } };
+    currentVersion: {
+      id: string;
+      version: number;
+      definition: { nodes: unknown[]; edges: unknown[] };
+    };
   }>();
   assert.equal(workflow.status, "DRAFT");
   assert.equal(workflow.currentVersion.version, 1);
@@ -184,6 +189,41 @@ test("workflow HTTP flow creates, lists, details, and enforces workspace roles",
   });
   assert.equal(detailResponse.statusCode, 200);
   assert.equal(detailResponse.json<{ id: string }>().id, workflow.id);
+
+  const invalidExecutionResponse = await app.inject({
+    method: "POST",
+    url: `/api/workspaces/${workspaceId}/workflows/${workflow.id}/executions`,
+    headers: bearer(ownerToken),
+    payload: {
+      input: "not-an-object"
+    }
+  });
+  assert.equal(invalidExecutionResponse.statusCode, 400);
+
+  const executionResponse = await app.inject({
+    method: "POST",
+    url: `/api/workspaces/${workspaceId}/workflows/${workflow.id}/executions`,
+    headers: bearer(ownerToken),
+    payload: {
+      input: {
+        leadId: "lead-1"
+      }
+    }
+  });
+  assert.equal(executionResponse.statusCode, 201);
+
+  const execution = executionResponse.json<{
+    id: string;
+    workflowId: string;
+    workflowVersionId: string;
+    requestedByUserId: string;
+    status: string;
+    input: { leadId: string };
+  }>();
+  assert.equal(execution.workflowId, workflow.id);
+  assert.equal(execution.workflowVersionId, workflow.currentVersion.id);
+  assert.equal(execution.status, "PENDING");
+  assert.equal(execution.input.leadId, "lead-1");
 
   await register("viewer@example.test", "Viewer Example");
   const viewerMember = await app.inject({
@@ -210,6 +250,17 @@ test("workflow HTTP flow creates, lists, details, and enforces workspace roles",
   });
 
   assert.equal(forbiddenCreate.statusCode, 403);
+
+  const forbiddenExecution = await app.inject({
+    method: "POST",
+    url: `/api/workspaces/${workspaceId}/workflows/${workflow.id}/executions`,
+    headers: bearer(viewerToken),
+    payload: {
+      input: {}
+    }
+  });
+
+  assert.equal(forbiddenExecution.statusCode, 403);
 });
 
 test("workspace detail rejects cross-tenant access", async () => {

@@ -137,3 +137,9 @@ Reason: Workflow metadata changes independently from executable definitions. A v
 Decision: Add a `workflow.created` message contract and publish it from the API workflow creation path through `MessagingService.publishEvent(...)`.
 
 Reason: Workflow creation is the first domain event that proves the API can emit meaningful workflow lifecycle events. The implementation keeps publishing behind a small service boundary so it can later be upgraded to an outbox-backed or lower-level RabbitMQ publisher without changing workflow business logic.
+
+## 2026-05-01: Persist Execution Requests Before Publishing Commands
+
+Decision: Add `WorkflowExecution` persistence and have the API create a `PENDING` execution before publishing `workflow.execution.requested`.
+
+Reason: A workflow run needs a durable local record before asynchronous processing starts. Persisting first gives users and future workers a stable `executionId`, supports idempotency, and creates the base for status tracking, retries, audit history, and observability.
