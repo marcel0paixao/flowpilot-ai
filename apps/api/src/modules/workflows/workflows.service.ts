@@ -9,7 +9,8 @@ import {
 } from "@flowpilot/contracts";
 import { randomUUID } from "node:crypto";
 
-import { MessagingService } from "../messaging/messaging.service.js";
+import type { MessagePublisher } from "../messaging/message-publisher.js";
+import { MESSAGE_PUBLISHER } from "../messaging/messaging.tokens.js";
 import { PrismaService } from "../prisma/prisma.service.js";
 import { CreateWorkflowExecutionDto } from "./dto/create-workflow-execution.dto.js";
 import { CreateWorkflowDto } from "./dto/create-workflow.dto.js";
@@ -18,8 +19,8 @@ import { CreateWorkflowDto } from "./dto/create-workflow.dto.js";
 export class WorkflowsService {
   constructor(
     @Inject(PrismaService) private readonly prisma: PrismaService,
-    @Inject(MessagingService)
-    private readonly messagingService: Pick<MessagingService, "publishEvent">
+    @Inject(MESSAGE_PUBLISHER)
+    private readonly messagingService: MessagePublisher
   ) {}
 
   async create(workspaceId: string, dto: CreateWorkflowDto, actorUserId: string) {

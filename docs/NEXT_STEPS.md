@@ -62,25 +62,28 @@ Create the project foundation.
 - Added `WorkflowExecution` persistence with `PENDING`, `RUNNING`, `SUCCEEDED`, `FAILED`, and `CANCELLED` statuses.
 - Added `POST /api/workspaces/:workspaceId/workflows/:workflowId/executions` to create a pending execution and publish `workflow.execution.requested`.
 - Added validation, response DTOs, unit tests, and HTTP integration coverage for workflow execution requests.
+- Added an `amqplib`-backed RabbitMQ declaration/publisher helper in the API.
+- Declared `flowpilot.commands`, `flowpilot.events`, `flowpilot.retry`, `flowpilot.dlx`, service queues, and initial bindings at API startup.
+- Verified `workflow.execution.requested` reaches `flowpilot.execution-worker.workflow-executions` through `flowpilot.commands`.
 
 ## Immediate Tasks
 
 - Add workflow execution list/detail APIs:
   - `GET /api/workspaces/:workspaceId/workflows/:workflowId/executions`
   - `GET /api/workspaces/:workspaceId/workflows/:workflowId/executions/:executionId`
-- Add outbox-backed publishing or broker declaration helpers for durable messaging.
+- Add the first execution-worker consumer for `workflow.execution.requested`.
+- Add outbox-backed publishing after the first consumer proves the end-to-end flow.
 - Add explicit ownership-transfer policy only when product requirements need it.
 
 ## Next Architecture Tasks
 
 - Define role permissions for `OWNER`, `ADMIN`, `MEMBER`, and `VIEWER`.
-- Decide whether the API service should connect to RabbitMQ at startup or lazily when publishing first messages.
 - Add local service Dockerfiles after the first service process is real.
 
 ## Open Questions
 
 - Should `apps/api` own all auth/workspace data for the MVP, or should workspace APIs move into a separate service after auth stabilizes?
-- Should RabbitMQ queue/exchange declarations live in code, migration-like setup scripts, or local infrastructure scripts?
+- Should RabbitMQ declarations stay in service startup code long-term, or move to infrastructure-as-code once deployment shape is clearer?
 - Should the web app be initialized as Next.js immediately, or after backend APIs exist?
 
 ## Prompt For Next Chat
@@ -97,9 +100,9 @@ Este novo chat deve continuar o projeto sem depender de conversas anteriores. Le
 - docs/DECISIONS.md
 - docs/NEXT_STEPS.md
 
-Estado atual: o monorepo TypeScript/pnpm já foi scaffoldado com apps, packages, Docker Compose, `.env.example`, contratos iniciais de eventos RabbitMQ e documentação atualizada. `apps/api` usa NestJS com Fastify, Zod/dotenv para config, Prisma 6, Swagger em `/docs`, healthcheck em `/api/health`, RabbitMQ via `@nestjs/microservices`, workspace APIs persistidas e auth register/login/me com JWT. O schema Prisma tem `Workspace`, `User`, `WorkspaceMember`, `WorkspaceRole`, `User.passwordHash`, `Workflow`, `WorkflowVersion`, `WorkflowStatus`, `WorkflowExecution` e `WorkflowExecutionStatus`. Workspace routes exigem bearer token; listagem é filtrada por membership; detalhe exige role de workspace; criação usa o usuário autenticado como `OWNER`. Há `JwtAuthGuard`, `@CurrentUser()`, `@WorkspaceRoles(...)` e `WorkspaceRolesGuard`. Também existem endpoints de membership para listar, adicionar, alterar role e remover membros. A política atual é conservadora: member management não atribui/remove/altera `OWNER`, e `ADMIN` só gerencia `MEMBER`/`VIEWER`. As respostas públicas de auth/workspace/member/workflow/workflow execution têm DTOs explícitos ligados ao Swagger. Existe `pnpm --filter @flowpilot/api seed:demo` para criar dados locais repetíveis com users `OWNER`, `ADMIN`, `MEMBER`, `VIEWER` e um workflow `Lead Enrichment`. Existe `pnpm --filter @flowpilot/api test:integration`, que cria/usa `flowpilot_test`, aplica migrations e testa fluxos HTTP reais com banco. As convenções RabbitMQ estão documentadas em `docs/contracts/events.md`, incluindo exchanges, queues, routing keys, retry/DLX, envelope, correlation/causation e idempotency. `packages/contracts` exporta constants/helpers e envelope/message types para essas convenções, incluindo `workflow.created` e `workflow.execution.requested`. A API publica `workflow.created` após criar workflows e cria `WorkflowExecution` `PENDING` antes de publicar `workflow.execution.requested` em `POST /api/workspaces/:workspaceId/workflows/:workflowId/executions`; em `NODE_ENV=test`, o publisher é no-op para não exigir RabbitMQ nos testes. O Docker Compose sobe o serviço `api` e builda `@flowpilot/contracts` antes da API. `pnpm --filter @flowpilot/contracts test`, `pnpm --filter @flowpilot/contracts typecheck`, `pnpm --filter @flowpilot/api test`, `pnpm --filter @flowpilot/api test:integration` e `pnpm -r typecheck` passaram.
+Estado atual: o monorepo TypeScript/pnpm já foi scaffoldado com apps, packages, Docker Compose, `.env.example`, contratos iniciais de eventos RabbitMQ e documentação atualizada. `apps/api` usa NestJS com Fastify, Zod/dotenv para config, Prisma 6, Swagger em `/docs`, healthcheck em `/api/health`, RabbitMQ via um publisher/declaration helper com `amqplib`, workspace APIs persistidas e auth register/login/me com JWT. O schema Prisma tem `Workspace`, `User`, `WorkspaceMember`, `WorkspaceRole`, `User.passwordHash`, `Workflow`, `WorkflowVersion`, `WorkflowStatus`, `WorkflowExecution` e `WorkflowExecutionStatus`. Workspace routes exigem bearer token; listagem é filtrada por membership; detalhe exige role de workspace; criação usa o usuário autenticado como `OWNER`. Há `JwtAuthGuard`, `@CurrentUser()`, `@WorkspaceRoles(...)` e `WorkspaceRolesGuard`. Também existem endpoints de membership para listar, adicionar, alterar role e remover membros. A política atual é conservadora: member management não atribui/remove/altera `OWNER`, e `ADMIN` só gerencia `MEMBER`/`VIEWER`. As respostas públicas de auth/workspace/member/workflow/workflow execution têm DTOs explícitos ligados ao Swagger. Existe `pnpm --filter @flowpilot/api seed:demo` para criar dados locais repetíveis com users `OWNER`, `ADMIN`, `MEMBER`, `VIEWER` e um workflow `Lead Enrichment`. Existe `pnpm --filter @flowpilot/api test:integration`, que cria/usa `flowpilot_test`, aplica migrations e testa fluxos HTTP reais com banco. As convenções RabbitMQ estão documentadas em `docs/contracts/events.md`, incluindo exchanges, queues, routing keys, retry/DLX, envelope, correlation/causation e idempotency. `packages/contracts` exporta constants/helpers e envelope/message types para essas convenções, incluindo `workflow.created` e `workflow.execution.requested`. A API declara `flowpilot.commands`, `flowpilot.events`, `flowpilot.retry`, `flowpilot.dlx`, service queues e bindings no startup; publica `workflow.created` em `flowpilot.events`; e cria `WorkflowExecution` `PENDING` antes de publicar `workflow.execution.requested` em `flowpilot.commands`, roteando para `flowpilot.execution-worker.workflow-executions`. Em `NODE_ENV=test`, o publisher é no-op para não exigir RabbitMQ nos testes. O Docker Compose sobe o serviço `api` e builda `@flowpilot/contracts` antes da API. `pnpm --filter @flowpilot/contracts test`, `pnpm --filter @flowpilot/contracts typecheck`, `pnpm --filter @flowpilot/api test`, `pnpm --filter @flowpilot/api test:integration` e `pnpm -r typecheck` passaram.
 
-Depois disso, me ajude a continuar a Semana 1. Quero que você atue como tech lead/coding partner: primeiro rode `git status`, revise o estado atual, suba a stack com `docker compose up -d`, rode `pnpm --filter @flowpilot/api seed:demo`, `pnpm --filter @flowpilot/api test`, `pnpm --filter @flowpilot/api test:integration`, `pnpm --filter @flowpilot/contracts test` e `pnpm -r typecheck`, e então implemente as APIs de list/detail para workflow executions ou uma estratégia mais durável de publicação RabbitMQ, como outbox ou broker declaration helper. Atualize `docs/STATUS.md`, `docs/DECISIONS.md` e `docs/NEXT_STEPS.md` ao final.
+Depois disso, me ajude a continuar a Semana 1. Quero que você atue como tech lead/coding partner: primeiro rode `git status`, revise o estado atual, suba a stack com `docker compose up -d`, rode `pnpm --filter @flowpilot/api seed:demo`, `pnpm --filter @flowpilot/api test`, `pnpm --filter @flowpilot/api test:integration`, `pnpm --filter @flowpilot/contracts test` e `pnpm -r typecheck`, e então implemente as APIs de list/detail para workflow executions ou o primeiro consumer em `apps/execution-worker` para `workflow.execution.requested`. Atualize `docs/STATUS.md`, `docs/DECISIONS.md` e `docs/NEXT_STEPS.md` ao final.
 
 Importante: este é um projeto autoral de portfólio. Não copie código, nomes internos ou detalhes proprietários de empresas anteriores.
 ```

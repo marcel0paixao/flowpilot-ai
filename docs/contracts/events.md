@@ -148,7 +148,7 @@ This pair makes distributed traces explainable without needing every service to 
 
 ## Idempotency
 
-Consumers must treat `eventId` as globally unique. Command consumers should additionally support `idempotencyKey` once command publishing is implemented.
+Consumers must treat `eventId` as globally unique. Command consumers should additionally support `idempotencyKey`.
 
 Initial idempotency guidance:
 
@@ -182,7 +182,7 @@ Consumers should acknowledge only after durable side effects are complete.
 
 ## Declaration Ownership
 
-Initial implementation should declare exchanges, queues, and bindings in application startup code for local development.
+Initial implementation declares exchanges, queues, and bindings in application startup code for local development. The API currently declares the shared topology before serving requests and publishes messages directly to topic exchanges through the shared messaging helper.
 
 As the system matures, declarations can move to infrastructure-as-code or a dedicated broker setup script. Until then, service-owned declarations keep the project easy to run locally and demonstrate.
 

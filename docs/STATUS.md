@@ -68,13 +68,18 @@ Week 1 foundation.
 - Added Prisma model and migration for `WorkflowExecution` with `WorkflowExecutionStatus`.
 - Added `POST /api/workspaces/:workspaceId/workflows/:workflowId/executions` to persist a pending execution request and publish `workflow.execution.requested`.
 - Added workflow execution request/response DTOs and Zod body validation for execution input.
+- Replaced the simple Nest `ClientRMQ` publisher with an `amqplib`-backed RabbitMQ publisher/declaration helper.
+- API startup now declares `flowpilot.commands`, `flowpilot.events`, `flowpilot.retry`, `flowpilot.dlx`, initial service queues, and bindings.
+- `workflow.execution.requested` is now published to `flowpilot.commands` and routed to `flowpilot.execution-worker.workflow-executions`.
+- `workflow.created` is now published to `flowpilot.events` and routed to workflow/observability event queues.
 
 ## In Progress
 
-- RabbitMQ consumers, exchanges, and queue declaration helpers
+- Workflow execution read APIs
 
 ## Not Started
 
+- RabbitMQ consumers
 - Frontend application UI
 - LangChain integration
 - RAG document ingestion
@@ -146,6 +151,12 @@ Week 1 foundation.
 - `pnpm --filter @flowpilot/api test` passed with 27 tests after adding workflow execution request service coverage.
 - `pnpm --filter @flowpilot/api typecheck` passed after adding workflow execution request APIs.
 - `pnpm --filter @flowpilot/api test:integration` applied the workflow execution migration to `flowpilot_test` and passed with 3 HTTP integration tests.
+- `pnpm --filter @flowpilot/api typecheck` passed after adding the RabbitMQ declaration helper.
+- `pnpm --filter @flowpilot/api test` passed with 31 tests after adding messaging topology coverage.
+- `pnpm --filter @flowpilot/api test:integration` passed after replacing the publisher.
+- `docker compose up -d --force-recreate api` started the API and logged `RabbitMQ topology declared`.
+- `rabbitmqctl list_exchanges`, `list_queues`, and `list_bindings` confirmed the declared exchanges, queues, and bindings.
+- Manual HTTP execution request created `WorkflowExecution` `8b0e06b9-3d91-4b39-a95b-0ec7332f9dda` and RabbitMQ showed the message in `flowpilot.execution-worker.workflow-executions` with `exchange=flowpilot.commands` and `routing_key=workflow.execution.requested`.
 
 ## Notes
 
@@ -157,7 +168,7 @@ Week 1 foundation.
 
 ## Recommended Next Step
 
-Add workflow execution read APIs and then an outbox-backed publisher or broker declaration helper before relying on RabbitMQ publishing for durable production behavior.
+Add workflow execution read APIs, then implement the first execution-worker consumer for `workflow.execution.requested`.
 
 ## Notes For Next Chat
 
@@ -170,4 +181,4 @@ Start by reading:
 - `docs/DECISIONS.md`
 - `docs/NEXT_STEPS.md`
 
-Then continue with workflow execution read APIs, followed by an outbox-backed publisher or broker declaration helper before expanding execution-worker consumers.
+Then continue with workflow execution read APIs, followed by the first execution-worker consumer for `workflow.execution.requested`.
