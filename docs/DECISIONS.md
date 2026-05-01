@@ -125,3 +125,9 @@ Reason: Unit tests cover service policy, but the API also needs confidence acros
 Decision: Use topic exchanges named `flowpilot.commands`, `flowpilot.events`, `flowpilot.retry`, and `flowpilot.dlx`; dotted routing keys matching event names; service-owned queues named `flowpilot.<service>.<purpose>`; and a standard JSON envelope with tenant, correlation, causation, producer, and schema metadata.
 
 Reason: Workflow execution will cross service boundaries, so message names, retry behavior, dead-letter handling, idempotency, and trace context must be explicit before implementing workflow persistence and publishers. This keeps the first workflow slice aligned with the future worker and observability services.
+
+## 2026-05-01: Workflow Definitions With Versioned JSON
+
+Decision: Model workflows as workspace-scoped records with a `WorkflowStatus` and separate `WorkflowVersion` rows that store the executable definition as JSON.
+
+Reason: Workflow metadata changes independently from executable definitions. A version table makes future publishing, execution replay, audit trails, and rollback easier while keeping the first API slice small.

@@ -77,7 +77,7 @@ Seed repeatable demo data after PostgreSQL is running:
 pnpm --filter @flowpilot/api seed:demo
 ```
 
-The demo seed creates `Acme Automation` with `OWNER`, `ADMIN`, `MEMBER`, and `VIEWER` users. All demo users use the password `correct horse battery staple`.
+The demo seed creates `Acme Automation`, a `Lead Enrichment` workflow, and `OWNER`, `ADMIN`, `MEMBER`, and `VIEWER` users. All demo users use the password `correct horse battery staple`.
 
 Run API integration tests against a local PostgreSQL test database:
 
@@ -97,6 +97,12 @@ Initial workspace endpoints:
 - `POST /api/workspaces/:id/members` - requires `OWNER` or `ADMIN`.
 - `PATCH /api/workspaces/:id/members/:memberId` - requires `OWNER` or `ADMIN`.
 - `DELETE /api/workspaces/:id/members/:memberId` - requires `OWNER` or `ADMIN`.
+
+Initial workflow endpoints:
+
+- `POST /api/workspaces/:workspaceId/workflows` - requires `OWNER`, `ADMIN`, or `MEMBER`.
+- `GET /api/workspaces/:workspaceId/workflows` - requires a workspace role.
+- `GET /api/workspaces/:workspaceId/workflows/:workflowId` - requires a workspace role.
 
 Initial auth endpoints:
 

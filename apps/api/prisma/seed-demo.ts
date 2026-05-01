@@ -87,12 +87,65 @@ async function main() {
       };
     })
   );
+  const workflow = await prisma.workflow.upsert({
+    where: {
+      workspaceId_slug: {
+        workspaceId: workspace.id,
+        slug: "lead-enrichment"
+      }
+    },
+    create: {
+      workspaceId: workspace.id,
+      name: "Lead Enrichment",
+      slug: "lead-enrichment",
+      description: "Demo workflow for testing workspace-scoped workflow APIs.",
+      versions: {
+        create: {
+          version: 1,
+          definition: {
+            nodes: [],
+            edges: []
+          }
+        }
+      }
+    },
+    update: {
+      name: "Lead Enrichment",
+      description: "Demo workflow for testing workspace-scoped workflow APIs."
+    }
+  });
+
+  await prisma.workflowVersion.upsert({
+    where: {
+      workflowId_version: {
+        workflowId: workflow.id,
+        version: 1
+      }
+    },
+    create: {
+      workflowId: workflow.id,
+      version: 1,
+      definition: {
+        nodes: [],
+        edges: []
+      }
+    },
+    update: {
+      definition: {
+        nodes: [],
+        edges: []
+      }
+    }
+  });
 
   console.log("Demo seed completed");
   console.log("");
   console.log(`Workspace: ${workspace.name}`);
   console.log(`Workspace ID: ${workspace.id}`);
   console.log(`Workspace slug: ${workspace.slug}`);
+  console.log(`Workflow: ${workflow.name}`);
+  console.log(`Workflow ID: ${workflow.id}`);
+  console.log(`Workflow slug: ${workflow.slug}`);
   console.log("");
   console.log("Demo credentials:");
 

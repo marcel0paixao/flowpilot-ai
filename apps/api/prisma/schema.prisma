@@ -15,6 +15,7 @@ model Workspace {
   updatedAt DateTime          @updatedAt
 
   members WorkspaceMember[]
+  workflows Workflow[]
 }
 
 model User {
@@ -43,9 +44,46 @@ model WorkspaceMember {
   @@index([userId])
 }
 
+model Workflow {
+  id          String         @id @default(uuid())
+  workspaceId String
+  name        String
+  slug        String
+  description String?
+  status      WorkflowStatus @default(DRAFT)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  workspace Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  versions  WorkflowVersion[]
+
+  @@unique([workspaceId, slug])
+  @@index([workspaceId])
+}
+
+model WorkflowVersion {
+  id         String   @id @default(uuid())
+  workflowId String
+  version    Int
+  definition Json
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  workflow Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+
+  @@unique([workflowId, version])
+  @@index([workflowId])
+}
+
 enum WorkspaceRole {
   OWNER
   ADMIN
   MEMBER
   VIEWER
+}
+
+enum WorkflowStatus {
+  DRAFT
+  ACTIVE
+  ARCHIVED
 }

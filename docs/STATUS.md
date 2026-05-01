@@ -57,6 +57,11 @@ Week 1 foundation.
 - Defined RabbitMQ exchange, queue, routing key, retry, dead-letter, envelope, correlation, causation, and idempotency conventions in `docs/contracts/events.md`.
 - Added RabbitMQ constants, retry policy constants, producer constants, derived messaging types, envelope types, and enveloped message payload types in `packages/contracts`.
 - Added `@flowpilot/contracts` messaging tests that keep routing keys aligned with event names and validate naming conventions.
+- Added Prisma models and migration for `Workflow`, `WorkflowVersion`, and `WorkflowStatus`.
+- Added `WorkflowsModule` with create, list, and detail endpoints nested under workspace routes.
+- Added RBAC for workflow routes: create allows `OWNER`, `ADMIN`, and `MEMBER`; read allows all workspace roles.
+- Added workflow response/request DTOs and unit tests for workflow service behavior.
+- Updated demo seed to create a `Lead Enrichment` workflow with version `1`.
 
 ## In Progress
 
@@ -123,6 +128,13 @@ Week 1 foundation.
 - `pnpm --filter @flowpilot/contracts typecheck` passed after adding messaging constants and envelope types.
 - `pnpm --filter @flowpilot/contracts build` passed after adding messaging constants and envelope types.
 - `pnpm -r typecheck` passed after formalizing messaging contracts.
+- `pnpm --filter @flowpilot/api test` passed with 25 tests after adding workflow service coverage.
+- `pnpm --filter @flowpilot/api typecheck` passed after adding workflow models and module.
+- `pnpm --filter @flowpilot/api test:integration` applied the workflow migration to `flowpilot_test` and passed with 3 HTTP integration tests.
+- `pnpm --filter @flowpilot/api build` passed after adding workflow models and module.
+- `pnpm -r typecheck` passed after adding workflow models and module.
+- Local development DB migration history was repaired with `prisma migrate resolve --applied 20260428012500_add_user_password_hash`, then `prisma migrate deploy` applied the workflow migration.
+- `pnpm --filter @flowpilot/api seed:demo` created or updated the demo `Lead Enrichment` workflow.
 
 ## Notes
 
@@ -134,7 +146,7 @@ Week 1 foundation.
 
 ## Recommended Next Step
 
-Introduce the first workflow domain model and persistence shape.
+Publish workflow domain events after workflow creation, starting with a `workflow.created` contract.
 
 ## Notes For Next Chat
 
@@ -147,4 +159,4 @@ Start by reading:
 - `docs/DECISIONS.md`
 - `docs/NEXT_STEPS.md`
 
-Then continue with the first workflow domain model and persistence shape.
+Then continue with workflow domain events and RabbitMQ publishing from the API/workflow boundary.

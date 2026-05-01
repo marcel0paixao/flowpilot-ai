@@ -15,6 +15,8 @@ before(async () => {
 });
 
 beforeEach(async () => {
+  await prisma.workflowVersion.deleteMany();
+  await prisma.workflow.deleteMany();
   await prisma.workspaceMember.deleteMany();
   await prisma.workspace.deleteMany();
   await prisma.user.deleteMany();
@@ -118,6 +120,88 @@ test("workspace HTTP flow enforces auth, membership, and member management", asy
   });
   assert.equal(removeResponse.statusCode, 200);
   assert.deepEqual(removeResponse.json(), { removed: true });
+});
+
+test("workflow HTTP flow creates, lists, details, and enforces workspace roles", async () => {
+  await register("owner@example.test", "Owner Example");
+  const ownerLogin = await login("owner@example.test");
+  const ownerToken = ownerLogin.json<{ accessToken: string }>().accessToken;
+  const workspace = await app.inject({
+    method: "POST",
+    url: "/api/workspaces",
+    headers: bearer(ownerToken),
+    payload: {
+      name: "Workflow Workspace",
+      slug: "workflow-workspace"
+    }
+  });
+  const workspaceId = workspace.json<{ id: string }>().id;
+
+  const createWorkflowResponse = await app.inject({
+    method: "POST",
+    url: `/api/workspaces/${workspaceId}/workflows`,
+    headers: bearer(ownerToken),
+    payload: {
+      name: "Lead Enrichment",
+      slug: "lead-enrichment",
+      definition: {
+        nodes: [],
+        edges: []
+      }
+    }
+  });
+  assert.equal(createWorkflowResponse.statusCode, 201);
+
+  const workflow = createWorkflowResponse.json<{
+    id: string;
+    status: string;
+    currentVersion: { version: number; definition: { nodes: unknown[]; edges: unknown[] } };
+  }>();
+  assert.equal(workflow.status, "DRAFT");
+  assert.equal(workflow.currentVersion.version, 1);
+  assert.deepEqual(workflow.currentVersion.definition, { nodes: [], edges: [] });
+
+  const listResponse = await app.inject({
+    method: "GET",
+    url: `/api/workspaces/${workspaceId}/workflows`,
+    headers: bearer(ownerToken)
+  });
+  assert.equal(listResponse.statusCode, 200);
+  assert.equal(listResponse.json<unknown[]>().length, 1);
+
+  const detailResponse = await app.inject({
+    method: "GET",
+    url: `/api/workspaces/${workspaceId}/workflows/${workflow.id}`,
+    headers: bearer(ownerToken)
+  });
+  assert.equal(detailResponse.statusCode, 200);
+  assert.equal(detailResponse.json<{ id: string }>().id, workflow.id);
+
+  await register("viewer@example.test", "Viewer Example");
+  const viewerMember = await app.inject({
+    method: "POST",
+    url: `/api/workspaces/${workspaceId}/members`,
+    headers: bearer(ownerToken),
+    payload: {
+      email: "viewer@example.test",
+      role: "VIEWER"
+    }
+  });
+  assert.equal(viewerMember.statusCode, 201);
+
+  const viewerLogin = await login("viewer@example.test", workspaceId);
+  const viewerToken = viewerLogin.json<{ accessToken: string }>().accessToken;
+  const forbiddenCreate = await app.inject({
+    method: "POST",
+    url: `/api/workspaces/${workspaceId}/workflows`,
+    headers: bearer(viewerToken),
+    payload: {
+      name: "Blocked Workflow",
+      slug: "blocked-workflow"
+    }
+  });
+
+  assert.equal(forbiddenCreate.statusCode, 403);
 });
 
 test("workspace detail rejects cross-tenant access", async () => {

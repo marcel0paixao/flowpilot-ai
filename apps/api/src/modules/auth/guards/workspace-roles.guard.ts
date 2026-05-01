@@ -26,7 +26,7 @@ export class WorkspaceRolesGuard implements CanActivate {
     }
 
     const request = context.switchToHttp().getRequest<AuthenticatedRequest & RequestWithParams>();
-    const workspaceId = request.params.id ?? request.user.workspaceId;
+    const workspaceId = request.params.workspaceId ?? request.params.id ?? request.user.workspaceId;
 
     if (!workspaceId) {
       throw new ForbiddenException("Workspace context is required");
@@ -57,5 +57,6 @@ export class WorkspaceRolesGuard implements CanActivate {
 interface RequestWithParams {
   params: {
     id?: string;
+    workspaceId?: string;
   };
 }
