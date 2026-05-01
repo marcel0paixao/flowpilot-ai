@@ -71,11 +71,10 @@ Week 1 foundation.
 
 ## In Progress
 
-- Week 1 backend foundation hardening.
+- RabbitMQ consumers, exchanges, and queue declaration helpers
 
 ## Not Started
 
-- RabbitMQ consumers, exchanges, and queue declaration helpers
 - Frontend application UI
 - LangChain integration
 - RAG document ingestion
