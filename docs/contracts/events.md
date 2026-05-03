@@ -78,6 +78,14 @@ Examples:
 - `flowpilot.retry.execution-worker.workflow-executions.1m`
 - `flowpilot.retry.execution-worker.workflow-executions.5m`
 
+Retry routing keys are explicit contracts too. The execution worker currently uses:
+
+- `workflow.execution.requested.retry.10s`
+- `workflow.execution.requested.retry.1m`
+- `workflow.execution.requested.retry.5m`
+
+Those retry queues dead-letter back to `flowpilot.commands` with the original `workflow.execution.requested` routing key after their TTL expires.
+
 Dead-letter queues follow this pattern:
 
 ```txt
@@ -165,6 +173,12 @@ Consumers should acknowledge only after durable side effects are complete.
 - Acknowledge after database writes, trace persistence, or event publication has succeeded.
 - Reject/requeue only when the failure is transient and retry policy applies.
 - Dead-letter immediately when payload validation fails or the error is explicitly non-retryable.
+
+## Outbox Publishing
+
+When a service changes PostgreSQL state and emits a RabbitMQ lifecycle event as part of one logical operation, it should persist an `OutboxMessage` in the same database transaction as the state change. The outbox row stores exchange, routing key, event payload, headers, status, attempts, and an idempotency key.
+
+The execution worker uses this pattern for `workflow.execution.started`, `workflow.execution.completed`, and `workflow.execution.failed`. It publishes the outbox row to RabbitMQ after the transaction commits and then marks the row `PUBLISHED`. If the process crashes before publish, the pending row can be dispatched later without inventing a new event.
 
 ## Initial Message Map
 

@@ -11,6 +11,7 @@ import {
   FLOWPILOT_QUEUES,
   FLOWPILOT_RETRY_DELAYS,
   FLOWPILOT_RETRY_QUEUES,
+  FLOWPILOT_RETRY_ROUTING_KEYS,
   FLOWPILOT_ROUTING_KEYS,
   type WorkflowExecutionRequestedMessage
 } from "./index.js";
@@ -33,6 +34,10 @@ test("messaging resources follow FlowPilot naming conventions", () => {
 
   for (const retryQueue of Object.values(FLOWPILOT_RETRY_QUEUES)) {
     assert.match(retryQueue, /^flowpilot\.retry\./);
+  }
+
+  for (const retryRoutingKey of Object.values(FLOWPILOT_RETRY_ROUTING_KEYS)) {
+    assert.match(retryRoutingKey, /^workflow\.execution\.requested\.retry\./);
   }
 
   for (const deadLetterQueue of Object.values(FLOWPILOT_DEAD_LETTER_QUEUES)) {

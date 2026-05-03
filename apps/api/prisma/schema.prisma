@@ -106,6 +106,26 @@ model WorkflowExecution {
   @@index([status])
 }
 
+model OutboxMessage {
+  id             String              @id @default(uuid())
+  exchange       String
+  routingKey     String
+  eventName      String
+  messageId      String              @unique
+  idempotencyKey String              @unique
+  payload        Json
+  headers        Json?
+  status         OutboxMessageStatus @default(PENDING)
+  attempts       Int                 @default(0)
+  lastError      String?
+  publishedAt    DateTime?
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+
+  @@index([status, createdAt])
+  @@index([eventName])
+}
+
 enum WorkspaceRole {
   OWNER
   ADMIN
@@ -125,4 +145,10 @@ enum WorkflowExecutionStatus {
   SUCCEEDED
   FAILED
   CANCELLED
+}
+
+enum OutboxMessageStatus {
+  PENDING
+  PUBLISHED
+  FAILED
 }

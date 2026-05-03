@@ -49,6 +49,7 @@ services:
       RABBITMQ_URL: amqp://flowpilot:flowpilot@rabbitmq:5672
       REDIS_URL: redis://redis:6379
       QDRANT_URL: http://qdrant:6333
+      FLOWPILOT_ENABLE_WORKER_FAILURE_SIMULATION: ${FLOWPILOT_ENABLE_WORKER_FAILURE_SIMULATION:-false}
     volumes:
       - .:/workspace
       - api-node-modules:/workspace/node_modules

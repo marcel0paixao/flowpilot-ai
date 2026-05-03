@@ -155,3 +155,15 @@ Reason: The default `ClientRMQ` flow routed messages through an API-owned queue 
 Decision: The first execution worker consumes `workflow.execution.requested`, updates the execution state in PostgreSQL, and then publishes lifecycle events to RabbitMQ.
 
 Reason: PostgreSQL remains the durable source of truth for execution state. Publishing `workflow.execution.started` and `workflow.execution.completed` after state changes keeps downstream consumers informed while preserving a reliable execution record for API reads and future recovery behavior.
+
+## 2026-05-03: Worker Retries Are Broker-Scheduled And Terminal Failures Are Explicit
+
+Decision: The execution worker now treats terminal execution statuses as idempotent no-ops, schedules retryable failures through dedicated RabbitMQ retry queues, and marks exhausted/non-retryable executions as `FAILED` while publishing `workflow.execution.failed` and a dead-letter copy of the command.
+
+Reason: Workflow execution can be retried or redelivered, so the worker must avoid duplicate terminal side effects and make failure state durable. Broker-scheduled retry queues keep temporary failures out of tight requeue loops, while explicit failed events and DLQ copies preserve auditability for operators and future observability services.
+
+## 2026-05-03: Worker Lifecycle Events Use A Database Outbox
+
+Decision: Persist execution-worker lifecycle events in an `OutboxMessage` table before publishing them to RabbitMQ, keyed by lifecycle idempotency keys such as `workflow.execution.completed:<executionId>`.
+
+Reason: Status updates and event publication cross two durable systems: PostgreSQL and RabbitMQ. The outbox record makes event publication recoverable if the worker crashes after a database transition but before broker publication, and it gives duplicate deliveries a durable way to resume pending lifecycle event dispatch instead of re-emitting arbitrary new events.

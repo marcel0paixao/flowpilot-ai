@@ -79,10 +79,18 @@ Week 1 foundation.
 - The execution worker now updates executions from `PENDING` to `RUNNING` to `SUCCEEDED`.
 - The execution worker publishes `workflow.execution.started` and `workflow.execution.completed` to `flowpilot.events`.
 - Docker Compose now includes the `execution-worker` service.
+- Hardened the execution worker with idempotent terminal-state skips for `SUCCEEDED`, `FAILED`, and `CANCELLED` executions.
+- Added execution-worker retry scheduling through `flowpilot.retry` with 10s, 1m, and 5m retry queues that return to `flowpilot.commands`.
+- Added execution-worker terminal failure handling that marks executions `FAILED`, persists the error payload, publishes `workflow.execution.failed`, and publishes the failed command to `flowpilot.dlx`.
+- Added explicit retry routing key constants to `packages/contracts`.
+- Added `OutboxMessage` persistence and migration for durable event publication tracking.
+- Execution-worker lifecycle events are now written to the outbox before RabbitMQ publication and marked `PUBLISHED` after broker publish.
+- Execution-worker terminal idempotency now attempts to dispatch any pending lifecycle outbox messages for the execution before acknowledging duplicate deliveries.
+- Added a local-only worker failure simulation switch guarded by `FLOWPILOT_ENABLE_WORKER_FAILURE_SIMULATION=true` for validating retry/DLQ behavior without breaking infrastructure.
 
 ## In Progress
 
-- Worker hardening: retries, idempotency, and failure events
+- Outbox dispatcher loop for pending message recovery after process crashes
 
 ## Not Started
 
@@ -172,6 +180,21 @@ Week 1 foundation.
 - `pnpm -r typecheck` passed after adding the consumer.
 - `docker compose up -d api execution-worker` started the worker.
 - Manual end-to-end test created execution `c93d91bd-77a8-457e-9d64-4a0e07ea34a0`; the worker consumed the command, updated the execution to `SUCCEEDED`, and RabbitMQ showed `workflow.execution.started` and `workflow.execution.completed` events in `flowpilot.workflow-service.execution-events`.
+- `pnpm --filter @flowpilot/execution-worker typecheck` passed after adding idempotency, retry, DLX, and failed-event handling.
+- `pnpm --filter @flowpilot/execution-worker test` passed with 7 tests after adding worker hardening coverage.
+- `docker compose up -d --force-recreate execution-worker` started the hardened worker successfully.
+- `rabbitmqctl list_queues` confirmed the execution-worker queue has 1 consumer and the 10s/1m/5m retry queues plus execution-worker DLQ exist with the expected TTL/dead-letter arguments.
+- `pnpm --filter @flowpilot/api prisma:generate` passed after adding `OutboxMessage`.
+- `pnpm --filter @flowpilot/execution-worker typecheck` and `test` passed after adding worker outbox publishing.
+- `DATABASE_URL=postgresql://flowpilot:flowpilot@localhost:5432/flowpilot pnpm --filter @flowpilot/api exec prisma migrate deploy --schema prisma/schema.prisma` applied the outbox migration locally after granting Prisma access to local cache/preferences.
+- `pnpm --filter @flowpilot/api test:integration` applied the outbox migration to `flowpilot_test` and passed.
+- Manual end-to-end test created execution `daf41812-c87a-4d63-82fd-6608a7b51c4b`; the worker completed it and `OutboxMessage` rows for `workflow.execution.started` and `workflow.execution.completed` were marked `PUBLISHED` with one publish attempt each.
+- Manual RabbitMQ failure-path validation created execution `f1aeb9cf-a5e8-4cb2-ad99-31473f01bdd0` with worker failure simulation enabled.
+- The failed execution moved through retry scheduling at 10s, 1m, and 5m, then reached `FAILED` after the final attempt.
+- RabbitMQ showed the command in `flowpilot.dlq.execution-worker.workflow-executions` with `x-flowpilot-retry-attempt=3` and dead-letter error headers.
+- RabbitMQ `flowpilot.workflow-service.execution-events` contained both `workflow.execution.started` and `workflow.execution.failed` for the failed execution.
+- PostgreSQL `OutboxMessage` rows for `workflow.execution.started` and `workflow.execution.failed` were marked `PUBLISHED`.
+- The execution worker was recreated afterward with `FLOWPILOT_ENABLE_WORKER_FAILURE_SIMULATION=false`.
 
 ## Notes
 
@@ -183,7 +206,7 @@ Week 1 foundation.
 
 ## Recommended Next Step
 
-Harden the execution worker with idempotent processing, failure handling, retry/DLX behavior, and `workflow.execution.failed` publishing.
+Add an outbox dispatcher loop for pending messages that remain after process crashes, then start persisting workflow execution events in a workflow-service or observability-service slice.
 
 ## Notes For Next Chat
 
@@ -196,4 +219,4 @@ Start by reading:
 - `docs/DECISIONS.md`
 - `docs/NEXT_STEPS.md`
 
-Then harden the execution worker with idempotent processing, failure handling, retry/DLX behavior, and `workflow.execution.failed` publishing.
+Then add an outbox dispatcher loop for pending messages and start persisting workflow execution events in a workflow-service or observability-service slice.

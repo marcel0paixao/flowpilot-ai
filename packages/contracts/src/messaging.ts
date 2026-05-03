@@ -30,6 +30,12 @@ export const FLOWPILOT_RETRY_QUEUES = {
   executionWorkerWorkflowExecutions5m: "flowpilot.retry.execution-worker.workflow-executions.5m"
 } as const;
 
+export const FLOWPILOT_RETRY_ROUTING_KEYS = {
+  workflowExecutionRequested10s: "workflow.execution.requested.retry.10s",
+  workflowExecutionRequested1m: "workflow.execution.requested.retry.1m",
+  workflowExecutionRequested5m: "workflow.execution.requested.retry.5m"
+} as const;
+
 export const FLOWPILOT_DEAD_LETTER_QUEUES = {
   executionWorkerWorkflowExecutions: "flowpilot.dlq.execution-worker.workflow-executions",
   workflowServiceExecutionEvents: "flowpilot.dlq.workflow-service.execution-events",
@@ -64,6 +70,9 @@ export type FlowPilotQueue = (typeof FLOWPILOT_QUEUES)[keyof typeof FLOWPILOT_QU
 
 export type FlowPilotRetryQueue =
   (typeof FLOWPILOT_RETRY_QUEUES)[keyof typeof FLOWPILOT_RETRY_QUEUES];
+
+export type FlowPilotRetryRoutingKey =
+  (typeof FLOWPILOT_RETRY_ROUTING_KEYS)[keyof typeof FLOWPILOT_RETRY_ROUTING_KEYS];
 
 export type FlowPilotDeadLetterQueue =
   (typeof FLOWPILOT_DEAD_LETTER_QUEUES)[keyof typeof FLOWPILOT_DEAD_LETTER_QUEUES];
