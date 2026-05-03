@@ -149,3 +149,9 @@ Reason: A workflow run needs a durable local record before asynchronous processi
 Decision: Replace the simple Nest `ClientRMQ` publisher with an `amqplib`-backed messaging helper that declares FlowPilot exchanges, queues, and bindings, then publishes commands/events to their intended topic exchanges.
 
 Reason: The default `ClientRMQ` flow routed messages through an API-owned queue instead of the documented command/event topology. Direct exchange publishing makes RabbitMQ behavior match the shared contracts: `workflow.execution.requested` goes to `flowpilot.commands` and reaches `flowpilot.execution-worker.workflow-executions`, while lifecycle events go to `flowpilot.events`.
+
+## 2026-05-02: First Worker Updates State Before Publishing Events
+
+Decision: The first execution worker consumes `workflow.execution.requested`, updates the execution state in PostgreSQL, and then publishes lifecycle events to RabbitMQ.
+
+Reason: PostgreSQL remains the durable source of truth for execution state. Publishing `workflow.execution.started` and `workflow.execution.completed` after state changes keeps downstream consumers informed while preserving a reliable execution record for API reads and future recovery behavior.

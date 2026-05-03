@@ -75,10 +75,14 @@ Week 1 foundation.
 - Added workflow execution read APIs:
   - `GET /api/workspaces/:workspaceId/workflows/:workflowId/executions`
   - `GET /api/workspaces/:workspaceId/workflows/:workflowId/executions/:executionId`
+- Added the first `apps/execution-worker` consumer for `workflow.execution.requested`.
+- The execution worker now updates executions from `PENDING` to `RUNNING` to `SUCCEEDED`.
+- The execution worker publishes `workflow.execution.started` and `workflow.execution.completed` to `flowpilot.events`.
+- Docker Compose now includes the `execution-worker` service.
 
 ## In Progress
 
-- First execution-worker consumer
+- Worker hardening: retries, idempotency, and failure events
 
 ## Not Started
 
@@ -163,6 +167,11 @@ Week 1 foundation.
 - `pnpm --filter @flowpilot/api typecheck` passed after adding workflow execution read APIs.
 - `pnpm --filter @flowpilot/api test:integration` passed after adding workflow execution read HTTP coverage.
 - Manual HTTP checks returned `200` for workflow execution list/detail and `404` for a missing execution id.
+- `docker compose config --quiet` passed after adding the `execution-worker` service.
+- `pnpm --filter @flowpilot/execution-worker typecheck`, `test`, and `build` passed after adding the consumer.
+- `pnpm -r typecheck` passed after adding the consumer.
+- `docker compose up -d api execution-worker` started the worker.
+- Manual end-to-end test created execution `c93d91bd-77a8-457e-9d64-4a0e07ea34a0`; the worker consumed the command, updated the execution to `SUCCEEDED`, and RabbitMQ showed `workflow.execution.started` and `workflow.execution.completed` events in `flowpilot.workflow-service.execution-events`.
 
 ## Notes
 
@@ -174,7 +183,7 @@ Week 1 foundation.
 
 ## Recommended Next Step
 
-Implement the first execution-worker consumer for `workflow.execution.requested`.
+Harden the execution worker with idempotent processing, failure handling, retry/DLX behavior, and `workflow.execution.failed` publishing.
 
 ## Notes For Next Chat
 
@@ -187,4 +196,4 @@ Start by reading:
 - `docs/DECISIONS.md`
 - `docs/NEXT_STEPS.md`
 
-Then continue with the first execution-worker consumer for `workflow.execution.requested`.
+Then harden the execution worker with idempotent processing, failure handling, retry/DLX behavior, and `workflow.execution.failed` publishing.
