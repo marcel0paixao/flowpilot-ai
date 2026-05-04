@@ -178,7 +178,7 @@ Consumers should acknowledge only after durable side effects are complete.
 
 When a service changes PostgreSQL state and emits a RabbitMQ lifecycle event as part of one logical operation, it should persist an `OutboxMessage` in the same database transaction as the state change. The outbox row stores exchange, routing key, event payload, headers, status, attempts, and an idempotency key.
 
-The execution worker uses this pattern for `workflow.execution.started`, `workflow.execution.completed`, and `workflow.execution.failed`. It publishes the outbox row to RabbitMQ after the transaction commits and then marks the row `PUBLISHED`. If the process crashes before publish, the pending row can be dispatched later without inventing a new event.
+The execution worker uses this pattern for `workflow.execution.started`, `workflow.execution.completed`, and `workflow.execution.failed`. It publishes the outbox row to RabbitMQ after the transaction commits and then marks the row `PUBLISHED`. If the process crashes before publish, the worker's periodic outbox dispatcher scans `PENDING` rows and republishes them without inventing a new event. Publish failures increment `attempts`, set `lastError`, and eventually mark the row `FAILED` after repeated failures.
 
 ## Initial Message Map
 

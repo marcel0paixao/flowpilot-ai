@@ -87,10 +87,12 @@ Week 1 foundation.
 - Execution-worker lifecycle events are now written to the outbox before RabbitMQ publication and marked `PUBLISHED` after broker publish.
 - Execution-worker terminal idempotency now attempts to dispatch any pending lifecycle outbox messages for the execution before acknowledging duplicate deliveries.
 - Added a local-only worker failure simulation switch guarded by `FLOWPILOT_ENABLE_WORKER_FAILURE_SIMULATION=true` for validating retry/DLQ behavior without breaking infrastructure.
+- Added an execution-worker outbox dispatcher loop that scans `OutboxMessage` rows with `PENDING` status every 5 seconds, publishes them to RabbitMQ, and marks them `PUBLISHED`.
+- Outbox publish failures now increment `attempts`, store `lastError`, and mark the row `FAILED` after 5 failed attempts.
 
 ## In Progress
 
-- Outbox dispatcher loop for pending message recovery after process crashes
+- Workflow execution event persistence in workflow-service or observability-service
 
 ## Not Started
 
@@ -195,6 +197,9 @@ Week 1 foundation.
 - RabbitMQ `flowpilot.workflow-service.execution-events` contained both `workflow.execution.started` and `workflow.execution.failed` for the failed execution.
 - PostgreSQL `OutboxMessage` rows for `workflow.execution.started` and `workflow.execution.failed` were marked `PUBLISHED`.
 - The execution worker was recreated afterward with `FLOWPILOT_ENABLE_WORKER_FAILURE_SIMULATION=false`.
+- `pnpm --filter @flowpilot/execution-worker test` passed with 10 tests after adding outbox dispatcher coverage.
+- `pnpm --filter @flowpilot/execution-worker typecheck` passed after adding the outbox dispatcher loop.
+- Manual outbox dispatcher validation inserted `OutboxMessage` `manual-outbox-dispatch-1` with `PENDING` status; the worker dispatcher published it to RabbitMQ, marked it `PUBLISHED`, and `flowpilot.workflow-service.execution-events` received the `workflow.execution.started` message.
 
 ## Notes
 
@@ -206,7 +211,7 @@ Week 1 foundation.
 
 ## Recommended Next Step
 
-Add an outbox dispatcher loop for pending messages that remain after process crashes, then start persisting workflow execution events in a workflow-service or observability-service slice.
+Start persisting workflow execution events in a workflow-service or observability-service slice so `workflow.execution.started`, `workflow.execution.completed`, and `workflow.execution.failed` become queryable as an execution timeline.
 
 ## Notes For Next Chat
 
@@ -219,4 +224,4 @@ Start by reading:
 - `docs/DECISIONS.md`
 - `docs/NEXT_STEPS.md`
 
-Then add an outbox dispatcher loop for pending messages and start persisting workflow execution events in a workflow-service or observability-service slice.
+Then start persisting workflow execution events in a workflow-service or observability-service slice.

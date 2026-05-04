@@ -25,6 +25,9 @@ const logger = createLogger("execution-worker", "debug");
 
 const retryAttemptHeader = "x-flowpilot-retry-attempt";
 const failureSimulationInputKey = "__flowpilotSimulateFailure";
+const outboxDispatcherBatchSize = 25;
+const outboxDispatcherIntervalMs = 5_000;
+const outboxMaxPublishAttempts = 5;
 
 const retryQueueConfig = [
   {
@@ -47,6 +50,7 @@ const retryQueueConfig = [
 type WorkerResources = {
   channel: Channel;
   connection: ChannelModel;
+  outboxDispatcher: ReturnType<typeof setInterval>;
   prisma: PrismaClient;
 };
 
@@ -85,6 +89,8 @@ export async function startWorker(): Promise<WorkerResources> {
     await handleDelivery(message, channel, prisma);
   });
 
+  const outboxDispatcher = startOutboxDispatcher(channel, prisma);
+
   logger.info("Execution worker started", {
     queue: FLOWPILOT_QUEUES.executionWorkerWorkflowExecutions,
     routingKey: FLOWPILOT_ROUTING_KEYS.workflowExecutionRequested
@@ -93,8 +99,37 @@ export async function startWorker(): Promise<WorkerResources> {
   return {
     channel,
     connection,
+    outboxDispatcher,
     prisma
   };
+}
+
+function startOutboxDispatcher(
+  channel: Channel,
+  prisma: PrismaClient
+): ReturnType<typeof setInterval> {
+  const dispatch = async () => {
+    try {
+      const result = await dispatchPendingOutboxMessages(channel, prisma);
+
+      if (result.published > 0 || result.failed > 0) {
+        logger.info("Outbox dispatch cycle completed", result);
+      }
+    } catch (error) {
+      logger.error("Outbox dispatch cycle failed", {
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  };
+
+  void dispatch();
+
+  const timer = setInterval(() => {
+    void dispatch();
+  }, outboxDispatcherIntervalMs);
+  timer.unref();
+
+  return timer;
 }
 
 export async function handleDelivery(
@@ -611,23 +646,31 @@ async function dispatchOutboxEvent(
   }
 
   const headers = isRecord(outboxMessage.headers) ? outboxMessage.headers : {};
-  const published = channel.publish(
-    outboxMessage.exchange,
-    outboxMessage.routingKey,
-    Buffer.from(JSON.stringify(outboxMessage.payload)),
-    {
-      contentType: "application/json",
-      deliveryMode: 2,
-      messageId: outboxMessage.messageId,
-      timestamp: Math.floor(Date.now() / 1000),
-      type: outboxMessage.eventName,
-      headers
-    }
-  );
+  let published: boolean;
+
+  try {
+    published = channel.publish(
+      outboxMessage.exchange,
+      outboxMessage.routingKey,
+      Buffer.from(JSON.stringify(outboxMessage.payload)),
+      {
+        contentType: "application/json",
+        deliveryMode: 2,
+        messageId: outboxMessage.messageId,
+        timestamp: Math.floor(Date.now() / 1000),
+        type: outboxMessage.eventName,
+        headers
+      }
+    );
+  } catch (error) {
+    const publishError = error instanceof Error ? error : new Error(String(error));
+    await markOutboxPublishFailure(prisma, outboxMessage, publishError);
+    throw publishError;
+  }
 
   if (!published) {
     const error = new Error("RabbitMQ channel backpressure while publishing outbox message");
-    await markOutboxPublishFailure(prisma, outboxMessage.id, error);
+    await markOutboxPublishFailure(prisma, outboxMessage, error);
     throw error;
   }
 
@@ -644,6 +687,49 @@ async function dispatchOutboxEvent(
       publishedAt: new Date()
     }
   });
+}
+
+export async function dispatchPendingOutboxMessages(
+  channel: Channel,
+  prisma: PrismaClient,
+  batchSize = outboxDispatcherBatchSize
+): Promise<{ fetched: number; failed: number; published: number }> {
+  const pendingMessages = await prisma.outboxMessage.findMany({
+    where: {
+      status: "PENDING",
+      attempts: {
+        lt: outboxMaxPublishAttempts
+      }
+    },
+    orderBy: {
+      createdAt: "asc"
+    },
+    take: batchSize
+  });
+
+  let failed = 0;
+  let published = 0;
+
+  for (const pendingMessage of pendingMessages) {
+    try {
+      await dispatchOutboxEvent(channel, prisma, pendingMessage);
+      published += 1;
+    } catch (error) {
+      failed += 1;
+      logger.error("Outbox message publish failed", {
+        error: error instanceof Error ? error.message : String(error),
+        eventName: pendingMessage.eventName,
+        id: pendingMessage.id,
+        routingKey: pendingMessage.routingKey
+      });
+    }
+  }
+
+  return {
+    fetched: pendingMessages.length,
+    failed,
+    published
+  };
 }
 
 async function dispatchPendingWorkflowExecutionOutboxMessages(
@@ -674,18 +760,18 @@ async function dispatchPendingWorkflowExecutionOutboxMessages(
 
 async function markOutboxPublishFailure(
   prisma: PrismaClient,
-  outboxMessageId: string,
+  outboxMessage: Awaited<ReturnType<typeof persistOutboxEvent>>,
   error: Error
 ): Promise<void> {
+  const attempts = outboxMessage.attempts + 1;
   await prisma.outboxMessage.update({
     where: {
-      id: outboxMessageId
+      id: outboxMessage.id
     },
     data: {
-      attempts: {
-        increment: 1
-      },
-      lastError: error.message
+      attempts,
+      lastError: error.message,
+      status: attempts >= outboxMaxPublishAttempts ? "FAILED" : outboxMessage.status
     }
   });
 }
@@ -890,6 +976,7 @@ class WorkflowExecutionWorkerError extends Error {
 
 async function shutdown(resources: WorkerResources): Promise<void> {
   logger.info("Stopping execution worker");
+  clearInterval(resources.outboxDispatcher);
   await resources.channel.close();
   await resources.connection.close();
   await resources.prisma.$disconnect();

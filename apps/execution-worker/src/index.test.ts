@@ -13,6 +13,7 @@ import type { Channel, ConsumeMessage } from "amqplib";
 import type { PrismaClient } from "@prisma/client/index";
 
 import {
+  dispatchPendingOutboxMessages,
   getWorkflowExecutionRetryAttempt,
   handleDelivery,
   parseWorkflowExecutionRequestedMessage,
@@ -162,6 +163,96 @@ test("marks failed, publishes failed event, and dead-letters after max retries",
   assert.equal(failedMessage.payload?.error?.retryable, true);
 });
 
+test("dispatches pending outbox messages and marks them as published", async () => {
+  const channel = createFakeChannel();
+  const outboxRecord = createOutboxRecord(FLOWPILOT_ROUTING_KEYS.workflowExecutionCompleted);
+  const updates: unknown[] = [];
+  const prisma = {
+    outboxMessage: {
+      findMany: async () => [outboxRecord],
+      update: async (args: unknown) => {
+        updates.push(args);
+        return {
+          ...outboxRecord,
+          status: "PUBLISHED",
+          attempts: 1,
+          publishedAt: new Date("2026-05-02T12:00:02.000Z")
+        };
+      }
+    }
+  } as unknown as PrismaClient;
+
+  const result = await dispatchPendingOutboxMessages(channel, prisma);
+
+  assert.deepEqual(result, { failed: 0, fetched: 1, published: 1 });
+  assert.equal(channel.published.length, 1);
+  assert.equal(channel.published[0]?.exchange, FLOWPILOT_EXCHANGES.events);
+  assert.equal(channel.published[0]?.routingKey, FLOWPILOT_ROUTING_KEYS.workflowExecutionCompleted);
+  assert.equal(updates.length, 1);
+});
+
+test("records outbox publish failures without stopping the batch", async () => {
+  const channel = createFakeChannel({ publishResults: [false, true] });
+  const failedRecord = {
+    ...createOutboxRecord(FLOWPILOT_ROUTING_KEYS.workflowExecutionFailed),
+    attempts: 4,
+    id: "outbox-failed"
+  };
+  const publishedRecord = {
+    ...createOutboxRecord(FLOWPILOT_ROUTING_KEYS.workflowExecutionCompleted),
+    id: "outbox-published",
+    idempotencyKey: "workflow.execution.completed:execution-1"
+  };
+  const updates: Array<{ data?: { status?: string } }> = [];
+  const prisma = {
+    outboxMessage: {
+      findMany: async () => [failedRecord, publishedRecord],
+      update: async (args: { data?: { status?: string } }) => {
+        updates.push(args);
+        return args;
+      }
+    }
+  } as unknown as PrismaClient;
+
+  const result = await dispatchPendingOutboxMessages(channel, prisma);
+
+  assert.deepEqual(result, { failed: 1, fetched: 2, published: 1 });
+  assert.equal(channel.published.length, 2);
+  assert.equal(updates[0]?.data?.status, "FAILED");
+  assert.equal(updates[1]?.data?.status, "PUBLISHED");
+});
+
+test("limits pending outbox dispatch batches", async () => {
+  const channel = createFakeChannel();
+  const findManyArgs: unknown[] = [];
+  const prisma = {
+    outboxMessage: {
+      findMany: async (args: unknown) => {
+        findManyArgs.push(args);
+        return [];
+      }
+    }
+  } as unknown as PrismaClient;
+
+  const result = await dispatchPendingOutboxMessages(channel, prisma, 2);
+
+  assert.deepEqual(result, { failed: 0, fetched: 0, published: 0 });
+  assert.deepEqual(findManyArgs, [
+    {
+      orderBy: {
+        createdAt: "asc"
+      },
+      take: 2,
+      where: {
+        attempts: {
+          lt: 5
+        },
+        status: "PENDING"
+      }
+    }
+  ]);
+});
+
 function validMessage(): WorkflowExecutionRequestedMessage {
   return {
     eventName: FLOWPILOT_ROUTING_KEYS.workflowExecutionRequested,
@@ -236,7 +327,7 @@ type FakeChannel = Channel & {
   }>;
 };
 
-function createFakeChannel() {
+function createFakeChannel(options: { publishResults?: boolean[] } = {}) {
   const channel = {
     acked: false,
     nacked: false,
@@ -256,17 +347,17 @@ function createFakeChannel() {
       exchange: string,
       routingKey: string,
       content: Buffer,
-      options: { headers?: Record<string, unknown> } = {}
+      publishOptions: { headers?: Record<string, unknown> } = {}
     ) {
       channel.published.push({
         exchange,
         routingKey,
         content,
         options: {
-          headers: options.headers ?? {}
+          headers: publishOptions.headers ?? {}
         }
       });
-      return true;
+      return options.publishResults?.shift() ?? true;
     }
   };
 
