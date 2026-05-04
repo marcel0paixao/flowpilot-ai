@@ -1,4 +1,5 @@
 import { ApiProperty } from "@nestjs/swagger";
+import { workflowDefinitionSchema, type WorkflowDefinition } from "@flowpilot/contracts";
 import {
   IsNotEmpty,
   IsObject,
@@ -21,7 +22,7 @@ export const createWorkflowSchema = z
         message: "slug must use lowercase letters, numbers, and single hyphens"
       }),
     description: z.string().max(500).optional(),
-    definition: z.record(z.string(), z.unknown()).optional()
+    definition: workflowDefinitionSchema.optional()
   })
   .strict();
 
@@ -51,12 +52,19 @@ export class CreateWorkflowDto {
 
   @ApiProperty({
     example: {
-      nodes: [],
+      nodes: [
+        {
+          id: "manual-trigger",
+          type: "trigger.manual",
+          name: "Manual Trigger",
+          config: {}
+        }
+      ],
       edges: []
     },
     required: false
   })
   @IsOptional()
   @IsObject()
-  definition?: Record<string, unknown>;
+  definition?: WorkflowDefinition;
 }

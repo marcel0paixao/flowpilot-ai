@@ -185,3 +185,15 @@ Reason: `WorkflowExecution` stores current state, but product and observability 
 Decision: Expose execution timeline events through `GET /api/workspaces/:workspaceId/workflows/:workflowId/executions/:executionId/events`, backed by `WorkflowExecutionEvent` and protected by the same read roles as workflow execution details.
 
 Reason: Clients need a stable HTTP read model for execution history instead of reading RabbitMQ queues. Keeping the route nested under workspace, workflow, and execution preserves tenant scoping and makes the API contract match the domain hierarchy.
+
+## 2026-05-04: Workflow Definition Contract Before Node Runtime
+
+Decision: Define a shared `WorkflowDefinition` contract in `packages/contracts` before implementing `WorkflowNodeExecution`. The first supported node types are `trigger.manual`, `action.transform`, and `action.httpRequest`; definitions must include at least one manual trigger, unique node/edge IDs, valid edge references, reachable nodes, no trigger incoming edges, and an acyclic graph.
+
+Reason: Node execution records need a reliable node shape to point at. Validating workflow definitions at API boundaries keeps invalid JSON out of persisted workflow versions and gives the execution worker a stable contract for the next runtime slice.
+
+## 2026-05-04: Node Lifecycle Event Names Are Workflow-Scoped
+
+Decision: Use `workflow.node.execution.started`, `workflow.node.execution.completed`, and `workflow.node.execution.failed` for future node lifecycle events.
+
+Reason: The events describe node progress inside a workflow execution, so the routing keys should stay under the workflow domain rather than using top-level `node.execution.*` names.

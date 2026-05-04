@@ -9,9 +9,9 @@ export const FLOWPILOT_ROUTING_KEYS = {
   workflowCreated: "workflow.created",
   workflowExecutionRequested: "workflow.execution.requested",
   workflowExecutionStarted: "workflow.execution.started",
-  nodeExecutionStarted: "node.execution.started",
-  nodeExecutionCompleted: "node.execution.completed",
-  nodeExecutionFailed: "node.execution.failed",
+  nodeExecutionStarted: "workflow.node.execution.started",
+  nodeExecutionCompleted: "workflow.node.execution.completed",
+  nodeExecutionFailed: "workflow.node.execution.failed",
   workflowExecutionCompleted: "workflow.execution.completed",
   workflowExecutionFailed: "workflow.execution.failed",
   aiTraceCreated: "ai.trace.created"

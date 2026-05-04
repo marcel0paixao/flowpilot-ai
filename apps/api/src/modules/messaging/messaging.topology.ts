@@ -27,7 +27,7 @@ export const flowPilotQueueBindings: QueueBinding[] = [
   {
     queue: FLOWPILOT_QUEUES.workflowServiceExecutionEvents,
     exchange: FLOWPILOT_EXCHANGES.events,
-    routingKey: "node.execution.*"
+    routingKey: "workflow.node.execution.*"
   },
   {
     queue: FLOWPILOT_QUEUES.workflowServiceExecutionEvents,
@@ -47,7 +47,7 @@ export const flowPilotQueueBindings: QueueBinding[] = [
   {
     queue: FLOWPILOT_QUEUES.observabilityServiceExecutionEvents,
     exchange: FLOWPILOT_EXCHANGES.events,
-    routingKey: "node.execution.*"
+    routingKey: "workflow.node.execution.*"
   },
   {
     queue: FLOWPILOT_QUEUES.observabilityServiceExecutionEvents,

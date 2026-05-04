@@ -186,6 +186,10 @@ importers:
   packages/config: {}
 
   packages/contracts:
+    dependencies:
+      zod:
+        specifier: ^4.3.6
+        version: 4.3.6
     devDependencies:
       tsx:
         specifier: ^4.21.0

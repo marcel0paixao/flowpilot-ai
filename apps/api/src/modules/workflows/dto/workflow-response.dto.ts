@@ -1,5 +1,6 @@
 import { ApiProperty } from "@nestjs/swagger";
 import { WorkflowStatus } from "@prisma/client/index";
+import type { WorkflowDefinition } from "@flowpilot/contracts";
 
 export class WorkflowVersionResponseDto {
   @ApiProperty({ type: String, example: "version-id" })
@@ -11,11 +12,18 @@ export class WorkflowVersionResponseDto {
   @ApiProperty({
     type: Object,
     example: {
-      nodes: [],
+      nodes: [
+        {
+          id: "manual-trigger",
+          type: "trigger.manual",
+          name: "Manual Trigger",
+          config: {}
+        }
+      ],
       edges: []
     }
   })
-  definition!: Record<string, unknown>;
+  definition!: WorkflowDefinition;
 
   @ApiProperty({ type: Date, example: "2026-05-01T12:00:00.000Z" })
   createdAt!: Date;

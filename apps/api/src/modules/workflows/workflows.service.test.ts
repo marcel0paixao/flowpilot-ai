@@ -3,7 +3,12 @@ import { test } from "node:test";
 
 import { ConflictException, NotFoundException } from "@nestjs/common";
 import { Prisma } from "@prisma/client/index";
-import { FLOWPILOT_ROUTING_KEYS } from "@flowpilot/contracts";
+import {
+  DEFAULT_WORKFLOW_DEFINITION,
+  FLOWPILOT_ROUTING_KEYS,
+  WORKFLOW_NODE_TYPES,
+  type WorkflowDefinition
+} from "@flowpilot/contracts";
 
 import { WorkflowsService } from "./workflows.service.js";
 
@@ -28,7 +33,7 @@ test("WorkflowsService creates a workflow with an initial draft version", async 
   assert.equal(result.id, "workflow-1");
   assert.equal(result.status, WORKFLOW_STATUS_DRAFT);
   assert.equal(result.currentVersion.version, 1);
-  assert.deepEqual(result.currentVersion.definition, { nodes: [], edges: [] });
+  assert.deepEqual(result.currentVersion.definition, DEFAULT_WORKFLOW_DEFINITION);
 
   const createArgs = prisma.workflow.create.calls[0]?.[0] as {
     data: {
@@ -41,7 +46,7 @@ test("WorkflowsService creates a workflow with an initial draft version", async 
   assert.equal(createArgs.data.workspaceId, "workspace-1");
   assert.equal(createArgs.data.status, WORKFLOW_STATUS_DRAFT);
   assert.equal(createArgs.data.versions.create.version, 1);
-  assert.deepEqual(createArgs.data.versions.create.definition, { nodes: [], edges: [] });
+  assert.deepEqual(createArgs.data.versions.create.definition, DEFAULT_WORKFLOW_DEFINITION);
   assert.equal(messagingService.publishEvent.calls[0]?.[0], FLOWPILOT_ROUTING_KEYS.workflowCreated);
   const workflowCreatedMessage = messagingService.publishEvent.calls[0]?.[1] as {
     actor: { id: string };
@@ -49,6 +54,31 @@ test("WorkflowsService creates a workflow with an initial draft version", async 
   };
   assert.equal(workflowCreatedMessage.payload.workflowId, "workflow-1");
   assert.equal(workflowCreatedMessage.actor.id, "user-1");
+});
+
+test("WorkflowsService creates a workflow with a validated definition", async () => {
+  const workflow = workflowFixture();
+  const definition = workflowDefinitionFixture();
+  const prisma = {
+    workflow: {
+      create: mockAsync(workflow)
+    }
+  };
+  const service = new WorkflowsService(prisma as never, fakeMessagingService());
+
+  await service.create("workspace-1", {
+    name: "Lead Enrichment",
+    slug: "lead-enrichment",
+    definition
+  }, "user-1");
+
+  const createArgs = prisma.workflow.create.calls[0]?.[0] as {
+    data: {
+      versions: { create: { definition: unknown } };
+    };
+  };
+
+  assert.deepEqual(createArgs.data.versions.create.definition, definition);
 });
 
 test("WorkflowsService throws ConflictException for duplicate workflow slug", async () => {
@@ -322,10 +352,7 @@ function workflowFixture() {
         id: "version-1",
         workflowId: "workflow-1",
         version: 1,
-        definition: {
-          nodes: [],
-          edges: []
-        },
+        definition: DEFAULT_WORKFLOW_DEFINITION,
         createdAt: now,
         updatedAt: now
       }
@@ -372,6 +399,35 @@ function workflowExecutionEventFixture() {
       executionId: "execution-1"
     },
     createdAt: now
+  };
+}
+
+function workflowDefinitionFixture(): WorkflowDefinition {
+  return {
+    nodes: [
+      {
+        id: "manual-trigger",
+        type: WORKFLOW_NODE_TYPES.manualTrigger,
+        name: "Manual Trigger",
+        config: {}
+      },
+      {
+        id: "normalize-lead",
+        type: WORKFLOW_NODE_TYPES.transformAction,
+        name: "Normalize Lead",
+        config: {
+          mode: "pick",
+          pick: ["leadId", "email"]
+        }
+      }
+    ],
+    edges: [
+      {
+        id: "edge-manual-to-normalize",
+        sourceNodeId: "manual-trigger",
+        targetNodeId: "normalize-lead"
+      }
+    ]
   };
 }
 

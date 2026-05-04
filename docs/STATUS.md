@@ -97,10 +97,17 @@ Week 1 foundation.
   - `GET /api/workspaces/:workspaceId/workflows/:workflowId/executions/:executionId/events`
 - Added explicit workflow execution event response DTOs for Swagger/API contracts.
 - Added unit and HTTP integration coverage for timeline event reads and missing-execution `404` behavior.
+- Added a shared `WorkflowDefinition` contract in `packages/contracts`.
+- Added supported MVP node types: `trigger.manual`, `action.transform`, and `action.httpRequest`.
+- Added workflow definition validation for unique IDs, valid edges, reachable nodes, manual trigger requirements, and acyclic graphs.
+- API workflow creation now validates `definition` with the shared contract instead of accepting arbitrary JSON.
+- New workflows without an explicit definition now default to a valid manual trigger definition.
+- Demo seed now creates the `Lead Enrichment` workflow with real nodes and edges.
+- Future node lifecycle routing keys were aligned to `workflow.node.execution.started`, `workflow.node.execution.completed`, and `workflow.node.execution.failed`.
 
 ## In Progress
 
-- Next workflow execution model slice planning
+- Node execution runtime planning
 
 ## Not Started
 
@@ -220,6 +227,18 @@ Week 1 foundation.
 - `docker compose up -d --force-recreate api execution-worker workflow-service` restarted the services with the new API route.
 - `curl http://localhost:3000/api/health` returned `status: ok` after the service restart.
 - Manual end-to-end timeline API validation created execution `a367abaa-b8be-4213-8ab1-e63206ff583d`; the execution reached `SUCCEEDED`, and `GET /api/workspaces/5197de4a-7a9a-4795-b455-e4ab877aba9b/workflows/4455a365-b111-43f6-be2e-d613905d331c/executions/a367abaa-b8be-4213-8ab1-e63206ff583d/events` returned `workflow.execution.started` and `workflow.execution.completed`.
+- `pnpm --filter @flowpilot/contracts typecheck` passed after adding workflow definition contracts.
+- `pnpm --filter @flowpilot/contracts test` passed with 8 tests after adding workflow definition coverage.
+- `pnpm --filter @flowpilot/contracts build` passed after adding the Zod-backed workflow definition contract.
+- `pnpm --filter @flowpilot/api typecheck` passed after wiring workflow definition validation into workflow creation.
+- `pnpm --filter @flowpilot/api lint` passed after wiring workflow definition validation into workflow creation.
+- `pnpm --filter @flowpilot/api test` passed with 38 tests after adding workflow definition service coverage.
+- `pnpm --filter @flowpilot/api test:integration` passed with 3 HTTP integration tests after adding invalid definition coverage.
+- `pnpm --filter @flowpilot/api seed:demo` updated the local demo `Lead Enrichment` workflow with `manual-trigger`, `normalize-lead`, and `enrichment-request` nodes.
+- `docker compose up -d --force-recreate api` restarted the API with workflow definition validation.
+- Manual HTTP validation confirmed the demo workflow detail returns the new nodes and edges.
+- Manual HTTP validation confirmed a workflow definition with a broken edge returns `400`.
+- `pnpm -r typecheck` passed after adding the workflow definition contract.
 
 ## Notes
 
@@ -231,7 +250,7 @@ Week 1 foundation.
 
 ## Recommended Next Step
 
-Start modeling node-level execution progress: persist per-node execution attempts/results and emit node lifecycle events so a future UI can show which workflow step is running, succeeded, or failed.
+Implement the first node execution runtime slice: add `WorkflowNodeExecution` persistence, have the execution worker load `WorkflowVersion.definition`, execute the validated nodes sequentially, and expose node progress through the API.
 
 ## Notes For Next Chat
 
@@ -244,4 +263,4 @@ Start by reading:
 - `docs/DECISIONS.md`
 - `docs/NEXT_STEPS.md`
 
-Then start modeling node-level execution progress: persist per-node execution attempts/results and emit node lifecycle events so a future UI can show which workflow step is running, succeeded, or failed.
+Then implement the first node execution runtime slice: add `WorkflowNodeExecution` persistence, have the execution worker load `WorkflowVersion.definition`, execute the validated nodes sequentially, and expose node progress through the API.

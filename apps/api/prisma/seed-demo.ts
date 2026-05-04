@@ -1,4 +1,5 @@
 import { PrismaClient, WorkspaceRole } from "@prisma/client/index";
+import { WORKFLOW_NODE_TYPES, type WorkflowDefinition } from "@flowpilot/contracts";
 import { hash } from "bcryptjs";
 import { config } from "dotenv";
 
@@ -9,6 +10,52 @@ process.env.DATABASE_URL ??= "postgresql://flowpilot:flowpilot@localhost:5432/fl
 const prisma = new PrismaClient();
 
 const demoPassword = "correct horse battery staple";
+const leadEnrichmentDefinition = {
+  nodes: [
+    {
+      id: "manual-trigger",
+      type: WORKFLOW_NODE_TYPES.manualTrigger,
+      name: "Manual Trigger",
+      config: {}
+    },
+    {
+      id: "normalize-lead",
+      type: WORKFLOW_NODE_TYPES.transformAction,
+      name: "Normalize Lead",
+      config: {
+        mode: "pick",
+        pick: ["leadId", "email"]
+      }
+    },
+    {
+      id: "enrichment-request",
+      type: WORKFLOW_NODE_TYPES.httpRequestAction,
+      name: "Request Enrichment",
+      config: {
+        method: "POST",
+        url: "https://example.com/api/enrich-lead",
+        headers: {
+          "content-type": "application/json"
+        },
+        body: {
+          source: "flowpilot-demo"
+        }
+      }
+    }
+  ],
+  edges: [
+    {
+      id: "edge-manual-to-normalize",
+      sourceNodeId: "manual-trigger",
+      targetNodeId: "normalize-lead"
+    },
+    {
+      id: "edge-normalize-to-enrichment",
+      sourceNodeId: "normalize-lead",
+      targetNodeId: "enrichment-request"
+    }
+  ]
+} satisfies WorkflowDefinition;
 const demoUsers = [
   {
     email: "owner@acme.test",
@@ -102,10 +149,7 @@ async function main() {
       versions: {
         create: {
           version: 1,
-          definition: {
-            nodes: [],
-            edges: []
-          }
+          definition: leadEnrichmentDefinition
         }
       }
     },
@@ -125,16 +169,10 @@ async function main() {
     create: {
       workflowId: workflow.id,
       version: 1,
-      definition: {
-        nodes: [],
-        edges: []
-      }
+      definition: leadEnrichmentDefinition
     },
     update: {
-      definition: {
-        nodes: [],
-        edges: []
-      }
+      definition: leadEnrichmentDefinition
     }
   });
 

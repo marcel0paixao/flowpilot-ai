@@ -4,6 +4,8 @@ import {
   FLOWPILOT_MESSAGE_PRODUCERS,
   FLOWPILOT_MESSAGE_SCHEMA_VERSION,
   FLOWPILOT_ROUTING_KEYS,
+  DEFAULT_WORKFLOW_DEFINITION,
+  type WorkflowDefinition,
   type WorkflowCreatedMessage,
   type WorkflowExecutionRequestedMessage
 } from "@flowpilot/contracts";
@@ -183,8 +185,8 @@ export class WorkflowsService {
     return events.map(toWorkflowExecutionEventResponse);
   }
 
-  private getInitialDefinition(definition?: Record<string, unknown>): Prisma.InputJsonValue {
-    return (definition ?? { nodes: [], edges: [] }) as Prisma.InputJsonObject;
+  private getInitialDefinition(definition?: WorkflowDefinition): Prisma.InputJsonValue {
+    return (definition ?? DEFAULT_WORKFLOW_DEFINITION) as Prisma.InputJsonObject;
   }
 
   private getExecutionInput(input?: Record<string, unknown>): Prisma.InputJsonValue {

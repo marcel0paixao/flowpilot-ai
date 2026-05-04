@@ -40,7 +40,7 @@ Examples:
 - `workflow.created`
 - `workflow.execution.started`
 - `workflow.execution.completed`
-- `node.execution.failed`
+- `workflow.node.execution.failed`
 - `ai.trace.created`
 
 Routing keys must match the message `eventName` for now. If a future consumer needs a broader routing strategy, add a separate `routingKey` constant in `packages/contracts` rather than hand-writing strings in services.
@@ -58,9 +58,9 @@ Initial queues:
 | Queue | Bindings | Purpose |
 | --- | --- | --- |
 | `flowpilot.execution-worker.workflow-executions` | `workflow.execution.requested` on `flowpilot.commands` | Execution workers consume workflow execution requests. |
-| `flowpilot.workflow-service.execution-events` | `workflow.execution.*`, `node.execution.*` on `flowpilot.events` | Workflow service updates execution state from worker events. |
+| `flowpilot.workflow-service.execution-events` | `workflow.execution.*`, `workflow.node.execution.*` on `flowpilot.events` | Workflow service updates execution state from worker events. |
 | `flowpilot.observability-service.ai-traces` | `ai.trace.created` on `flowpilot.events` | Observability service persists LLM trace events. |
-| `flowpilot.observability-service.execution-events` | `workflow.execution.*`, `node.execution.*` on `flowpilot.events` | Observability service persists execution timeline events. |
+| `flowpilot.observability-service.execution-events` | `workflow.execution.*`, `workflow.node.execution.*` on `flowpilot.events` | Observability service persists execution timeline events. |
 
 Queues are service-owned. A service may bind the same queue to multiple routing keys when it needs one ordered stream for related work.
 
@@ -150,7 +150,7 @@ Use `correlationId` to group all work caused by one user/API request or one work
 Use `causationId` to describe the direct parent message. For example:
 
 - `workflow.execution.requested.eventId` becomes the `causationId` for `workflow.execution.started`.
-- `node.execution.started.eventId` becomes the `causationId` for `node.execution.completed`.
+- `workflow.node.execution.started.eventId` becomes the `causationId` for `workflow.node.execution.completed`.
 
 This pair makes distributed traces explainable without needing every service to share one call stack.
 
@@ -187,9 +187,9 @@ The execution worker uses this pattern for `workflow.execution.started`, `workfl
 | `workflow.created` | Event | `flowpilot.events` | `workflow.created` | `api` or `workflow-service` | `workflow-service`, `observability-service` |
 | `workflow.execution.requested` | Command | `flowpilot.commands` | `workflow.execution.requested` | `api` or `workflow-service` | `execution-worker` |
 | `workflow.execution.started` | Event | `flowpilot.events` | `workflow.execution.started` | `execution-worker` | `workflow-service`, `observability-service` |
-| `node.execution.started` | Event | `flowpilot.events` | `node.execution.started` | `execution-worker` | `workflow-service`, `observability-service` |
-| `node.execution.completed` | Event | `flowpilot.events` | `node.execution.completed` | `execution-worker` | `workflow-service`, `observability-service` |
-| `node.execution.failed` | Event | `flowpilot.events` | `node.execution.failed` | `execution-worker` | `workflow-service`, `observability-service` |
+| `workflow.node.execution.started` | Event | `flowpilot.events` | `workflow.node.execution.started` | `execution-worker` | `workflow-service`, `observability-service` |
+| `workflow.node.execution.completed` | Event | `flowpilot.events` | `workflow.node.execution.completed` | `execution-worker` | `workflow-service`, `observability-service` |
+| `workflow.node.execution.failed` | Event | `flowpilot.events` | `workflow.node.execution.failed` | `execution-worker` | `workflow-service`, `observability-service` |
 | `workflow.execution.completed` | Event | `flowpilot.events` | `workflow.execution.completed` | `execution-worker` | `workflow-service`, `observability-service` |
 | `workflow.execution.failed` | Event | `flowpilot.events` | `workflow.execution.failed` | `execution-worker` | `workflow-service`, `observability-service` |
 | `ai.trace.created` | Event | `flowpilot.events` | `ai.trace.created` | `ai-orchestrator` | `observability-service` |

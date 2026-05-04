@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { after, before, beforeEach, test } from "node:test";
 
 import { PrismaClient } from "@prisma/client/index";
+import { WORKFLOW_NODE_TYPES, type WorkflowDefinition } from "@flowpilot/contracts";
 
 import { createTestApp } from "../../test/create-test-app.js";
 
@@ -147,6 +148,35 @@ test("workflow HTTP flow creates, lists, details, and enforces workspace roles",
   });
   assert.equal(invalidWorkflowResponse.statusCode, 400);
 
+  const invalidWorkflowDefinitionResponse = await app.inject({
+    method: "POST",
+    url: `/api/workspaces/${workspaceId}/workflows`,
+    headers: bearer(ownerToken),
+    payload: {
+      name: "Broken Workflow",
+      slug: "broken-workflow",
+      definition: {
+        nodes: [
+          {
+            id: "manual-trigger",
+            type: "trigger.manual",
+            name: "Manual Trigger",
+            config: {}
+          }
+        ],
+        edges: [
+          {
+            id: "edge-to-missing-node",
+            sourceNodeId: "manual-trigger",
+            targetNodeId: "missing-node"
+          }
+        ]
+      }
+    }
+  });
+  assert.equal(invalidWorkflowDefinitionResponse.statusCode, 400);
+
+  const workflowDefinition = workflowDefinitionFixture();
   const createWorkflowResponse = await app.inject({
     method: "POST",
     url: `/api/workspaces/${workspaceId}/workflows`,
@@ -154,10 +184,7 @@ test("workflow HTTP flow creates, lists, details, and enforces workspace roles",
     payload: {
       name: "Lead Enrichment",
       slug: "lead-enrichment",
-      definition: {
-        nodes: [],
-        edges: []
-      }
+      definition: workflowDefinition
     }
   });
   assert.equal(createWorkflowResponse.statusCode, 201);
@@ -173,7 +200,7 @@ test("workflow HTTP flow creates, lists, details, and enforces workspace roles",
   }>();
   assert.equal(workflow.status, "DRAFT");
   assert.equal(workflow.currentVersion.version, 1);
-  assert.deepEqual(workflow.currentVersion.definition, { nodes: [], edges: [] });
+  assert.deepEqual(workflow.currentVersion.definition, workflowDefinition);
 
   const listResponse = await app.inject({
     method: "GET",
@@ -381,6 +408,35 @@ async function login(email: string, workspaceId?: string) {
       workspaceId
     }
   });
+}
+
+function workflowDefinitionFixture(): WorkflowDefinition {
+  return {
+    nodes: [
+      {
+        id: "manual-trigger",
+        type: WORKFLOW_NODE_TYPES.manualTrigger,
+        name: "Manual Trigger",
+        config: {}
+      },
+      {
+        id: "normalize-lead",
+        type: WORKFLOW_NODE_TYPES.transformAction,
+        name: "Normalize Lead",
+        config: {
+          mode: "pick",
+          pick: ["leadId", "email"]
+        }
+      }
+    ],
+    edges: [
+      {
+        id: "edge-manual-to-normalize",
+        sourceNodeId: "manual-trigger",
+        targetNodeId: "normalize-lead"
+      }
+    ]
+  };
 }
 
 function bearer(accessToken: string) {

@@ -1,4 +1,5 @@
 export * from "./messaging.js";
+export * from "./workflow-definition.js";
 
 import { FLOWPILOT_ROUTING_KEYS } from "./messaging.js";
 

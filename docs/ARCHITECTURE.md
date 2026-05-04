@@ -61,9 +61,9 @@ Initial event names:
 
 - `workflow.execution.requested`
 - `workflow.execution.started`
-- `node.execution.started`
-- `node.execution.completed`
-- `node.execution.failed`
+- `workflow.node.execution.started`
+- `workflow.node.execution.completed`
+- `workflow.node.execution.failed`
 - `workflow.execution.completed`
 - `workflow.execution.failed`
 - `ai.trace.created`
