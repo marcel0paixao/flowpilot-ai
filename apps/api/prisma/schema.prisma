@@ -98,6 +98,7 @@ model WorkflowExecution {
   workflow        Workflow        @relation(fields: [workflowId], references: [id], onDelete: Cascade)
   workflowVersion WorkflowVersion @relation(fields: [workflowVersionId], references: [id], onDelete: Restrict)
   requestedBy     User?           @relation(fields: [requestedByUserId], references: [id], onDelete: SetNull)
+  events          WorkflowExecutionEvent[]
 
   @@index([workspaceId])
   @@index([workflowId])
@@ -123,6 +124,26 @@ model OutboxMessage {
   updatedAt      DateTime            @updatedAt
 
   @@index([status, createdAt])
+  @@index([eventName])
+}
+
+model WorkflowExecutionEvent {
+  id          String   @id @default(uuid())
+  workspaceId String
+  workflowId  String
+  executionId String
+  eventName   String
+  eventId     String   @unique
+  occurredAt  DateTime
+  producer    String
+  payload     Json
+  createdAt   DateTime @default(now())
+
+  workflowExecution WorkflowExecution @relation(fields: [executionId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+  @@index([workflowId])
+  @@index([executionId, occurredAt])
   @@index([eventName])
 }
 

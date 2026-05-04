@@ -89,10 +89,14 @@ Week 1 foundation.
 - Added a local-only worker failure simulation switch guarded by `FLOWPILOT_ENABLE_WORKER_FAILURE_SIMULATION=true` for validating retry/DLQ behavior without breaking infrastructure.
 - Added an execution-worker outbox dispatcher loop that scans `OutboxMessage` rows with `PENDING` status every 5 seconds, publishes them to RabbitMQ, and marks them `PUBLISHED`.
 - Outbox publish failures now increment `attempts`, store `lastError`, and mark the row `FAILED` after 5 failed attempts.
+- Added `WorkflowExecutionEvent` persistence and migration for execution timelines.
+- Added a real `workflow-service` RabbitMQ consumer for `flowpilot.workflow-service.execution-events`.
+- The workflow-service now persists `workflow.execution.started`, `workflow.execution.completed`, and `workflow.execution.failed` events idempotently by `eventId`.
+- Docker Compose now includes the `workflow-service` service.
 
 ## In Progress
 
-- Workflow execution event persistence in workflow-service or observability-service
+- Workflow execution timeline read APIs
 
 ## Not Started
 
@@ -200,6 +204,11 @@ Week 1 foundation.
 - `pnpm --filter @flowpilot/execution-worker test` passed with 10 tests after adding outbox dispatcher coverage.
 - `pnpm --filter @flowpilot/execution-worker typecheck` passed after adding the outbox dispatcher loop.
 - Manual outbox dispatcher validation inserted `OutboxMessage` `manual-outbox-dispatch-1` with `PENDING` status; the worker dispatcher published it to RabbitMQ, marked it `PUBLISHED`, and `flowpilot.workflow-service.execution-events` received the `workflow.execution.started` message.
+- `DATABASE_URL=postgresql://flowpilot:flowpilot@localhost:5432/flowpilot pnpm --filter @flowpilot/api exec prisma migrate deploy --schema prisma/schema.prisma` applied the `WorkflowExecutionEvent` migration locally.
+- `pnpm --filter @flowpilot/workflow-service typecheck` and `test` passed after adding the workflow-service consumer.
+- `docker compose up -d --force-recreate workflow-service execution-worker` started both consumers.
+- Manual timeline validation created execution `89d5c509-775d-41ab-b111-8bd3d2019ba9`; the worker completed it, workflow-service consumed the lifecycle events, and PostgreSQL stored `workflow.execution.started` plus `workflow.execution.completed` timeline rows.
+- `rabbitmqctl list_queues` showed `flowpilot.workflow-service.execution-events` with 0 messages and 1 consumer after timeline persistence.
 
 ## Notes
 
@@ -211,7 +220,7 @@ Week 1 foundation.
 
 ## Recommended Next Step
 
-Start persisting workflow execution events in a workflow-service or observability-service slice so `workflow.execution.started`, `workflow.execution.completed`, and `workflow.execution.failed` become queryable as an execution timeline.
+Expose workflow execution timeline read APIs from the API, backed by `WorkflowExecutionEvent`, so clients can query persisted `started`, `completed`, and `failed` events for an execution.
 
 ## Notes For Next Chat
 
@@ -224,4 +233,4 @@ Start by reading:
 - `docs/DECISIONS.md`
 - `docs/NEXT_STEPS.md`
 
-Then start persisting workflow execution events in a workflow-service or observability-service slice.
+Then expose workflow execution timeline read APIs from the API, backed by `WorkflowExecutionEvent`.

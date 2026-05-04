@@ -173,3 +173,9 @@ Reason: Status updates and event publication cross two durable systems: PostgreS
 Decision: Add a periodic dispatcher loop inside the execution worker that publishes pending `OutboxMessage` rows and marks them `PUBLISHED`, with failed publish attempts tracked on the outbox row.
 
 Reason: The worker is currently the only producer of execution lifecycle outbox events, so local ownership keeps the recovery path simple while the system is still small. A dedicated outbox dispatcher service can be introduced later if multiple producers need shared recovery, scheduling, or operational controls.
+
+## 2026-05-04: Workflow Service Persists Execution Timeline Events
+
+Decision: Add `WorkflowExecutionEvent` rows and have `workflow-service` consume `workflow.execution.*` events from RabbitMQ to persist execution timeline entries idempotently by `eventId`.
+
+Reason: `WorkflowExecution` stores current state, but product and observability views need an ordered history of lifecycle events. Persisting lifecycle events in workflow-service makes execution timelines queryable without coupling API reads directly to transient RabbitMQ queues.
