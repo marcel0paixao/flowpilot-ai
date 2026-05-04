@@ -13,6 +13,7 @@ import {
   createWorkflowExecutionSchema
 } from "./dto/create-workflow-execution.dto.js";
 import { CreateWorkflowDto, createWorkflowSchema } from "./dto/create-workflow.dto.js";
+import { WorkflowExecutionEventResponseDto } from "./dto/workflow-execution-event-response.dto.js";
 import { WorkflowExecutionResponseDto } from "./dto/workflow-execution-response.dto.js";
 import { WorkflowResponseDto } from "./dto/workflow-response.dto.js";
 import { WorkflowsService } from "./workflows.service.js";
@@ -83,6 +84,26 @@ export class WorkflowsController {
   })
   findExecutions(@Param("workspaceId") workspaceId: string, @Param("workflowId") workflowId: string) {
     return this.workflowsService.findExecutions(workspaceId, workflowId);
+  }
+
+  @Get(":workflowId/executions/:executionId/events")
+  @WorkspaceRoles(
+    WorkspaceRole.OWNER,
+    WorkspaceRole.ADMIN,
+    WorkspaceRole.MEMBER,
+    WorkspaceRole.VIEWER
+  )
+  @ApiOkResponse({
+    description: "Workflow execution timeline events.",
+    type: WorkflowExecutionEventResponseDto,
+    isArray: true
+  })
+  findExecutionEvents(
+    @Param("workspaceId") workspaceId: string,
+    @Param("workflowId") workflowId: string,
+    @Param("executionId") executionId: string
+  ) {
+    return this.workflowsService.findExecutionEvents(workspaceId, workflowId, executionId);
   }
 
   @Get(":workflowId/executions/:executionId")

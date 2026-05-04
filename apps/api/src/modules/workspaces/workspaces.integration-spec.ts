@@ -15,6 +15,7 @@ before(async () => {
 });
 
 beforeEach(async () => {
+  await prisma.workflowExecutionEvent.deleteMany();
   await prisma.workflowExecution.deleteMany();
   await prisma.workflowVersion.deleteMany();
   await prisma.workflow.deleteMany();
@@ -241,12 +242,49 @@ test("workflow HTTP flow creates, lists, details, and enforces workspace roles",
   assert.equal(executionDetailResponse.statusCode, 200);
   assert.equal(executionDetailResponse.json<{ id: string }>().id, execution.id);
 
+  await prisma.workflowExecutionEvent.create({
+    data: {
+      workspaceId,
+      workflowId: workflow.id,
+      executionId: execution.id,
+      eventName: "workflow.execution.started",
+      eventId: "integration-started-event-1",
+      occurredAt: new Date("2026-05-04T10:00:00.000Z"),
+      producer: "execution-worker",
+      payload: {
+        workflowId: workflow.id,
+        executionId: execution.id
+      }
+    }
+  });
+
+  const executionEventsResponse = await app.inject({
+    method: "GET",
+    url: `/api/workspaces/${workspaceId}/workflows/${workflow.id}/executions/${execution.id}/events`,
+    headers: bearer(ownerToken)
+  });
+  assert.equal(executionEventsResponse.statusCode, 200);
+  const executionEvents = executionEventsResponse.json<
+    Array<{ executionId: string; eventName: string; eventId: string }>
+  >();
+  assert.equal(executionEvents.length, 1);
+  assert.equal(executionEvents[0]?.executionId, execution.id);
+  assert.equal(executionEvents[0]?.eventName, "workflow.execution.started");
+  assert.equal(executionEvents[0]?.eventId, "integration-started-event-1");
+
   const missingExecutionResponse = await app.inject({
     method: "GET",
     url: `/api/workspaces/${workspaceId}/workflows/${workflow.id}/executions/00000000-0000-0000-0000-000000000000`,
     headers: bearer(ownerToken)
   });
   assert.equal(missingExecutionResponse.statusCode, 404);
+
+  const missingExecutionEventsResponse = await app.inject({
+    method: "GET",
+    url: `/api/workspaces/${workspaceId}/workflows/${workflow.id}/executions/00000000-0000-0000-0000-000000000000/events`,
+    headers: bearer(ownerToken)
+  });
+  assert.equal(missingExecutionEventsResponse.statusCode, 404);
 
   await register("viewer@example.test", "Viewer Example");
   const viewerMember = await app.inject({

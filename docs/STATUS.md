@@ -93,10 +93,14 @@ Week 1 foundation.
 - Added a real `workflow-service` RabbitMQ consumer for `flowpilot.workflow-service.execution-events`.
 - The workflow-service now persists `workflow.execution.started`, `workflow.execution.completed`, and `workflow.execution.failed` events idempotently by `eventId`.
 - Docker Compose now includes the `workflow-service` service.
+- Added workflow execution timeline read API:
+  - `GET /api/workspaces/:workspaceId/workflows/:workflowId/executions/:executionId/events`
+- Added explicit workflow execution event response DTOs for Swagger/API contracts.
+- Added unit and HTTP integration coverage for timeline event reads and missing-execution `404` behavior.
 
 ## In Progress
 
-- Workflow execution timeline read APIs
+- Next workflow execution model slice planning
 
 ## Not Started
 
@@ -209,6 +213,13 @@ Week 1 foundation.
 - `docker compose up -d --force-recreate workflow-service execution-worker` started both consumers.
 - Manual timeline validation created execution `89d5c509-775d-41ab-b111-8bd3d2019ba9`; the worker completed it, workflow-service consumed the lifecycle events, and PostgreSQL stored `workflow.execution.started` plus `workflow.execution.completed` timeline rows.
 - `rabbitmqctl list_queues` showed `flowpilot.workflow-service.execution-events` with 0 messages and 1 consumer after timeline persistence.
+- `pnpm --filter @flowpilot/api typecheck` passed after adding the execution timeline API.
+- `pnpm --filter @flowpilot/api lint` passed after adding the execution timeline API.
+- `pnpm --filter @flowpilot/api test` passed with 37 tests after adding timeline service coverage.
+- `pnpm --filter @flowpilot/api test:integration` passed with 3 HTTP integration tests after adding timeline route coverage.
+- `docker compose up -d --force-recreate api execution-worker workflow-service` restarted the services with the new API route.
+- `curl http://localhost:3000/api/health` returned `status: ok` after the service restart.
+- Manual end-to-end timeline API validation created execution `a367abaa-b8be-4213-8ab1-e63206ff583d`; the execution reached `SUCCEEDED`, and `GET /api/workspaces/5197de4a-7a9a-4795-b455-e4ab877aba9b/workflows/4455a365-b111-43f6-be2e-d613905d331c/executions/a367abaa-b8be-4213-8ab1-e63206ff583d/events` returned `workflow.execution.started` and `workflow.execution.completed`.
 
 ## Notes
 
@@ -220,7 +231,7 @@ Week 1 foundation.
 
 ## Recommended Next Step
 
-Expose workflow execution timeline read APIs from the API, backed by `WorkflowExecutionEvent`, so clients can query persisted `started`, `completed`, and `failed` events for an execution.
+Start modeling node-level execution progress: persist per-node execution attempts/results and emit node lifecycle events so a future UI can show which workflow step is running, succeeded, or failed.
 
 ## Notes For Next Chat
 
@@ -233,4 +244,4 @@ Start by reading:
 - `docs/DECISIONS.md`
 - `docs/NEXT_STEPS.md`
 
-Then expose workflow execution timeline read APIs from the API, backed by `WorkflowExecutionEvent`.
+Then start modeling node-level execution progress: persist per-node execution attempts/results and emit node lifecycle events so a future UI can show which workflow step is running, succeeded, or failed.

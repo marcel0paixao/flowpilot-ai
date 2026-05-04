@@ -179,3 +179,9 @@ Reason: The worker is currently the only producer of execution lifecycle outbox 
 Decision: Add `WorkflowExecutionEvent` rows and have `workflow-service` consume `workflow.execution.*` events from RabbitMQ to persist execution timeline entries idempotently by `eventId`.
 
 Reason: `WorkflowExecution` stores current state, but product and observability views need an ordered history of lifecycle events. Persisting lifecycle events in workflow-service makes execution timelines queryable without coupling API reads directly to transient RabbitMQ queues.
+
+## 2026-05-04: API Exposes Persisted Execution Timelines
+
+Decision: Expose execution timeline events through `GET /api/workspaces/:workspaceId/workflows/:workflowId/executions/:executionId/events`, backed by `WorkflowExecutionEvent` and protected by the same read roles as workflow execution details.
+
+Reason: Clients need a stable HTTP read model for execution history instead of reading RabbitMQ queues. Keeping the route nested under workspace, workflow, and execution preserves tenant scoping and makes the API contract match the domain hierarchy.

@@ -263,6 +263,48 @@ test("WorkflowsService rejects missing execution details", async () => {
   );
 });
 
+test("WorkflowsService lists workflow execution events after confirming execution ownership", async () => {
+  const events = [workflowExecutionEventFixture()];
+  const prisma = {
+    workflowExecution: {
+      findFirst: mockAsync({ id: "execution-1" })
+    },
+    workflowExecutionEvent: {
+      findMany: mockAsync(events)
+    }
+  };
+  const service = new WorkflowsService(prisma as never, fakeMessagingService());
+
+  const result = await service.findExecutionEvents("workspace-1", "workflow-1", "execution-1");
+
+  assert.equal(result.length, 1);
+  assert.equal(result[0]?.eventName, FLOWPILOT_ROUTING_KEYS.workflowExecutionStarted);
+
+  const findManyArgs = prisma.workflowExecutionEvent.findMany.calls[0]?.[0] as {
+    where: { executionId: string; workspaceId: string; workflowId: string };
+    orderBy: { occurredAt: "asc" };
+  };
+
+  assert.equal(findManyArgs.where.workspaceId, "workspace-1");
+  assert.equal(findManyArgs.where.workflowId, "workflow-1");
+  assert.equal(findManyArgs.where.executionId, "execution-1");
+  assert.equal(findManyArgs.orderBy.occurredAt, "asc");
+});
+
+test("WorkflowsService rejects execution event listing for missing executions", async () => {
+  const prisma = {
+    workflowExecution: {
+      findFirst: mockAsync(null)
+    }
+  };
+  const service = new WorkflowsService(prisma as never, fakeMessagingService());
+
+  await assert.rejects(
+    () => service.findExecutionEvents("workspace-1", "workflow-1", "missing-execution"),
+    NotFoundException
+  );
+});
+
 function workflowFixture() {
   const now = new Date("2026-05-01T12:00:00.000Z");
 
@@ -310,6 +352,26 @@ function workflowExecutionFixture() {
     completedAt: null,
     createdAt: now,
     updatedAt: now
+  };
+}
+
+function workflowExecutionEventFixture() {
+  const now = new Date("2026-05-01T12:05:01.000Z");
+
+  return {
+    id: "event-row-1",
+    workspaceId: "workspace-1",
+    workflowId: "workflow-1",
+    executionId: "execution-1",
+    eventName: FLOWPILOT_ROUTING_KEYS.workflowExecutionStarted,
+    eventId: "event-1",
+    occurredAt: now,
+    producer: "execution-worker",
+    payload: {
+      workflowId: "workflow-1",
+      executionId: "execution-1"
+    },
+    createdAt: now
   };
 }
 

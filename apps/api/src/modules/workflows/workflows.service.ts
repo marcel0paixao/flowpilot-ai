@@ -166,6 +166,23 @@ export class WorkflowsService {
     return toWorkflowExecutionResponse(execution);
   }
 
+  async findExecutionEvents(workspaceId: string, workflowId: string, executionId: string) {
+    await this.ensureExecutionExists(workspaceId, workflowId, executionId);
+
+    const events = await this.prisma.workflowExecutionEvent.findMany({
+      where: {
+        workspaceId,
+        workflowId,
+        executionId
+      },
+      orderBy: {
+        occurredAt: "asc"
+      }
+    });
+
+    return events.map(toWorkflowExecutionEventResponse);
+  }
+
   private getInitialDefinition(definition?: Record<string, unknown>): Prisma.InputJsonValue {
     return (definition ?? { nodes: [], edges: [] }) as Prisma.InputJsonObject;
   }
@@ -187,6 +204,27 @@ export class WorkflowsService {
 
     if (!workflow) {
       throw new NotFoundException("Workflow not found");
+    }
+  }
+
+  private async ensureExecutionExists(
+    workspaceId: string,
+    workflowId: string,
+    executionId: string
+  ): Promise<void> {
+    const execution = await this.prisma.workflowExecution.findFirst({
+      where: {
+        id: executionId,
+        workspaceId,
+        workflowId
+      },
+      select: {
+        id: true
+      }
+    });
+
+    if (!execution) {
+      throw new NotFoundException("Workflow execution not found");
     }
   }
 }
@@ -264,6 +302,7 @@ type WorkflowWithCurrentVersion = Prisma.WorkflowGetPayload<{
 }>;
 
 type WorkflowExecution = Prisma.WorkflowExecutionGetPayload<Record<string, never>>;
+type WorkflowExecutionEvent = Prisma.WorkflowExecutionEventGetPayload<Record<string, never>>;
 
 function toWorkflowResponse(workflow: WorkflowWithCurrentVersion) {
   const currentVersion = workflow.versions[0];
@@ -306,5 +345,20 @@ function toWorkflowExecutionResponse(execution: WorkflowExecution) {
     completedAt: execution.completedAt,
     createdAt: execution.createdAt,
     updatedAt: execution.updatedAt
+  };
+}
+
+function toWorkflowExecutionEventResponse(event: WorkflowExecutionEvent) {
+  return {
+    id: event.id,
+    workspaceId: event.workspaceId,
+    workflowId: event.workflowId,
+    executionId: event.executionId,
+    eventName: event.eventName,
+    eventId: event.eventId,
+    occurredAt: event.occurredAt,
+    producer: event.producer,
+    payload: event.payload,
+    createdAt: event.createdAt
   };
 }
