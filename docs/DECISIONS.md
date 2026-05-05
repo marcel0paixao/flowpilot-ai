@@ -209,3 +209,9 @@ Reason: The workflow execution row should keep the aggregate status of the whole
 Decision: The first execution-worker node runtime loads the persisted `WorkflowVersion.definition`, orders the validated DAG from the manual trigger, executes nodes sequentially, persists each node transition in `WorkflowNodeExecution`, and emits node lifecycle events through the existing outbox path. The initial `action.httpRequest` executor is mocked instead of performing network I/O.
 
 Reason: Sequential execution is enough to prove the workflow engine path end to end while keeping concurrency, branching, credentials, and external network behavior out of the first runtime slice. Mocking HTTP keeps local tests and demos deterministic until connector security and retry semantics are designed.
+
+## 2026-05-05: Execution Summary API For Front-End Reads
+
+Decision: Add `GET /api/workspaces/:workspaceId/workflows/:workflowId/executions/:executionId/summary` to return execution details, node progress, and timeline events in one response.
+
+Reason: The first execution detail UI should not need to stitch three API calls together just to render one screen. A compact read model keeps the front-end simpler while preserving the more granular execution, node, and event endpoints for targeted use cases.

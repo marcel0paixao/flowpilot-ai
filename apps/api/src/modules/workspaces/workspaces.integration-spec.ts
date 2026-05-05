@@ -330,6 +330,21 @@ test("workflow HTTP flow creates, lists, details, and enforces workspace roles",
   assert.equal(executionNodes[0]?.nodeType, "action.transform");
   assert.equal(executionNodes[0]?.status, "PENDING");
 
+  const executionSummaryResponse = await app.inject({
+    method: "GET",
+    url: `/api/workspaces/${workspaceId}/workflows/${workflow.id}/executions/${execution.id}/summary`,
+    headers: bearer(ownerToken)
+  });
+  assert.equal(executionSummaryResponse.statusCode, 200);
+  const executionSummary = executionSummaryResponse.json<{
+    execution: { id: string };
+    nodes: Array<{ nodeId: string }>;
+    events: Array<{ eventName: string }>;
+  }>();
+  assert.equal(executionSummary.execution.id, execution.id);
+  assert.equal(executionSummary.nodes[0]?.nodeId, "normalize-lead");
+  assert.equal(executionSummary.events[0]?.eventName, "workflow.execution.started");
+
   const missingExecutionResponse = await app.inject({
     method: "GET",
     url: `/api/workspaces/${workspaceId}/workflows/${workflow.id}/executions/00000000-0000-0000-0000-000000000000`,
@@ -350,6 +365,13 @@ test("workflow HTTP flow creates, lists, details, and enforces workspace roles",
     headers: bearer(ownerToken)
   });
   assert.equal(missingExecutionNodesResponse.statusCode, 404);
+
+  const missingExecutionSummaryResponse = await app.inject({
+    method: "GET",
+    url: `/api/workspaces/${workspaceId}/workflows/${workflow.id}/executions/00000000-0000-0000-0000-000000000000/summary`,
+    headers: bearer(ownerToken)
+  });
+  assert.equal(missingExecutionSummaryResponse.statusCode, 404);
 
   await register("viewer@example.test", "Viewer Example");
   const viewerMember = await app.inject({

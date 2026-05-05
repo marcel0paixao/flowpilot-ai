@@ -118,10 +118,14 @@ Week 1 foundation.
 - `action.httpRequest` now executes as a deterministic mock response without external network I/O.
 - Execution worker now emits `workflow.node.execution.started`, `workflow.node.execution.completed`, and `workflow.node.execution.failed` through the existing outbox path.
 - Workflow-service now consumes and persists `workflow.node.execution.*` events into the existing execution timeline.
+- Added workflow execution summary API for front-end detail views:
+  - `GET /api/workspaces/:workspaceId/workflows/:workflowId/executions/:executionId/summary`
+- Added explicit workflow execution summary response DTOs for Swagger/API contracts.
+- Added unit and HTTP integration coverage for summary reads and missing-execution `404` behavior.
 
 ## In Progress
 
-- Front-end readiness cleanup and workflow runtime hardening
+- Front-end MVP planning
 
 ## Not Started
 
@@ -274,6 +278,11 @@ Week 1 foundation.
 - `pnpm -r typecheck` passed after node runtime changes.
 - `docker compose up -d --force-recreate api execution-worker workflow-service` restarted the runtime services with node execution support.
 - Manual node runtime validation created execution `d0f4e058-97d9-4967-8186-d9ecb523f6f5`; it reached `SUCCEEDED`, produced 3 `SUCCEEDED` node executions for `manual-trigger`, `normalize-lead`, and `enrichment-request`, and persisted workflow plus node lifecycle events in the timeline.
+- `pnpm --filter @flowpilot/api typecheck` passed after adding execution summary API.
+- `pnpm --filter @flowpilot/api test` passed with 42 tests after adding execution summary service coverage.
+- `pnpm --filter @flowpilot/api test:integration` passed with 3 HTTP integration tests after adding execution summary route coverage.
+- `docker compose up -d --force-recreate api` restarted the API with the summary endpoint.
+- Manual HTTP validation confirmed `GET /api/workspaces/5197de4a-7a9a-4795-b455-e4ab877aba9b/workflows/4455a365-b111-43f6-be2e-d613905d331c/executions/d0f4e058-97d9-4967-8186-d9ecb523f6f5/summary` returns execution details, 3 node executions, and workflow/node timeline events in one response.
 
 ## Notes
 
@@ -285,7 +294,7 @@ Week 1 foundation.
 
 ## Recommended Next Step
 
-Prepare the front-end/API product surface: add a compact execution summary endpoint or response shape that returns execution details, node progress, and timeline together so the first UI can avoid stitching several calls manually.
+Start the front-end MVP: initialize/build the web app around login, workspace context, workflow list/detail, execution request, and execution summary polling.
 
 ## Notes For Next Chat
 
@@ -298,4 +307,4 @@ Start by reading:
 - `docs/DECISIONS.md`
 - `docs/NEXT_STEPS.md`
 
-Then prepare the front-end/API product surface: add a compact execution summary endpoint or response shape that returns execution details, node progress, and timeline together so the first UI can avoid stitching several calls manually.
+Then start the front-end MVP: initialize/build the web app around login, workspace context, workflow list/detail, execution request, and execution summary polling.

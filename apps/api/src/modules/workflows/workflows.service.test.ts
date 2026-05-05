@@ -379,6 +379,60 @@ test("WorkflowsService rejects node execution listing for missing executions", a
   );
 });
 
+test("WorkflowsService returns execution summary with nodes and events", async () => {
+  const execution = workflowExecutionFixture();
+  const events = [workflowExecutionEventFixture()];
+  const nodeExecutions = [workflowNodeExecutionFixture()];
+  const prisma = {
+    workflowExecution: {
+      findFirst: mockAsync(execution)
+    },
+    workflowExecutionEvent: {
+      findMany: mockAsync(events)
+    },
+    workflowNodeExecution: {
+      findMany: mockAsync(nodeExecutions)
+    }
+  };
+  const service = new WorkflowsService(prisma as never, fakeMessagingService());
+
+  const result = await service.findExecutionSummary("workspace-1", "workflow-1", "execution-1");
+
+  assert.equal(result.execution.id, "execution-1");
+  assert.equal(result.nodes.length, 1);
+  assert.equal(result.nodes[0]?.nodeId, "normalize-lead");
+  assert.equal(result.events.length, 1);
+  assert.equal(result.events[0]?.eventName, FLOWPILOT_ROUTING_KEYS.workflowExecutionStarted);
+
+  const nodeFindManyArgs = prisma.workflowNodeExecution.findMany.calls[0]?.[0] as {
+    where: { executionId: string; workspaceId: string; workflowId: string };
+    orderBy: { createdAt: "asc" };
+  };
+  const eventFindManyArgs = prisma.workflowExecutionEvent.findMany.calls[0]?.[0] as {
+    where: { executionId: string; workspaceId: string; workflowId: string };
+    orderBy: { occurredAt: "asc" };
+  };
+
+  assert.equal(nodeFindManyArgs.where.executionId, "execution-1");
+  assert.equal(nodeFindManyArgs.orderBy.createdAt, "asc");
+  assert.equal(eventFindManyArgs.where.executionId, "execution-1");
+  assert.equal(eventFindManyArgs.orderBy.occurredAt, "asc");
+});
+
+test("WorkflowsService rejects execution summary for missing executions", async () => {
+  const prisma = {
+    workflowExecution: {
+      findFirst: mockAsync(null)
+    }
+  };
+  const service = new WorkflowsService(prisma as never, fakeMessagingService());
+
+  await assert.rejects(
+    () => service.findExecutionSummary("workspace-1", "workflow-1", "missing-execution"),
+    NotFoundException
+  );
+});
+
 function workflowFixture() {
   const now = new Date("2026-05-01T12:00:00.000Z");
 

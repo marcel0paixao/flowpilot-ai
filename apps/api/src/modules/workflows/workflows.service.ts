@@ -202,6 +202,39 @@ export class WorkflowsService {
     return nodeExecutions.map(toWorkflowNodeExecutionResponse);
   }
 
+  async findExecutionSummary(workspaceId: string, workflowId: string, executionId: string) {
+    const execution = await this.findExecution(workspaceId, workflowId, executionId);
+
+    const [nodeExecutions, events] = await Promise.all([
+      this.prisma.workflowNodeExecution.findMany({
+        where: {
+          workspaceId,
+          workflowId,
+          executionId
+        },
+        orderBy: {
+          createdAt: "asc"
+        }
+      }),
+      this.prisma.workflowExecutionEvent.findMany({
+        where: {
+          workspaceId,
+          workflowId,
+          executionId
+        },
+        orderBy: {
+          occurredAt: "asc"
+        }
+      })
+    ]);
+
+    return {
+      execution,
+      nodes: nodeExecutions.map(toWorkflowNodeExecutionResponse),
+      events: events.map(toWorkflowExecutionEventResponse)
+    };
+  }
+
   private getInitialDefinition(definition?: WorkflowDefinition): Prisma.InputJsonValue {
     return (definition ?? DEFAULT_WORKFLOW_DEFINITION) as Prisma.InputJsonObject;
   }
