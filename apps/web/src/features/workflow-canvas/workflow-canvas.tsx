@@ -14,6 +14,7 @@ import { MousePointer2, Play, Split, Workflow as WorkflowIcon } from "lucide-rea
 import { useMemo } from "react";
 
 import { humanizeIdentifier, cn } from "@/shared/lib/utils";
+import { useTheme } from "@/features/theme/theme-provider";
 import { Badge } from "@/shared/ui/badge";
 
 interface FlowPilotNodeData extends Record<string, unknown> {
@@ -33,6 +34,7 @@ export function WorkflowCanvas({
   selectedNodeId?: string;
   onSelectNode?: (nodeId: string) => void;
 }) {
+  const theme = useTheme();
   const { nodes, edges } = useMemo(() => toReactFlowElements(definition, selectedNodeId), [
     definition,
     selectedNodeId
@@ -40,8 +42,8 @@ export function WorkflowCanvas({
 
   return (
     <ReactFlow
-      className="h-full min-h-[32rem] rounded-lg border border-border bg-card"
-      colorMode="light"
+      className="liquid-glass h-full min-h-[32rem] rounded-lg border border-border bg-card"
+      colorMode={theme.theme}
       edges={edges}
       fitView
       fitViewOptions={{ padding: 0.25 }}
@@ -53,8 +55,8 @@ export function WorkflowCanvas({
       onNodeClick={(_, node) => onSelectNode?.(node.id)}
       proOptions={{ hideAttribution: true }}
     >
-      <Background color="#dbe4e0" gap={18} />
-      <MiniMap pannable zoomable className="!border !border-border !bg-card" />
+      <Background color={theme.theme === "dark" ? "#46315f" : "#dbe4e0"} gap={18} />
+      <MiniMap pannable zoomable className="!border !border-border !bg-card dark:!bg-card/70" />
       <Controls showInteractive={false} />
     </ReactFlow>
   );
@@ -67,11 +69,13 @@ function FlowPilotNode({ data, selected }: NodeProps<Node<FlowPilotNodeData>>) {
   return (
     <div
       className={cn(
-        "w-56 rounded-lg border bg-card p-3 text-left shadow-sm transition-colors",
-        selected ? "border-teal-500 ring-2 ring-teal-500/20" : "border-border"
+        "liquid-glass w-56 rounded-lg border bg-card p-3 text-left shadow-sm transition-colors",
+        selected
+          ? "border-teal-500 ring-2 ring-teal-500/20 dark:border-purple-300 dark:ring-purple-300/24"
+          : "border-border"
       )}
     >
-      <Handle className="!bg-teal-700" type="target" position={Position.Left} />
+      <Handle className="!bg-teal-700 dark:!bg-purple-300" type="target" position={Position.Left} />
       <div className="flex items-start gap-3">
         <div className="flex size-9 shrink-0 items-center justify-center rounded-md bg-accent text-accent-foreground">
           <Icon className="size-4" />
@@ -83,7 +87,7 @@ function FlowPilotNode({ data, selected }: NodeProps<Node<FlowPilotNodeData>>) {
           </div>
         </div>
       </div>
-      <Handle className="!bg-teal-700" type="source" position={Position.Right} />
+      <Handle className="!bg-teal-700 dark:!bg-purple-300" type="source" position={Position.Right} />
     </div>
   );
 }
@@ -115,7 +119,7 @@ function toReactFlowElements(definition: WorkflowDefinition, selectedNodeId?: st
     target: edge.targetNodeId,
     animated: true,
     style: {
-      stroke: "#0f766e",
+      stroke: "#a855f7",
       strokeWidth: 2
     }
   }));

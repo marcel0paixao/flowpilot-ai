@@ -9,12 +9,14 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        default: "bg-primary text-primary-foreground hover:bg-zinc-800",
+        default:
+          "liquid-button bg-primary text-primary-foreground hover:bg-zinc-800 dark:bg-primary dark:text-primary-foreground dark:hover:bg-purple-200",
         destructive: "bg-destructive text-destructive-foreground hover:bg-red-700",
-        outline: "border border-border bg-card hover:bg-muted",
-        secondary: "bg-secondary text-secondary-foreground hover:bg-muted",
-        ghost: "hover:bg-muted",
-        link: "h-auto px-0 text-teal-700 underline-offset-4 hover:underline"
+        outline:
+          "liquid-field border border-border bg-card hover:bg-muted dark:hover:bg-white/12",
+        secondary: "bg-secondary text-secondary-foreground hover:bg-muted dark:bg-white/8 dark:hover:bg-white/12",
+        ghost: "hover:bg-muted dark:hover:bg-white/10",
+        link: "h-auto px-0 text-teal-700 underline-offset-4 hover:underline dark:text-purple-300"
       },
       size: {
         default: "h-9 px-3",

@@ -1,10 +1,11 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Bot, Loader2 } from "lucide-react";
+import { Bot, Loader2, Moon, Sun } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import { z } from "zod";
 
 import { useAuth } from "@/features/auth/auth-provider";
+import { useTheme } from "@/features/theme/theme-provider";
 import { login } from "@/shared/api/auth";
 import { ApiError } from "@/shared/api/http";
 import { Button } from "@/shared/ui/button";
@@ -24,6 +25,7 @@ type LoginForm = z.infer<typeof loginSchema>;
 
 export function LoginPage() {
   const auth = useAuth();
+  const theme = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
   const form = useForm<LoginForm>({
@@ -64,6 +66,16 @@ export function LoginPage() {
 
   return (
     <main className="grid min-h-screen place-items-center bg-background px-4 py-10">
+      <Button
+        aria-label={`Switch to ${theme.theme === "dark" ? "light" : "dark"} mode`}
+        className="absolute right-4 top-4"
+        onClick={theme.toggleTheme}
+        size="icon"
+        type="button"
+        variant="ghost"
+      >
+        {theme.theme === "dark" ? <Sun /> : <Moon />}
+      </Button>
       <Card className="w-full max-w-md">
         <CardHeader className="items-center text-center">
           <div className="mb-2 flex size-11 items-center justify-center rounded-lg bg-primary text-primary-foreground">
@@ -100,7 +112,11 @@ export function LoginPage() {
                 <p className="text-xs text-destructive">{form.formState.errors.workspaceId.message}</p>
               ) : null}
             </div>
-            {error ? <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p> : null}
+            {error ? (
+              <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-950 dark:text-red-200">
+                {error}
+              </p>
+            ) : null}
             <Button className="w-full" type="submit" disabled={form.formState.isSubmitting}>
               {form.formState.isSubmitting ? <Loader2 className="animate-spin" /> : null}
               Sign in

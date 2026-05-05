@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
   --color-background: #f8faf9;
   --color-foreground: #18181b;
@@ -37,6 +39,28 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
+.dark {
+  --color-background: #07050f;
+  --color-foreground: #f6f1ff;
+  --color-card: #171024;
+  --color-card-foreground: #f6f1ff;
+  --color-popover: #1a1229;
+  --color-popover-foreground: #f6f1ff;
+  --color-primary: #d7c5ff;
+  --color-primary-foreground: #160f24;
+  --color-secondary: #211733;
+  --color-secondary-foreground: #eadfff;
+  --color-muted: #1b1429;
+  --color-muted-foreground: #b3a6c8;
+  --color-accent: #38205f;
+  --color-accent-foreground: #f1e9ff;
+  --color-destructive: #fb7185;
+  --color-destructive-foreground: #ffffff;
+  --color-border: #4b3a68;
+  --color-input: #5a4678;
+  --color-ring: #c084fc;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -45,6 +69,115 @@ body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
+  background: var(--color-background);
+}
+
+.dark body {
+  background:
+    radial-gradient(circle at 15% 10%, rgba(192, 132, 252, 0.34), transparent 34rem),
+    radial-gradient(circle at 84% 8%, rgba(129, 140, 248, 0.24), transparent 28rem),
+    radial-gradient(circle at 50% 92%, rgba(217, 70, 239, 0.16), transparent 32rem),
+    linear-gradient(135deg, #07050f 0%, #120921 48%, #090612 100%);
+}
+
+.dark body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: -1;
+  background:
+    linear-gradient(120deg, rgba(255, 255, 255, 0.08), transparent 28%, rgba(255, 255, 255, 0.04) 52%, transparent 72%),
+    linear-gradient(rgba(255, 255, 255, 0.018) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.014) 1px, transparent 1px);
+  background-size: 100% 100%, 42px 42px, 42px 42px;
+  mask-image: linear-gradient(to bottom, black, transparent 78%);
+}
+
+.dark .liquid-glass,
+.dark .liquid-bar,
+.dark .liquid-popover,
+.dark .liquid-field {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.045) 42%, rgba(255, 255, 255, 0.1)),
+    radial-gradient(circle at 12% 0%, rgba(255, 255, 255, 0.22), transparent 17rem),
+    rgba(35, 24, 54, 0.5);
+  border-color: rgba(231, 212, 255, 0.2);
+  box-shadow:
+    0 28px 80px rgba(0, 0, 0, 0.42),
+    0 10px 32px rgba(124, 58, 237, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.22),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(28px) saturate(180%) contrast(104%);
+  -webkit-backdrop-filter: blur(28px) saturate(180%) contrast(104%);
+}
+
+.dark .liquid-glass::before,
+.dark .liquid-bar::before,
+.dark .liquid-popover::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse at 16% 0%, rgba(255, 255, 255, 0.42), transparent 28%),
+    linear-gradient(115deg, rgba(255, 255, 255, 0.22), transparent 18%, transparent 63%, rgba(255, 255, 255, 0.1));
+  opacity: 0.55;
+}
+
+.dark .liquid-glass::after,
+.dark .liquid-popover::after {
+  content: "";
+  position: absolute;
+  inset: 1px;
+  z-index: -1;
+  pointer-events: none;
+  border-radius: inherit;
+  background:
+    radial-gradient(circle at 100% 0%, rgba(216, 180, 254, 0.22), transparent 22rem),
+    radial-gradient(circle at 0% 100%, rgba(129, 140, 248, 0.16), transparent 18rem);
+  opacity: 0.82;
+}
+
+.dark .liquid-bar {
+  background:
+    linear-gradient(135deg, rgba(31, 22, 48, 0.76), rgba(27, 19, 43, 0.48)),
+    rgba(20, 14, 32, 0.45);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.16),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.07),
+    0 18px 56px rgba(0, 0, 0, 0.28);
+}
+
+.dark .liquid-popover {
+  background:
+    linear-gradient(135deg, rgba(43, 30, 66, 0.82), rgba(27, 20, 43, 0.62)),
+    rgba(20, 14, 32, 0.58);
+}
+
+.dark .liquid-field {
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.11), rgba(255, 255, 255, 0.045)),
+    rgba(25, 17, 39, 0.48);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(18px) saturate(170%);
+  -webkit-backdrop-filter: blur(18px) saturate(170%);
+}
+
+.dark .liquid-button {
+  background:
+    linear-gradient(135deg, rgba(244, 235, 255, 0.96), rgba(196, 181, 253, 0.88)),
+    rgba(216, 180, 254, 0.9);
+  box-shadow:
+    0 0 30px rgba(192, 132, 252, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.68),
+    inset 0 -1px 0 rgba(91, 33, 182, 0.2);
 }
 
 button,

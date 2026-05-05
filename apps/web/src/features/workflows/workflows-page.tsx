@@ -134,7 +134,7 @@ export function WorkflowsPage() {
                 <Textarea id="workflow-description" {...form.register("description")} />
               </div>
               {form.formState.errors.root?.message ? (
-                <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
+                <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-950 dark:text-red-200">
                   {form.formState.errors.root.message}
                 </p>
               ) : null}

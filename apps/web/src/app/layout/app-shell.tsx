@@ -5,7 +5,9 @@ import {
   Clock3,
   LayoutDashboard,
   LogOut,
+  Moon,
   Settings,
+  Sun,
   Users,
   Workflow
 } from "lucide-react";
@@ -13,6 +15,7 @@ import type { ReactNode } from "react";
 import { Link, NavLink, useLocation, useNavigate, useParams } from "react-router-dom";
 
 import { useAuth } from "@/features/auth/auth-provider";
+import { useTheme } from "@/features/theme/theme-provider";
 import { listWorkspaces } from "@/shared/api/workspaces";
 import { queryKeys } from "@/shared/api/query-keys";
 import { cn } from "@/shared/lib/utils";
@@ -30,6 +33,7 @@ import { Separator } from "@/shared/ui/separator";
 
 export function AppShell({ children }: { children: ReactNode }) {
   const auth = useAuth();
+  const theme = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
   const { workspaceId } = useParams();
@@ -49,9 +53,9 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="flex min-h-screen bg-background text-foreground">
-      <aside className="hidden w-64 shrink-0 border-r border-border bg-card md:flex md:flex-col">
+      <aside className="liquid-bar hidden w-64 shrink-0 border-r border-border bg-card md:flex md:flex-col">
         <Link className="flex h-16 items-center gap-3 px-5" to="/app/workspaces">
-          <div className="flex size-9 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+          <div className="flex size-9 items-center justify-center rounded-lg bg-primary text-primary-foreground dark:shadow-[0_0_32px_rgba(192,132,252,0.3)]">
             <Bot className="size-4" />
           </div>
           <div>
@@ -89,7 +93,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </nav>
       </aside>
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex h-16 shrink-0 items-center justify-between gap-3 border-b border-border bg-card px-4 lg:px-6">
+        <header className="liquid-bar flex h-16 shrink-0 items-center justify-between gap-3 border-b border-border bg-card px-4 lg:px-6">
           <div className="min-w-0">
             <p className="truncate text-sm font-medium">{getBreadcrumb(location.pathname)}</p>
             <p className="truncate text-xs text-muted-foreground">
@@ -97,6 +101,14 @@ export function AppShell({ children }: { children: ReactNode }) {
             </p>
           </div>
           <div className="flex min-w-0 items-center gap-2">
+            <Button
+              aria-label={`Switch to ${theme.theme === "dark" ? "light" : "dark"} mode`}
+              onClick={theme.toggleTheme}
+              size="icon"
+              variant="ghost"
+            >
+              {theme.theme === "dark" ? <Sun /> : <Moon />}
+            </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button className="max-w-52 justify-between" variant="outline">
@@ -135,6 +147,11 @@ export function AppShell({ children }: { children: ReactNode }) {
                   </span>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={theme.toggleTheme}>
+                  {theme.theme === "dark" ? <Sun className="size-4" /> : <Moon className="size-4" />}
+                  {theme.theme === "dark" ? "Light mode" : "Dark mode"}
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={signOut}>
                   <LogOut className="size-4" />
                   Sign out
@@ -143,7 +160,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             </DropdownMenu>
           </div>
         </header>
-        <main className="min-w-0 flex-1 overflow-auto">{children}</main>
+        <main className="min-w-0 flex-1 overflow-auto dark:bg-transparent">{children}</main>
       </div>
     </div>
   );
