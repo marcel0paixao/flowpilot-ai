@@ -1,4 +1,25 @@
 services:
+  web:
+    image: node:22-alpine
+    container_name: flowpilot-web
+    working_dir: /workspace
+    command:
+      - sh
+      - -c
+      - corepack enable && pnpm install --frozen-lockfile && pnpm --filter @flowpilot/contracts build && pnpm --filter @flowpilot/web dev
+    environment:
+      NODE_ENV: development
+      VITE_API_BASE_URL: http://localhost:3000/api
+    ports:
+      - "5173:5173"
+    volumes:
+      - .:/workspace
+      - api-node-modules:/workspace/node_modules
+      - web-node-modules:/workspace/apps/web/node_modules
+    depends_on:
+      api:
+        condition: service_started
+
   api:
     image: node:22-alpine
     container_name: flowpilot-api
@@ -153,6 +174,7 @@ services:
 volumes:
   api-node-modules:
   api-app-node-modules:
+  web-node-modules:
   execution-worker-node-modules:
   workflow-service-node-modules:
   postgres-data:

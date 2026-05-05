@@ -215,3 +215,15 @@ Reason: Sequential execution is enough to prove the workflow engine path end to 
 Decision: Add `GET /api/workspaces/:workspaceId/workflows/:workflowId/executions/:executionId/summary` to return execution details, node progress, and timeline events in one response.
 
 Reason: The first execution detail UI should not need to stitch three API calls together just to render one screen. A compact read model keeps the front-end simpler while preserving the more granular execution, node, and event endpoints for targeted use cases.
+
+## 2026-05-05: React/Vite SPA For The Authenticated Web App
+
+Decision: Build `apps/web` as a React + Vite + TypeScript single-page app with React Router, TanStack Query, Tailwind CSS, shadcn/ui-style local components, lucide-react, React Hook Form, Zod, and React Flow. Do not use Next.js, Redux, or micro-frontends for this stage.
+
+Reason: FlowPilot's main surface is an authenticated SaaS dashboard and workflow builder backed by a separate NestJS API. The app does not need SSR, SEO, Server Components, or deployment-time route splitting yet. A Vite SPA keeps the feedback loop fast, makes API boundaries explicit, and lets the workflow canvas be a first-class React Flow editor instead of an embedded iframe.
+
+## 2026-05-05: Read-Only Canvas Before Editable Workflow Builder
+
+Decision: Render persisted workflow definitions in React Flow read-only mode first, mapping `definition.nodes` and `definition.edges` from the shared contract into canvas nodes and edges with a side inspector.
+
+Reason: The backend already validates and executes workflow definitions. A read-only canvas proves the frontend can consume that contract safely before adding drag-and-drop, node editing, edge creation, and save semantics.
