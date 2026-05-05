@@ -130,14 +130,18 @@ export type WorkflowExecutionStartedPayload = {
 export type NodeExecutionStartedPayload = {
   workflowId: string;
   executionId: string;
+  nodeExecutionId: string;
   nodeId: string;
   nodeType: string;
+  input: Record<string, unknown>;
 };
 
 export type NodeExecutionCompletedPayload = {
   workflowId: string;
   executionId: string;
+  nodeExecutionId: string;
   nodeId: string;
+  nodeType: string;
   output: Record<string, unknown>;
   durationMs: number;
 };
@@ -151,7 +155,9 @@ export type FlowPilotExecutionError = {
 export type NodeExecutionFailedPayload = {
   workflowId: string;
   executionId: string;
+  nodeExecutionId: string;
   nodeId: string;
+  nodeType: string;
   error: FlowPilotExecutionError;
 };
 

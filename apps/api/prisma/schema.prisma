@@ -99,11 +99,37 @@ model WorkflowExecution {
   workflowVersion WorkflowVersion @relation(fields: [workflowVersionId], references: [id], onDelete: Restrict)
   requestedBy     User?           @relation(fields: [requestedByUserId], references: [id], onDelete: SetNull)
   events          WorkflowExecutionEvent[]
+  nodeExecutions  WorkflowNodeExecution[]
 
   @@index([workspaceId])
   @@index([workflowId])
   @@index([workflowVersionId])
   @@index([requestedByUserId])
+  @@index([status])
+}
+
+model WorkflowNodeExecution {
+  id          String                      @id @default(uuid())
+  workspaceId String
+  workflowId  String
+  executionId String
+  nodeId      String
+  nodeType    String
+  status      WorkflowNodeExecutionStatus @default(PENDING)
+  input       Json
+  output      Json?
+  error       Json?
+  startedAt   DateTime?
+  completedAt DateTime?
+  createdAt   DateTime                    @default(now())
+  updatedAt   DateTime                    @updatedAt
+
+  workflowExecution WorkflowExecution @relation(fields: [executionId], references: [id], onDelete: Cascade)
+
+  @@unique([executionId, nodeId])
+  @@index([workspaceId])
+  @@index([workflowId])
+  @@index([executionId])
   @@index([status])
 }
 
@@ -166,6 +192,14 @@ enum WorkflowExecutionStatus {
   SUCCEEDED
   FAILED
   CANCELLED
+}
+
+enum WorkflowNodeExecutionStatus {
+  PENDING
+  RUNNING
+  SUCCEEDED
+  FAILED
+  SKIPPED
 }
 
 enum OutboxMessageStatus {

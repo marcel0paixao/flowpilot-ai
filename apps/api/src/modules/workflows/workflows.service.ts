@@ -185,6 +185,23 @@ export class WorkflowsService {
     return events.map(toWorkflowExecutionEventResponse);
   }
 
+  async findExecutionNodes(workspaceId: string, workflowId: string, executionId: string) {
+    await this.ensureExecutionExists(workspaceId, workflowId, executionId);
+
+    const nodeExecutions = await this.prisma.workflowNodeExecution.findMany({
+      where: {
+        workspaceId,
+        workflowId,
+        executionId
+      },
+      orderBy: {
+        createdAt: "asc"
+      }
+    });
+
+    return nodeExecutions.map(toWorkflowNodeExecutionResponse);
+  }
+
   private getInitialDefinition(definition?: WorkflowDefinition): Prisma.InputJsonValue {
     return (definition ?? DEFAULT_WORKFLOW_DEFINITION) as Prisma.InputJsonObject;
   }
@@ -305,6 +322,7 @@ type WorkflowWithCurrentVersion = Prisma.WorkflowGetPayload<{
 
 type WorkflowExecution = Prisma.WorkflowExecutionGetPayload<Record<string, never>>;
 type WorkflowExecutionEvent = Prisma.WorkflowExecutionEventGetPayload<Record<string, never>>;
+type WorkflowNodeExecution = Prisma.WorkflowNodeExecutionGetPayload<Record<string, never>>;
 
 function toWorkflowResponse(workflow: WorkflowWithCurrentVersion) {
   const currentVersion = workflow.versions[0];
@@ -362,5 +380,24 @@ function toWorkflowExecutionEventResponse(event: WorkflowExecutionEvent) {
     producer: event.producer,
     payload: event.payload,
     createdAt: event.createdAt
+  };
+}
+
+function toWorkflowNodeExecutionResponse(nodeExecution: WorkflowNodeExecution) {
+  return {
+    id: nodeExecution.id,
+    workspaceId: nodeExecution.workspaceId,
+    workflowId: nodeExecution.workflowId,
+    executionId: nodeExecution.executionId,
+    nodeId: nodeExecution.nodeId,
+    nodeType: nodeExecution.nodeType,
+    status: nodeExecution.status,
+    input: nodeExecution.input,
+    output: nodeExecution.output,
+    error: nodeExecution.error,
+    startedAt: nodeExecution.startedAt,
+    completedAt: nodeExecution.completedAt,
+    createdAt: nodeExecution.createdAt,
+    updatedAt: nodeExecution.updatedAt
   };
 }

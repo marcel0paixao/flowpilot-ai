@@ -197,3 +197,9 @@ Reason: Node execution records need a reliable node shape to point at. Validatin
 Decision: Use `workflow.node.execution.started`, `workflow.node.execution.completed`, and `workflow.node.execution.failed` for future node lifecycle events.
 
 Reason: The events describe node progress inside a workflow execution, so the routing keys should stay under the workflow domain rather than using top-level `node.execution.*` names.
+
+## 2026-05-04: Persist Node Execution Progress Separately
+
+Decision: Add `WorkflowNodeExecution` as a separate table related to `WorkflowExecution`, with node identity, node type, status, input, output, error, and timestamps.
+
+Reason: The workflow execution row should keep the aggregate status of the whole run, while node execution rows capture per-step progress for worker recovery, API reads, timeline/debug views, and the future front-end execution monitor.

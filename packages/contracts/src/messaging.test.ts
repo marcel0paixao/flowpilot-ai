@@ -84,3 +84,27 @@ test("message envelope supports typed event payloads", () => {
 
   assert.equal(message.payload.workflowVersion, 1);
 });
+
+test("node execution events include persisted node execution identity", () => {
+  const message = {
+    eventName: FLOWPILOT_ROUTING_KEYS.nodeExecutionStarted,
+    eventId: "event-1",
+    schemaVersion: FLOWPILOT_MESSAGE_SCHEMA_VERSION,
+    occurredAt: "2026-05-04T12:00:00.000Z",
+    workspaceId: "workspace-1",
+    correlationId: "workflow-execution:execution-1",
+    producer: FLOWPILOT_MESSAGE_PRODUCERS.executionWorker,
+    payload: {
+      workflowId: "workflow-1",
+      executionId: "execution-1",
+      nodeExecutionId: "node-execution-1",
+      nodeId: "normalize-lead",
+      nodeType: "action.transform",
+      input: {
+        leadId: "lead-1"
+      }
+    }
+  } satisfies import("./index.js").NodeExecutionStartedMessage;
+
+  assert.equal(message.payload.nodeExecutionId, "node-execution-1");
+});

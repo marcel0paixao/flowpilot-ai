@@ -14,6 +14,7 @@ import { WorkflowsService } from "./workflows.service.js";
 
 const WORKFLOW_STATUS_DRAFT = "DRAFT";
 const WORKFLOW_EXECUTION_STATUS_PENDING = "PENDING";
+const WORKFLOW_NODE_EXECUTION_STATUS_PENDING = "PENDING";
 
 test("WorkflowsService creates a workflow with an initial draft version", async () => {
   const workflow = workflowFixture();
@@ -335,6 +336,49 @@ test("WorkflowsService rejects execution event listing for missing executions", 
   );
 });
 
+test("WorkflowsService lists workflow node executions after confirming execution ownership", async () => {
+  const nodeExecutions = [workflowNodeExecutionFixture()];
+  const prisma = {
+    workflowExecution: {
+      findFirst: mockAsync({ id: "execution-1" })
+    },
+    workflowNodeExecution: {
+      findMany: mockAsync(nodeExecutions)
+    }
+  };
+  const service = new WorkflowsService(prisma as never, fakeMessagingService());
+
+  const result = await service.findExecutionNodes("workspace-1", "workflow-1", "execution-1");
+
+  assert.equal(result.length, 1);
+  assert.equal(result[0]?.nodeId, "normalize-lead");
+  assert.equal(result[0]?.status, WORKFLOW_NODE_EXECUTION_STATUS_PENDING);
+
+  const findManyArgs = prisma.workflowNodeExecution.findMany.calls[0]?.[0] as {
+    where: { executionId: string; workspaceId: string; workflowId: string };
+    orderBy: { createdAt: "asc" };
+  };
+
+  assert.equal(findManyArgs.where.workspaceId, "workspace-1");
+  assert.equal(findManyArgs.where.workflowId, "workflow-1");
+  assert.equal(findManyArgs.where.executionId, "execution-1");
+  assert.equal(findManyArgs.orderBy.createdAt, "asc");
+});
+
+test("WorkflowsService rejects node execution listing for missing executions", async () => {
+  const prisma = {
+    workflowExecution: {
+      findFirst: mockAsync(null)
+    }
+  };
+  const service = new WorkflowsService(prisma as never, fakeMessagingService());
+
+  await assert.rejects(
+    () => service.findExecutionNodes("workspace-1", "workflow-1", "missing-execution"),
+    NotFoundException
+  );
+});
+
 function workflowFixture() {
   const now = new Date("2026-05-01T12:00:00.000Z");
 
@@ -399,6 +443,30 @@ function workflowExecutionEventFixture() {
       executionId: "execution-1"
     },
     createdAt: now
+  };
+}
+
+function workflowNodeExecutionFixture() {
+  const now = new Date("2026-05-01T12:05:01.000Z");
+
+  return {
+    id: "node-execution-1",
+    workspaceId: "workspace-1",
+    workflowId: "workflow-1",
+    executionId: "execution-1",
+    nodeId: "normalize-lead",
+    nodeType: WORKFLOW_NODE_TYPES.transformAction,
+    status: WORKFLOW_NODE_EXECUTION_STATUS_PENDING,
+    input: {
+      leadId: "lead-1",
+      email: "lead@example.test"
+    },
+    output: null,
+    error: null,
+    startedAt: null,
+    completedAt: null,
+    createdAt: now,
+    updatedAt: now
   };
 }
 

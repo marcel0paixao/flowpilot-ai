@@ -104,10 +104,16 @@ Week 1 foundation.
 - New workflows without an explicit definition now default to a valid manual trigger definition.
 - Demo seed now creates the `Lead Enrichment` workflow with real nodes and edges.
 - Future node lifecycle routing keys were aligned to `workflow.node.execution.started`, `workflow.node.execution.completed`, and `workflow.node.execution.failed`.
+- Added `WorkflowNodeExecution` persistence and migration with `PENDING`, `RUNNING`, `SUCCEEDED`, `FAILED`, and `SKIPPED` statuses.
+- Added node execution event payload fields for persisted `nodeExecutionId`, `nodeId`, `nodeType`, `input`, `output`, duration, and error details.
+- Added workflow execution node progress API:
+  - `GET /api/workspaces/:workspaceId/workflows/:workflowId/executions/:executionId/nodes`
+- Added explicit workflow node execution response DTOs for Swagger/API contracts.
+- Added unit and HTTP integration coverage for node progress reads and missing-execution `404` behavior.
 
 ## In Progress
 
-- Node execution runtime planning
+- Execution worker node runtime implementation
 
 ## Not Started
 
@@ -239,6 +245,17 @@ Week 1 foundation.
 - Manual HTTP validation confirmed the demo workflow detail returns the new nodes and edges.
 - Manual HTTP validation confirmed a workflow definition with a broken edge returns `400`.
 - `pnpm -r typecheck` passed after adding the workflow definition contract.
+- `pnpm --filter @flowpilot/api prisma:generate` passed after adding `WorkflowNodeExecution`.
+- `DATABASE_URL=postgresql://flowpilot:flowpilot@localhost:5432/flowpilot pnpm --filter @flowpilot/api exec prisma migrate deploy --schema prisma/schema.prisma` applied the `WorkflowNodeExecution` migration locally after granting Prisma engine access outside the sandbox.
+- `pnpm --filter @flowpilot/contracts typecheck` passed after adding node execution payload fields.
+- `pnpm --filter @flowpilot/contracts test` passed with 9 tests after adding node execution payload coverage.
+- `pnpm --filter @flowpilot/api typecheck` passed after adding node progress API reads.
+- `pnpm --filter @flowpilot/api lint` passed after adding node progress API reads.
+- `pnpm --filter @flowpilot/api test` passed with 40 tests after adding node progress service coverage.
+- `pnpm --filter @flowpilot/api test:integration` applied the `WorkflowNodeExecution` migration to `flowpilot_test` and passed with 3 HTTP integration tests.
+- `pnpm -r typecheck` passed after adding node execution persistence and API reads.
+- `docker compose up -d --force-recreate api` restarted the API with the node progress endpoint.
+- Manual HTTP validation created execution `4405a458-f050-49fc-aaec-0e4bc416f26d`, inserted node execution `manual-node-api-check-1`, and confirmed `GET /api/workspaces/5197de4a-7a9a-4795-b455-e4ab877aba9b/workflows/4455a365-b111-43f6-be2e-d613905d331c/executions/4405a458-f050-49fc-aaec-0e4bc416f26d/nodes` returns the persisted `manual-trigger` node progress.
 
 ## Notes
 
@@ -250,7 +267,7 @@ Week 1 foundation.
 
 ## Recommended Next Step
 
-Implement the first node execution runtime slice: add `WorkflowNodeExecution` persistence, have the execution worker load `WorkflowVersion.definition`, execute the validated nodes sequentially, and expose node progress through the API.
+Implement execution-worker node runtime: load `WorkflowVersion.definition`, create/update `WorkflowNodeExecution` rows while executing validated nodes sequentially, and publish `workflow.node.execution.*` events through the existing outbox path.
 
 ## Notes For Next Chat
 
@@ -263,4 +280,4 @@ Start by reading:
 - `docs/DECISIONS.md`
 - `docs/NEXT_STEPS.md`
 
-Then implement the first node execution runtime slice: add `WorkflowNodeExecution` persistence, have the execution worker load `WorkflowVersion.definition`, execute the validated nodes sequentially, and expose node progress through the API.
+Then implement execution-worker node runtime: load `WorkflowVersion.definition`, create/update `WorkflowNodeExecution` rows while executing validated nodes sequentially, and publish `workflow.node.execution.*` events through the existing outbox path.
