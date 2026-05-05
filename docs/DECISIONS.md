@@ -203,3 +203,9 @@ Reason: The events describe node progress inside a workflow execution, so the ro
 Decision: Add `WorkflowNodeExecution` as a separate table related to `WorkflowExecution`, with node identity, node type, status, input, output, error, and timestamps.
 
 Reason: The workflow execution row should keep the aggregate status of the whole run, while node execution rows capture per-step progress for worker recovery, API reads, timeline/debug views, and the future front-end execution monitor.
+
+## 2026-05-04: First Node Runtime Is Sequential And Deterministic
+
+Decision: The first execution-worker node runtime loads the persisted `WorkflowVersion.definition`, orders the validated DAG from the manual trigger, executes nodes sequentially, persists each node transition in `WorkflowNodeExecution`, and emits node lifecycle events through the existing outbox path. The initial `action.httpRequest` executor is mocked instead of performing network I/O.
+
+Reason: Sequential execution is enough to prove the workflow engine path end to end while keeping concurrency, branching, credentials, and external network behavior out of the first runtime slice. Mocking HTTP keeps local tests and demos deterministic until connector security and retry semantics are designed.

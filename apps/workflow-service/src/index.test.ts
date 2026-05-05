@@ -5,6 +5,8 @@ import {
   FLOWPILOT_MESSAGE_PRODUCERS,
   FLOWPILOT_MESSAGE_SCHEMA_VERSION,
   FLOWPILOT_ROUTING_KEYS,
+  type NodeExecutionCompletedMessage,
+  type NodeExecutionStartedMessage,
   type WorkflowExecutionCompletedMessage,
   type WorkflowExecutionFailedMessage,
   type WorkflowExecutionStartedMessage
@@ -42,6 +44,20 @@ test("parses workflow execution failed events", () => {
 
   assert.equal(parsed?.eventName, FLOWPILOT_ROUTING_KEYS.workflowExecutionFailed);
   assert.deepEqual("error" in (parsed?.payload ?? {}), true);
+});
+
+test("parses workflow node execution lifecycle events", () => {
+  const started = parseWorkflowExecutionLifecycleMessage(
+    createConsumeMessage(nodeExecutionStartedMessage())
+  );
+  const completed = parseWorkflowExecutionLifecycleMessage(
+    createConsumeMessage(nodeExecutionCompletedMessage())
+  );
+
+  assert.equal(started?.eventName, FLOWPILOT_ROUTING_KEYS.nodeExecutionStarted);
+  assert.equal(started?.payload.executionId, "execution-1");
+  assert.equal(completed?.eventName, FLOWPILOT_ROUTING_KEYS.nodeExecutionCompleted);
+  assert.deepEqual("output" in (completed?.payload ?? {}), true);
 });
 
 test("rejects malformed workflow execution lifecycle events", () => {
@@ -149,6 +165,51 @@ function workflowExecutionFailedMessage(): WorkflowExecutionFailedMessage {
         message: "Workflow execution failed",
         retryable: false
       }
+    }
+  };
+}
+
+function nodeExecutionStartedMessage(): NodeExecutionStartedMessage {
+  return {
+    eventName: FLOWPILOT_ROUTING_KEYS.nodeExecutionStarted,
+    eventId: "node-started-event-1",
+    schemaVersion: FLOWPILOT_MESSAGE_SCHEMA_VERSION,
+    occurredAt: "2026-05-04T12:00:10.000Z",
+    workspaceId: "workspace-1",
+    correlationId: "workflow-execution:execution-1",
+    producer: FLOWPILOT_MESSAGE_PRODUCERS.executionWorker,
+    payload: {
+      workflowId: "workflow-1",
+      executionId: "execution-1",
+      nodeExecutionId: "node-execution-1",
+      nodeId: "normalize-lead",
+      nodeType: "action.transform",
+      input: {
+        leadId: "lead-1"
+      }
+    }
+  };
+}
+
+function nodeExecutionCompletedMessage(): NodeExecutionCompletedMessage {
+  return {
+    eventName: FLOWPILOT_ROUTING_KEYS.nodeExecutionCompleted,
+    eventId: "node-completed-event-1",
+    schemaVersion: FLOWPILOT_MESSAGE_SCHEMA_VERSION,
+    occurredAt: "2026-05-04T12:00:11.000Z",
+    workspaceId: "workspace-1",
+    correlationId: "workflow-execution:execution-1",
+    producer: FLOWPILOT_MESSAGE_PRODUCERS.executionWorker,
+    payload: {
+      workflowId: "workflow-1",
+      executionId: "execution-1",
+      nodeExecutionId: "node-execution-1",
+      nodeId: "normalize-lead",
+      nodeType: "action.transform",
+      output: {
+        leadId: "lead-1"
+      },
+      durationMs: 1000
     }
   };
 }

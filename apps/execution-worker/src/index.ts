@@ -9,11 +9,18 @@ import {
   FLOWPILOT_RETRY_QUEUES,
   FLOWPILOT_RETRY_ROUTING_KEYS,
   FLOWPILOT_ROUTING_KEYS,
+  WORKFLOW_NODE_TYPES,
   type FlowPilotExecutionError,
+  type NodeExecutionCompletedMessage,
+  type NodeExecutionFailedMessage,
+  type NodeExecutionStartedMessage,
+  type WorkflowDefinition,
   type WorkflowExecutionCompletedMessage,
   type WorkflowExecutionFailedMessage,
   type WorkflowExecutionRequestedMessage,
-  type WorkflowExecutionStartedMessage
+  type WorkflowExecutionStartedMessage,
+  workflowDefinitionSchema,
+  type WorkflowNode
 } from "@flowpilot/contracts";
 import { createLogger } from "@flowpilot/logger";
 import { Prisma, PrismaClient } from "@prisma/client/index";
@@ -63,14 +70,24 @@ type WorkerFailure = FlowPilotExecutionError & {
 type WorkflowLifecycleRoutingKey =
   | typeof FLOWPILOT_ROUTING_KEYS.workflowExecutionStarted
   | typeof FLOWPILOT_ROUTING_KEYS.workflowExecutionCompleted
-  | typeof FLOWPILOT_ROUTING_KEYS.workflowExecutionFailed;
+  | typeof FLOWPILOT_ROUTING_KEYS.workflowExecutionFailed
+  | typeof FLOWPILOT_ROUTING_KEYS.nodeExecutionStarted
+  | typeof FLOWPILOT_ROUTING_KEYS.nodeExecutionCompleted
+  | typeof FLOWPILOT_ROUTING_KEYS.nodeExecutionFailed;
 
 type WorkflowLifecycleMessage =
   | WorkflowExecutionStartedMessage
   | WorkflowExecutionCompletedMessage
-  | WorkflowExecutionFailedMessage;
+  | WorkflowExecutionFailedMessage
+  | NodeExecutionStartedMessage
+  | NodeExecutionCompletedMessage
+  | NodeExecutionFailedMessage;
 
 type PrismaWriter = PrismaClient | Prisma.TransactionClient;
+
+type WorkflowExecutionWithVersion = NonNullable<
+  Awaited<ReturnType<typeof findWorkflowExecutionForProcessing>>
+>;
 
 export async function startWorker(): Promise<WorkerResources> {
   const config = readConfig();
@@ -189,11 +206,10 @@ export async function processWorkflowExecution(
   prisma: PrismaClient
 ): Promise<void> {
   const startedAt = new Date();
-  const existingExecution = await prisma.workflowExecution.findUnique({
-    where: {
-      id: message.payload.executionId
-    }
-  });
+  const existingExecution = await findWorkflowExecutionForProcessing(
+    prisma,
+    message.payload.executionId
+  );
 
   if (!existingExecution) {
     throw new WorkflowExecutionWorkerError("workflow_execution_not_found", "Workflow execution was not found", false);
@@ -208,7 +224,7 @@ export async function processWorkflowExecution(
     return;
   }
 
-  let execution = existingExecution;
+  let execution: WorkflowExecutionWithVersion = existingExecution;
   const effectiveStartedAt = existingExecution.startedAt ?? startedAt;
 
   if (existingExecution.status === "PENDING") {
@@ -247,11 +263,10 @@ export async function processWorkflowExecution(
     });
 
     if (transition.update.count === 0) {
-      const currentExecution = await prisma.workflowExecution.findUnique({
-        where: {
-          id: message.payload.executionId
-        }
-      });
+      const currentExecution = await findWorkflowExecutionForProcessing(
+        prisma,
+        message.payload.executionId
+      );
 
       if (!currentExecution || isTerminalExecutionStatus(currentExecution.status)) {
         logger.info("Skipping workflow execution after concurrent state transition", {
@@ -291,7 +306,7 @@ export async function processWorkflowExecution(
     await dispatchOutboxEvent(channel, prisma, startedOutboxMessage);
   }
 
-  const output = createExecutionOutput(message);
+  const output = await executeWorkflowNodes(message, channel, prisma, execution);
   const completedAt = new Date();
   const completedMessage = createWorkflowExecutionCompletedMessage(
     message,
@@ -502,7 +517,76 @@ function createWorkflowExecutionFailedMessage(
   };
 }
 
-function createExecutionOutput(message: WorkflowExecutionRequestedMessage): Record<string, unknown> {
+async function findWorkflowExecutionForProcessing(prisma: PrismaClient, executionId: string) {
+  return prisma.workflowExecution.findUnique({
+    where: {
+      id: executionId
+    },
+    include: {
+      workflowVersion: true
+    }
+  });
+}
+
+async function executeWorkflowNodes(
+  message: WorkflowExecutionRequestedMessage,
+  channel: Channel,
+  prisma: PrismaClient,
+  execution: WorkflowExecutionWithVersion
+): Promise<Record<string, unknown>> {
+  assertNoSimulatedWorkflowFailure(message);
+
+  const definition = parseWorkflowDefinition(execution.workflowVersion.definition);
+  const orderedNodes = orderWorkflowNodes(definition);
+  const nodeOutputs = new Map<string, Record<string, unknown>>();
+  let currentInput = message.payload.input;
+
+  for (const node of orderedNodes) {
+    const input = getNodeInput(node, definition, nodeOutputs, currentInput);
+    const startedAt = new Date();
+    const nodeExecution = await upsertRunningNodeExecution(
+      prisma,
+      message,
+      node,
+      input,
+      startedAt
+    );
+    await publishNodeStartedEvent(channel, prisma, message, node, nodeExecution.id, input, startedAt);
+
+    try {
+      const output = executeNode(node, input);
+      const completedAt = new Date();
+      await completeNodeExecution(prisma, nodeExecution.id, output, completedAt);
+      await publishNodeCompletedEvent(
+        channel,
+        prisma,
+        message,
+        node,
+        nodeExecution.id,
+        output,
+        startedAt,
+        completedAt
+      );
+      nodeOutputs.set(node.id, output);
+      currentInput = output;
+    } catch (error) {
+      const failure = normalizeWorkerFailure(error);
+      const failedAt = new Date();
+      await failNodeExecution(prisma, nodeExecution.id, failure, failedAt);
+      await publishNodeFailedEvent(channel, prisma, message, node, nodeExecution.id, failure, failedAt);
+      throw error;
+    }
+  }
+
+  return {
+    status: "ok",
+    nodeCount: orderedNodes.length,
+    finalOutput: currentInput,
+    processedBy: FLOWPILOT_MESSAGE_PRODUCERS.executionWorker
+  };
+}
+
+function assertNoSimulatedWorkflowFailure(message: WorkflowExecutionRequestedMessage): void {
   const simulatedFailure = message.payload.input[failureSimulationInputKey];
 
   if (process.env.FLOWPILOT_ENABLE_WORKER_FAILURE_SIMULATION === "true") {
@@ -522,11 +606,370 @@ function createExecutionOutput(message: WorkflowExecutionRequestedMessage): Reco
       );
     }
   }
+}
+
+function parseWorkflowDefinition(value: unknown): WorkflowDefinition {
+  const result = workflowDefinitionSchema.safeParse(value);
+
+  if (!result.success) {
+    throw new WorkflowExecutionWorkerError(
+      "workflow_definition_invalid",
+      "Workflow definition is invalid for execution",
+      false,
+      { cause: result.error }
+    );
+  }
+
+  return result.data;
+}
+
+function orderWorkflowNodes(definition: WorkflowDefinition): WorkflowNode[] {
+  const nodesById = new Map(definition.nodes.map((node) => [node.id, node]));
+  const outgoingEdges = new Map<string, string[]>();
+  const incomingCounts = new Map<string, number>();
+
+  for (const node of definition.nodes) {
+    incomingCounts.set(node.id, 0);
+  }
+
+  for (const edge of definition.edges) {
+    outgoingEdges.set(edge.sourceNodeId, [
+      ...(outgoingEdges.get(edge.sourceNodeId) ?? []),
+      edge.targetNodeId
+    ]);
+    incomingCounts.set(edge.targetNodeId, (incomingCounts.get(edge.targetNodeId) ?? 0) + 1);
+  }
+
+  const queue = definition.nodes
+    .filter((node) => node.type === WORKFLOW_NODE_TYPES.manualTrigger)
+    .map((node) => node.id);
+  const orderedNodes: WorkflowNode[] = [];
+  const visitedNodeIds = new Set<string>();
+
+  while (queue.length > 0) {
+    const nodeId = queue.shift();
+
+    if (!nodeId || visitedNodeIds.has(nodeId)) {
+      continue;
+    }
+
+    const node = nodesById.get(nodeId);
+
+    if (!node) {
+      continue;
+    }
+
+    visitedNodeIds.add(nodeId);
+    orderedNodes.push(node);
+
+    for (const targetNodeId of outgoingEdges.get(nodeId) ?? []) {
+      const nextIncomingCount = (incomingCounts.get(targetNodeId) ?? 1) - 1;
+      incomingCounts.set(targetNodeId, nextIncomingCount);
+
+      if (nextIncomingCount === 0) {
+        queue.push(targetNodeId);
+      }
+    }
+  }
+
+  if (orderedNodes.length !== definition.nodes.length) {
+    throw new WorkflowExecutionWorkerError(
+      "workflow_definition_unordered",
+      "Workflow definition could not be ordered for sequential execution",
+      false
+    );
+  }
+
+  return orderedNodes;
+}
+
+function getNodeInput(
+  node: WorkflowNode,
+  definition: WorkflowDefinition,
+  nodeOutputs: Map<string, Record<string, unknown>>,
+  fallbackInput: Record<string, unknown>
+): Record<string, unknown> {
+  const incomingEdges = definition.edges.filter((edge) => edge.targetNodeId === node.id);
+
+  if (incomingEdges.length === 0) {
+    return fallbackInput;
+  }
+
+  if (incomingEdges.length === 1) {
+    return nodeOutputs.get(incomingEdges[0]?.sourceNodeId ?? "") ?? fallbackInput;
+  }
+
+  return Object.fromEntries(
+    incomingEdges.map((edge) => [edge.sourceNodeId, nodeOutputs.get(edge.sourceNodeId) ?? {}])
+  );
+}
+
+function executeNode(node: WorkflowNode, input: Record<string, unknown>): Record<string, unknown> {
+  if (node.type === WORKFLOW_NODE_TYPES.manualTrigger) {
+    return input;
+  }
+
+  if (node.type === WORKFLOW_NODE_TYPES.transformAction) {
+    if (node.config.mode === "passthrough") {
+      return input;
+    }
+
+    const pickedKeys = node.config.pick ?? [];
+
+    return Object.fromEntries(
+      pickedKeys
+        .filter((key) => Object.prototype.hasOwnProperty.call(input, key))
+        .map((key) => [key, input[key]])
+    );
+  }
 
   return {
-    status: "ok",
-    echoedInput: message.payload.input,
-    processedBy: FLOWPILOT_MESSAGE_PRODUCERS.executionWorker
+    status: "mocked",
+    request: {
+      method: node.config.method,
+      url: node.config.url,
+      headers: node.config.headers ?? {},
+      body: {
+        ...(node.config.body ?? {}),
+        input
+      }
+    },
+    response: {
+      statusCode: 200,
+      body: {
+        ok: true,
+        echoedInput: input
+      }
+    }
+  };
+}
+
+async function upsertRunningNodeExecution(
+  prisma: PrismaClient,
+  message: WorkflowExecutionRequestedMessage,
+  node: WorkflowNode,
+  input: Record<string, unknown>,
+  startedAt: Date
+) {
+  return prisma.workflowNodeExecution.upsert({
+    where: {
+      executionId_nodeId: {
+        executionId: message.payload.executionId,
+        nodeId: node.id
+      }
+    },
+    update: {
+      status: "RUNNING",
+      input: input as Prisma.InputJsonObject,
+      output: Prisma.DbNull,
+      error: Prisma.DbNull,
+      startedAt,
+      completedAt: null
+    },
+    create: {
+      workspaceId: message.workspaceId,
+      workflowId: message.payload.workflowId,
+      executionId: message.payload.executionId,
+      nodeId: node.id,
+      nodeType: node.type,
+      status: "RUNNING",
+      input: input as Prisma.InputJsonObject,
+      startedAt
+    }
+  });
+}
+
+async function completeNodeExecution(
+  prisma: PrismaClient,
+  nodeExecutionId: string,
+  output: Record<string, unknown>,
+  completedAt: Date
+): Promise<void> {
+  await prisma.workflowNodeExecution.update({
+    where: {
+      id: nodeExecutionId
+    },
+    data: {
+      status: "SUCCEEDED",
+      output: output as Prisma.InputJsonObject,
+      error: Prisma.DbNull,
+      completedAt
+    }
+  });
+}
+
+async function failNodeExecution(
+  prisma: PrismaClient,
+  nodeExecutionId: string,
+  failure: FlowPilotExecutionError,
+  completedAt: Date
+): Promise<void> {
+  await prisma.workflowNodeExecution.update({
+    where: {
+      id: nodeExecutionId
+    },
+    data: {
+      status: "FAILED",
+      error: failure as Prisma.InputJsonObject,
+      completedAt
+    }
+  });
+}
+
+async function publishNodeStartedEvent(
+  channel: Channel,
+  prisma: PrismaClient,
+  message: WorkflowExecutionRequestedMessage,
+  node: WorkflowNode,
+  nodeExecutionId: string,
+  input: Record<string, unknown>,
+  startedAt: Date
+): Promise<void> {
+  const outboxMessage = await persistOutboxEvent(
+    prisma,
+    FLOWPILOT_ROUTING_KEYS.nodeExecutionStarted,
+    createNodeExecutionStartedMessage(message, node, nodeExecutionId, input, startedAt)
+  );
+  await dispatchOutboxEvent(channel, prisma, outboxMessage);
+}
+
+async function publishNodeCompletedEvent(
+  channel: Channel,
+  prisma: PrismaClient,
+  message: WorkflowExecutionRequestedMessage,
+  node: WorkflowNode,
+  nodeExecutionId: string,
+  output: Record<string, unknown>,
+  startedAt: Date,
+  completedAt: Date
+): Promise<void> {
+  const outboxMessage = await persistOutboxEvent(
+    prisma,
+    FLOWPILOT_ROUTING_KEYS.nodeExecutionCompleted,
+    createNodeExecutionCompletedMessage(
+      message,
+      node,
+      nodeExecutionId,
+      output,
+      startedAt,
+      completedAt
+    )
+  );
+  await dispatchOutboxEvent(channel, prisma, outboxMessage);
+}
+
+async function publishNodeFailedEvent(
+  channel: Channel,
+  prisma: PrismaClient,
+  message: WorkflowExecutionRequestedMessage,
+  node: WorkflowNode,
+  nodeExecutionId: string,
+  failure: FlowPilotExecutionError,
+  failedAt: Date
+): Promise<void> {
+  const outboxMessage = await persistOutboxEvent(
+    prisma,
+    FLOWPILOT_ROUTING_KEYS.nodeExecutionFailed,
+    createNodeExecutionFailedMessage(message, node, nodeExecutionId, failure, failedAt)
+  );
+  await dispatchOutboxEvent(channel, prisma, outboxMessage);
+}
+
+function createNodeExecutionStartedMessage(
+  message: WorkflowExecutionRequestedMessage,
+  node: WorkflowNode,
+  nodeExecutionId: string,
+  input: Record<string, unknown>,
+  startedAt: Date
+): NodeExecutionStartedMessage {
+  return {
+    eventName: FLOWPILOT_ROUTING_KEYS.nodeExecutionStarted,
+    eventId: randomUUID(),
+    schemaVersion: FLOWPILOT_MESSAGE_SCHEMA_VERSION,
+    occurredAt: startedAt.toISOString(),
+    workspaceId: message.workspaceId,
+    correlationId: message.correlationId,
+    causationId: message.eventId,
+    producer: FLOWPILOT_MESSAGE_PRODUCERS.executionWorker,
+    actor: {
+      type: "system",
+      id: FLOWPILOT_MESSAGE_PRODUCERS.executionWorker
+    },
+    idempotencyKey: `workflow.node.execution.started:${message.payload.executionId}:${node.id}`,
+    payload: {
+      workflowId: message.payload.workflowId,
+      executionId: message.payload.executionId,
+      nodeExecutionId,
+      nodeId: node.id,
+      nodeType: node.type,
+      input
+    }
+  };
+}
+
+function createNodeExecutionCompletedMessage(
+  message: WorkflowExecutionRequestedMessage,
+  node: WorkflowNode,
+  nodeExecutionId: string,
+  output: Record<string, unknown>,
+  startedAt: Date,
+  completedAt: Date
+): NodeExecutionCompletedMessage {
+  return {
+    eventName: FLOWPILOT_ROUTING_KEYS.nodeExecutionCompleted,
+    eventId: randomUUID(),
+    schemaVersion: FLOWPILOT_MESSAGE_SCHEMA_VERSION,
+    occurredAt: completedAt.toISOString(),
+    workspaceId: message.workspaceId,
+    correlationId: message.correlationId,
+    causationId: message.eventId,
+    producer: FLOWPILOT_MESSAGE_PRODUCERS.executionWorker,
+    actor: {
+      type: "system",
+      id: FLOWPILOT_MESSAGE_PRODUCERS.executionWorker
+    },
+    idempotencyKey: `workflow.node.execution.completed:${message.payload.executionId}:${node.id}`,
+    payload: {
+      workflowId: message.payload.workflowId,
+      executionId: message.payload.executionId,
+      nodeExecutionId,
+      nodeId: node.id,
+      nodeType: node.type,
+      output,
+      durationMs: completedAt.getTime() - startedAt.getTime()
+    }
+  };
+}
+
+function createNodeExecutionFailedMessage(
+  message: WorkflowExecutionRequestedMessage,
+  node: WorkflowNode,
+  nodeExecutionId: string,
+  failure: FlowPilotExecutionError,
+  failedAt: Date
+): NodeExecutionFailedMessage {
+  return {
+    eventName: FLOWPILOT_ROUTING_KEYS.nodeExecutionFailed,
+    eventId: randomUUID(),
+    schemaVersion: FLOWPILOT_MESSAGE_SCHEMA_VERSION,
+    occurredAt: failedAt.toISOString(),
+    workspaceId: message.workspaceId,
+    correlationId: message.correlationId,
+    causationId: message.eventId,
+    producer: FLOWPILOT_MESSAGE_PRODUCERS.executionWorker,
+    actor: {
+      type: "system",
+      id: FLOWPILOT_MESSAGE_PRODUCERS.executionWorker
+    },
+    idempotencyKey: `workflow.node.execution.failed:${message.payload.executionId}:${node.id}`,
+    payload: {
+      workflowId: message.payload.workflowId,
+      executionId: message.payload.executionId,
+      nodeExecutionId,
+      nodeId: node.id,
+      nodeType: node.type,
+      error: failure
+    }
   };
 }
 

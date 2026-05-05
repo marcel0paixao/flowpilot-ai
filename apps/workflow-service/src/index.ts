@@ -6,6 +6,9 @@ import {
   FLOWPILOT_QUEUES,
   FLOWPILOT_ROUTING_KEYS,
   type FlowPilotMessageProducer,
+  type NodeExecutionCompletedMessage,
+  type NodeExecutionFailedMessage,
+  type NodeExecutionStartedMessage,
   type WorkflowExecutionCompletedMessage,
   type WorkflowExecutionFailedMessage,
   type WorkflowExecutionStartedMessage
@@ -26,12 +29,18 @@ type WorkflowServiceResources = {
 type WorkflowExecutionLifecycleMessage =
   | WorkflowExecutionStartedMessage
   | WorkflowExecutionCompletedMessage
-  | WorkflowExecutionFailedMessage;
+  | WorkflowExecutionFailedMessage
+  | NodeExecutionStartedMessage
+  | NodeExecutionCompletedMessage
+  | NodeExecutionFailedMessage;
 
 const workflowExecutionLifecycleEvents = new Set<string>([
   FLOWPILOT_ROUTING_KEYS.workflowExecutionStarted,
   FLOWPILOT_ROUTING_KEYS.workflowExecutionCompleted,
-  FLOWPILOT_ROUTING_KEYS.workflowExecutionFailed
+  FLOWPILOT_ROUTING_KEYS.workflowExecutionFailed,
+  FLOWPILOT_ROUTING_KEYS.nodeExecutionStarted,
+  FLOWPILOT_ROUTING_KEYS.nodeExecutionCompleted,
+  FLOWPILOT_ROUTING_KEYS.nodeExecutionFailed
 ]);
 
 export async function startWorkflowService(): Promise<WorkflowServiceResources> {
@@ -167,7 +176,37 @@ function isWorkflowExecutionLifecycleMessage(
     return isRecord(payload.error) && typeof payload.error.message === "string";
   }
 
-  return value.eventName === FLOWPILOT_ROUTING_KEYS.workflowExecutionStarted;
+  if (value.eventName === FLOWPILOT_ROUTING_KEYS.workflowExecutionStarted) {
+    return true;
+  }
+
+  if (value.eventName === FLOWPILOT_ROUTING_KEYS.nodeExecutionStarted) {
+    return (
+      typeof payload.nodeExecutionId === "string" &&
+      typeof payload.nodeId === "string" &&
+      typeof payload.nodeType === "string" &&
+      isRecord(payload.input)
+    );
+  }
+
+  if (value.eventName === FLOWPILOT_ROUTING_KEYS.nodeExecutionCompleted) {
+    return (
+      typeof payload.nodeExecutionId === "string" &&
+      typeof payload.nodeId === "string" &&
+      typeof payload.nodeType === "string" &&
+      isRecord(payload.output) &&
+      typeof payload.durationMs === "number"
+    );
+  }
+
+  return (
+    value.eventName === FLOWPILOT_ROUTING_KEYS.nodeExecutionFailed &&
+    typeof payload.nodeExecutionId === "string" &&
+    typeof payload.nodeId === "string" &&
+    typeof payload.nodeType === "string" &&
+    isRecord(payload.error) &&
+    typeof payload.error.message === "string"
+  );
 }
 
 function isFlowPilotMessageProducer(value: unknown): value is FlowPilotMessageProducer {
@@ -189,6 +228,11 @@ async function declareTopology(channel: Channel): Promise<void> {
     FLOWPILOT_QUEUES.workflowServiceExecutionEvents,
     FLOWPILOT_EXCHANGES.events,
     "workflow.execution.*"
+  );
+  await channel.bindQueue(
+    FLOWPILOT_QUEUES.workflowServiceExecutionEvents,
+    FLOWPILOT_EXCHANGES.events,
+    "workflow.node.execution.*"
   );
 }
 

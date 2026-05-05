@@ -110,10 +110,18 @@ Week 1 foundation.
   - `GET /api/workspaces/:workspaceId/workflows/:workflowId/executions/:executionId/nodes`
 - Added explicit workflow node execution response DTOs for Swagger/API contracts.
 - Added unit and HTTP integration coverage for node progress reads and missing-execution `404` behavior.
+- Execution worker now loads the persisted `WorkflowVersion.definition` for each execution request.
+- Execution worker now orders validated workflow nodes from `trigger.manual` and executes them sequentially.
+- Execution worker now persists each node as `WorkflowNodeExecution`, moving nodes through `RUNNING` and `SUCCEEDED` or `FAILED`.
+- `trigger.manual` now passes execution input through unchanged.
+- `action.transform` now supports `passthrough` and `pick` modes.
+- `action.httpRequest` now executes as a deterministic mock response without external network I/O.
+- Execution worker now emits `workflow.node.execution.started`, `workflow.node.execution.completed`, and `workflow.node.execution.failed` through the existing outbox path.
+- Workflow-service now consumes and persists `workflow.node.execution.*` events into the existing execution timeline.
 
 ## In Progress
 
-- Execution worker node runtime implementation
+- Front-end readiness cleanup and workflow runtime hardening
 
 ## Not Started
 
@@ -256,6 +264,16 @@ Week 1 foundation.
 - `pnpm -r typecheck` passed after adding node execution persistence and API reads.
 - `docker compose up -d --force-recreate api` restarted the API with the node progress endpoint.
 - Manual HTTP validation created execution `4405a458-f050-49fc-aaec-0e4bc416f26d`, inserted node execution `manual-node-api-check-1`, and confirmed `GET /api/workspaces/5197de4a-7a9a-4795-b455-e4ab877aba9b/workflows/4455a365-b111-43f6-be2e-d613905d331c/executions/4405a458-f050-49fc-aaec-0e4bc416f26d/nodes` returns the persisted `manual-trigger` node progress.
+- `pnpm --filter @flowpilot/execution-worker typecheck` passed after adding node runtime execution.
+- `pnpm --filter @flowpilot/execution-worker test` passed with 11 tests after adding sequential node runtime coverage.
+- `pnpm --filter @flowpilot/workflow-service typecheck` passed after adding node lifecycle event parsing.
+- `pnpm --filter @flowpilot/workflow-service test` passed with 6 tests after adding node lifecycle event parsing coverage.
+- `pnpm --filter @flowpilot/contracts test` passed after node runtime changes.
+- `pnpm --filter @flowpilot/api test` passed with 40 tests after node runtime changes.
+- `pnpm --filter @flowpilot/api test:integration` passed with 3 HTTP integration tests after node runtime changes.
+- `pnpm -r typecheck` passed after node runtime changes.
+- `docker compose up -d --force-recreate api execution-worker workflow-service` restarted the runtime services with node execution support.
+- Manual node runtime validation created execution `d0f4e058-97d9-4967-8186-d9ecb523f6f5`; it reached `SUCCEEDED`, produced 3 `SUCCEEDED` node executions for `manual-trigger`, `normalize-lead`, and `enrichment-request`, and persisted workflow plus node lifecycle events in the timeline.
 
 ## Notes
 
@@ -267,7 +285,7 @@ Week 1 foundation.
 
 ## Recommended Next Step
 
-Implement execution-worker node runtime: load `WorkflowVersion.definition`, create/update `WorkflowNodeExecution` rows while executing validated nodes sequentially, and publish `workflow.node.execution.*` events through the existing outbox path.
+Prepare the front-end/API product surface: add a compact execution summary endpoint or response shape that returns execution details, node progress, and timeline together so the first UI can avoid stitching several calls manually.
 
 ## Notes For Next Chat
 
@@ -280,4 +298,4 @@ Start by reading:
 - `docs/DECISIONS.md`
 - `docs/NEXT_STEPS.md`
 
-Then implement execution-worker node runtime: load `WorkflowVersion.definition`, create/update `WorkflowNodeExecution` rows while executing validated nodes sequentially, and publish `workflow.node.execution.*` events through the existing outbox path.
+Then prepare the front-end/API product surface: add a compact execution summary endpoint or response shape that returns execution details, node progress, and timeline together so the first UI can avoid stitching several calls manually.

@@ -7,6 +7,8 @@ import {
   FLOWPILOT_MESSAGE_SCHEMA_VERSION,
   FLOWPILOT_RETRY_ROUTING_KEYS,
   FLOWPILOT_ROUTING_KEYS,
+  WORKFLOW_NODE_TYPES,
+  type WorkflowDefinition,
   type WorkflowExecutionRequestedMessage
 } from "@flowpilot/contracts";
 import type { Channel, ConsumeMessage } from "amqplib";
@@ -25,7 +27,7 @@ test("parses valid workflow execution request messages", () => {
 
   assert.equal(parsed?.eventName, FLOWPILOT_ROUTING_KEYS.workflowExecutionRequested);
   assert.equal(parsed?.payload.executionId, "execution-1");
-  assert.deepEqual(parsed?.payload.input, { leadId: "lead-1" });
+  assert.equal(parsed?.payload.input.leadId, "lead-1");
 });
 
 test("rejects invalid workflow execution request messages", () => {
@@ -90,6 +92,83 @@ test("skips processing when workflow execution is already terminal", async () =>
   await processWorkflowExecution(validMessage(), channel, prisma);
 
   assert.equal(channel.published.length, 0);
+});
+
+test("executes workflow nodes sequentially and publishes node lifecycle events", async () => {
+  const channel = createFakeChannel();
+  const workflowUpdates: unknown[] = [];
+  const nodeUpserts: unknown[] = [];
+  const nodeUpdates: unknown[] = [];
+  const outboxUpserts: unknown[] = [];
+  const prisma = {
+    workflowExecution: {
+      findUnique: async () => ({
+        id: "execution-1",
+        workflowId: "workflow-1",
+        workspaceId: "workspace-1",
+        status: "PENDING",
+        startedAt: null,
+        workflowVersion: {
+          definition: workflowDefinition()
+        }
+      }),
+      updateMany: async (args: unknown) => {
+        workflowUpdates.push(args);
+        return { count: 1 };
+      }
+    },
+    workflowNodeExecution: {
+      upsert: async (args: { create: { nodeId: string; nodeType: string } }) => {
+        nodeUpserts.push(args);
+        return {
+          id: `node-execution-${args.create.nodeId}`,
+          nodeId: args.create.nodeId,
+          nodeType: args.create.nodeType
+        };
+      },
+      update: async (args: unknown) => {
+        nodeUpdates.push(args);
+        return args;
+      }
+    },
+    outboxMessage: {
+      upsert: async (args: { create: Record<string, unknown> }) => {
+        outboxUpserts.push(args);
+        return createOutboxRecordFromCreate(args.create);
+      },
+      update: async (args: unknown) => args
+    },
+    $transaction: async <T>(callback: (tx: unknown) => Promise<T>) => {
+      return callback(prisma);
+    }
+  } as unknown as PrismaClient;
+
+  await processWorkflowExecution(validMessage(), channel, prisma);
+
+  assert.equal(nodeUpserts.length, 3);
+  assert.equal(nodeUpdates.length, 3);
+  assert.equal(workflowUpdates.length, 2);
+  assert.equal(channel.published.length, 8);
+  assert.deepEqual(
+    channel.published.map((published) => published.routingKey),
+    [
+      FLOWPILOT_ROUTING_KEYS.workflowExecutionStarted,
+      FLOWPILOT_ROUTING_KEYS.nodeExecutionStarted,
+      FLOWPILOT_ROUTING_KEYS.nodeExecutionCompleted,
+      FLOWPILOT_ROUTING_KEYS.nodeExecutionStarted,
+      FLOWPILOT_ROUTING_KEYS.nodeExecutionCompleted,
+      FLOWPILOT_ROUTING_KEYS.nodeExecutionStarted,
+      FLOWPILOT_ROUTING_KEYS.nodeExecutionCompleted,
+      FLOWPILOT_ROUTING_KEYS.workflowExecutionCompleted
+    ]
+  );
+
+  const workflowCompletion = workflowUpdates[1] as {
+    data?: { output?: { finalOutput?: { response?: { body?: { echoedInput?: unknown } } } } };
+  };
+  assert.deepEqual(workflowCompletion.data?.output?.finalOutput?.response?.body?.echoedInput, {
+    leadId: "lead-1"
+  });
 });
 
 test("schedules retry and acknowledges retryable failures before max attempts", async () => {
@@ -276,9 +355,54 @@ function validMessage(): WorkflowExecutionRequestedMessage {
         id: "user-1"
       },
       input: {
-        leadId: "lead-1"
+        leadId: "lead-1",
+        email: "lead@example.test",
+        ignored: "ignored"
       }
     }
+  };
+}
+
+function workflowDefinition(): WorkflowDefinition {
+  return {
+    nodes: [
+      {
+        id: "manual-trigger",
+        type: WORKFLOW_NODE_TYPES.manualTrigger,
+        name: "Manual Trigger",
+        config: {}
+      },
+      {
+        id: "normalize-lead",
+        type: WORKFLOW_NODE_TYPES.transformAction,
+        name: "Normalize Lead",
+        config: {
+          mode: "pick",
+          pick: ["leadId"]
+        }
+      },
+      {
+        id: "enrichment-request",
+        type: WORKFLOW_NODE_TYPES.httpRequestAction,
+        name: "Request Enrichment",
+        config: {
+          method: "POST",
+          url: "https://example.com/api/enrich-lead"
+        }
+      }
+    ],
+    edges: [
+      {
+        id: "edge-manual-to-normalize",
+        sourceNodeId: "manual-trigger",
+        targetNodeId: "normalize-lead"
+      },
+      {
+        id: "edge-normalize-to-enrichment",
+        sourceNodeId: "normalize-lead",
+        targetNodeId: "enrichment-request"
+      }
+    ]
   };
 }
 
@@ -401,6 +525,25 @@ function createOutboxRecord(routingKey: string) {
       schemaVersion: failedEvent.schemaVersion,
       workspaceId: failedEvent.workspaceId
     },
+    status: "PENDING",
+    attempts: 0,
+    lastError: null,
+    publishedAt: null,
+    createdAt: new Date("2026-05-02T12:00:01.000Z"),
+    updatedAt: new Date("2026-05-02T12:00:01.000Z")
+  };
+}
+
+function createOutboxRecordFromCreate(create: Record<string, unknown>) {
+  return {
+    id: `outbox-${String(create.idempotencyKey)}`,
+    exchange: create.exchange,
+    routingKey: create.routingKey,
+    eventName: create.eventName,
+    messageId: create.messageId,
+    idempotencyKey: create.idempotencyKey,
+    payload: create.payload,
+    headers: create.headers,
     status: "PENDING",
     attempts: 0,
     lastError: null,
