@@ -2,7 +2,7 @@
 
 ## Current Phase
 
-Week 1 foundation.
+Frontend MVP foundation.
 
 ## Completed
 
@@ -122,14 +122,32 @@ Week 1 foundation.
   - `GET /api/workspaces/:workspaceId/workflows/:workflowId/executions/:executionId/summary`
 - Added explicit workflow execution summary response DTOs for Swagger/API contracts.
 - Added unit and HTTP integration coverage for summary reads and missing-execution `404` behavior.
+- Converted `apps/web` from a TypeScript placeholder package into a React + Vite + TypeScript app.
+- Added Tailwind CSS v4 with the Vite plugin and local shadcn/ui-style primitives.
+- Added `components.json` with shadcn/ui aliases and local UI component conventions.
+- Added React Router route structure for login, authenticated app shell, workspaces, workflows, workflow detail, executions, members, and settings.
+- Added TanStack Query for server state and a shared API client with JWT bearer token support.
+- Added functional login against `POST /api/auth/login`, persisted access token handling, and `GET /api/auth/me` session hydration.
+- Added authenticated app shell with sidebar, header, workspace dropdown, breadcrumb label, and user menu.
+- Added workspace list/create screen consuming `GET /api/workspaces` and `POST /api/workspaces`.
+- Added workspace members and settings screens consuming real workspace APIs.
+- Added workflow list/create screen consuming `GET/POST /api/workspaces/:workspaceId/workflows`.
+- Added per-workflow latest execution reads using `GET /api/workspaces/:workspaceId/workflows/:workflowId/executions`.
+- Added workflow detail screen with a run action wired to `POST /api/workspaces/:workspaceId/workflows/:workflowId/executions`.
+- Added a read-only React Flow canvas rendering `currentVersion.definition.nodes` and `currentVersion.definition.edges`.
+- Added node inspector panel for the initial workflow canvas.
+- Added workspace-level recent executions screen by aggregating workflow execution reads.
+- Added execution detail screen with polling against `GET /api/workspaces/:workspaceId/workflows/:workflowId/executions/:executionId/summary`.
+- Re-seeded the local demo data after adding the frontend.
 
 ## In Progress
 
-- Front-end MVP planning
+- Front-end MVP validation and UX polish
 
 ## Not Started
 
-- Frontend application UI
+- Editable workflow builder with drag-and-drop, connect, inspector editing, and save definition
+- Frontend automated component/route tests
 - LangChain integration
 - RAG document ingestion
 - Observability persistence and trace UI
@@ -283,6 +301,15 @@ Week 1 foundation.
 - `pnpm --filter @flowpilot/api test:integration` passed with 3 HTTP integration tests after adding execution summary route coverage.
 - `docker compose up -d --force-recreate api` restarted the API with the summary endpoint.
 - Manual HTTP validation confirmed `GET /api/workspaces/5197de4a-7a9a-4795-b455-e4ab877aba9b/workflows/4455a365-b111-43f6-be2e-d613905d331c/executions/d0f4e058-97d9-4967-8186-d9ecb523f6f5/summary` returns execution details, 3 node executions, and workflow/node timeline events in one response.
+- Initial `git status --short` was clean before the frontend work started.
+- `curl -sS http://localhost:3000/api/health` returned `status: ok`.
+- `docker compose ps` showed `api`, `execution-worker`, `workflow-service`, PostgreSQL, RabbitMQ, Redis, and Qdrant running locally.
+- `pnpm --filter @flowpilot/api seed:demo` completed and confirmed demo workspace `5197de4a-7a9a-4795-b455-e4ab877aba9b` and workflow `4455a365-b111-43f6-be2e-d613905d331c`.
+- `pnpm --filter @flowpilot/web typecheck` passed after adding the React app.
+- `pnpm --filter @flowpilot/web lint` passed.
+- `pnpm --filter @flowpilot/web test` passed with 0 tests.
+- `pnpm --filter @flowpilot/web build` passed. Vite emitted a chunk-size warning because React Flow is in the initial bundle.
+- `pnpm -r typecheck` passed after adding the frontend.
 
 ## Notes
 
@@ -294,7 +321,7 @@ Week 1 foundation.
 
 ## Recommended Next Step
 
-Start the front-end MVP: initialize/build the web app around login, workspace context, workflow list/detail, execution request, and execution summary polling.
+Smoke-test the new web app in the browser against the local API, then polish the workflow/detail/execution UX and add frontend test coverage for routing, auth, and API states.
 
 ## Notes For Next Chat
 
@@ -307,4 +334,4 @@ Start by reading:
 - `docs/DECISIONS.md`
 - `docs/NEXT_STEPS.md`
 
-Then start the front-end MVP: initialize/build the web app around login, workspace context, workflow list/detail, execution request, and execution summary polling.
+Then continue the front-end MVP from the React/Vite foundation now present in `apps/web`: browser smoke-test login/workspaces/workflows/execution polling, add focused frontend tests, and evolve the read-only React Flow canvas toward editable workflow definitions.
