@@ -10,7 +10,7 @@ const buttonVariants = cva(
     variants: {
       variant: {
         default:
-          "liquid-button bg-primary text-primary-foreground hover:bg-zinc-800 dark:bg-primary dark:text-primary-foreground dark:hover:bg-purple-200",
+          "liquid-button bg-primary text-slate-900 hover:text-slate-950 dark:bg-primary dark:text-primary-foreground dark:hover:text-primary-foreground dark:hover:bg-purple-200",
         destructive: "bg-destructive text-destructive-foreground hover:bg-red-700",
         outline:
           "liquid-field border border-border bg-card hover:bg-muted dark:hover:bg-white/12",
