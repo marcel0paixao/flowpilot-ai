@@ -12,6 +12,7 @@ import { queryKeys } from "@/shared/api/query-keys";
 import type { Workflow } from "@/shared/api/types";
 import { createWorkflow, listWorkflowExecutions, listWorkflows } from "@/shared/api/workflows";
 import { formatDateTime, formatRelative, slugify } from "@/shared/lib/utils";
+import { Badge } from "@/shared/ui/badge";
 import { Button } from "@/shared/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/ui/card";
 import {
@@ -174,6 +175,7 @@ export function WorkflowsPage() {
                 <TableHead>Name</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Version</TableHead>
+                <TableHead>Nodes</TableHead>
                 <TableHead>Last execution</TableHead>
                 <TableHead>Updated</TableHead>
                 <TableHead className="w-28"></TableHead>
@@ -184,12 +186,21 @@ export function WorkflowsPage() {
                 <TableRow key={workflow.id}>
                   <TableCell>
                     <div className="font-medium">{workflow.name}</div>
-                    <div className="mt-1 text-xs text-muted-foreground">{workflow.description ?? workflow.slug}</div>
+                    <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                      <Badge variant="outline">{workflow.slug}</Badge>
+                      <span>{workflow.description ?? "No description"}</span>
+                    </div>
                   </TableCell>
                   <TableCell>
                     <StatusBadge status={workflow.status} />
                   </TableCell>
                   <TableCell>v{workflow.currentVersion.version}</TableCell>
+                  <TableCell>
+                    <div className="text-sm">{workflow.currentVersion.definition.nodes.length}</div>
+                    <div className="mt-1 text-xs text-muted-foreground">
+                      {workflow.currentVersion.definition.edges.length} edges
+                    </div>
+                  </TableCell>
                   <TableCell>
                     <LastExecution workspaceId={workspaceId} workflow={workflow} />
                   </TableCell>

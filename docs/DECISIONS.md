@@ -227,3 +227,15 @@ Reason: FlowPilot's main surface is an authenticated SaaS dashboard and workflow
 Decision: Render persisted workflow definitions in React Flow read-only mode first, mapping `definition.nodes` and `definition.edges` from the shared contract into canvas nodes and edges with a side inspector.
 
 Reason: The backend already validates and executes workflow definitions. A read-only canvas proves the frontend can consume that contract safely before adding drag-and-drop, node editing, edge creation, and save semantics.
+
+## 2026-05-06: Frontend Integration Tests Before Broad Unit Coverage
+
+Decision: Add a small Vitest, React Testing Library, and MSW integration-test layer for the web app before broad frontend unit tests.
+
+Reason: The highest early frontend risk is route/auth/API wiring rather than isolated component logic. Covering protected-route redirects, login token persistence, authenticated API headers, and workspace rendering gives useful confidence while keeping the test suite lightweight during MVP UI iteration.
+
+## 2026-05-06: Keep Execution Detail On Polling For MVP
+
+Decision: Keep execution detail polling the summary endpoint every 2 seconds while executions are non-terminal.
+
+Reason: The summary endpoint already provides execution, node progress, and timeline state in one read model. Polling is simple, observable, and sufficient for the MVP; SSE or WebSocket updates can be revisited after the workflow builder and execution UX stabilize.

@@ -138,16 +138,19 @@ Frontend MVP foundation.
 - Added node inspector panel for the initial workflow canvas.
 - Added workspace-level recent executions screen by aggregating workflow execution reads.
 - Added execution detail screen with polling against `GET /api/workspaces/:workspaceId/workflows/:workflowId/executions/:executionId/summary`.
+- Added Vitest, React Testing Library, and MSW integration coverage for protected-route redirect, login/JWT flow, and authenticated workspace listing.
+- Improved the read-only React Flow canvas with richer node cards, trigger/action badges, config summaries, directional handles, arrowed edges, and theme-aware styling.
+- Improved workflow list/detail with node and edge counts, workflow metrics, a clearer node inspector, execution duration, and empty recent-execution states.
+- Improved execution detail with duration metrics, polling visibility for live executions, sorted timeline events, empty timeline/node states, and inline node error payloads.
 - Re-seeded the local demo data after adding the frontend.
 
 ## In Progress
 
-- Front-end MVP validation and UX polish
+- Editable workflow builder planning
 
 ## Not Started
 
 - Editable workflow builder with drag-and-drop, connect, inspector editing, and save definition
-- Frontend automated component/route tests
 - LangChain integration
 - RAG document ingestion
 - Observability persistence and trace UI
@@ -310,6 +313,9 @@ Frontend MVP foundation.
 - `pnpm --filter @flowpilot/web test` passed with 0 tests.
 - `pnpm --filter @flowpilot/web build` passed. Vite emitted a chunk-size warning because React Flow is in the initial bundle.
 - `pnpm -r typecheck` passed after adding the frontend.
+- `pnpm --filter @flowpilot/web test` passed with 3 integration tests after adding Vitest/RTL/MSW coverage. Vitest still emits a non-failing `--localstorage-file` warning in this environment.
+- `pnpm --filter @flowpilot/web typecheck` passed after the workflow canvas, workflow detail, and execution detail polish.
+- `pnpm --filter @flowpilot/web build` passed after the workflow canvas, workflow detail, and execution detail polish. Vite still emits the expected React Flow chunk-size warning.
 
 ## Notes
 
@@ -321,7 +327,7 @@ Frontend MVP foundation.
 
 ## Recommended Next Step
 
-Smoke-test the new web app in the browser against the local API, then polish the workflow/detail/execution UX and add frontend test coverage for routing, auth, and API states.
+Start the editable workflow builder slice: drag nodes onto the canvas, connect edges, edit node config in the inspector, validate with the shared workflow definition contract, and save a new workflow version through an API endpoint.
 
 ## Notes For Next Chat
 
@@ -334,4 +340,4 @@ Start by reading:
 - `docs/DECISIONS.md`
 - `docs/NEXT_STEPS.md`
 
-Then continue the front-end MVP from the React/Vite foundation now present in `apps/web`: browser smoke-test login/workspaces/workflows/execution polling, add focused frontend tests, and evolve the read-only React Flow canvas toward editable workflow definitions.
+Then continue from the polished read-only frontend now present in `apps/web`: define the API contract for saving workflow definitions/versions, add editable React Flow interactions, and keep the execution summary UX aligned with node progress from the worker.

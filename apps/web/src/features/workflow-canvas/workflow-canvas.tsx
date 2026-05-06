@@ -6,11 +6,12 @@ import {
   MiniMap,
   Position,
   ReactFlow,
+  MarkerType,
   type Edge,
   type Node,
   type NodeProps
 } from "@xyflow/react";
-import { MousePointer2, Play, Split, Workflow as WorkflowIcon } from "lucide-react";
+import { Braces, Globe2, Play, Workflow as WorkflowIcon } from "lucide-react";
 import { useMemo } from "react";
 
 import { humanizeIdentifier, cn } from "@/shared/lib/utils";
@@ -19,6 +20,8 @@ import { Badge } from "@/shared/ui/badge";
 
 interface FlowPilotNodeData extends Record<string, unknown> {
   node: WorkflowNode;
+  incomingCount: number;
+  outgoingCount: number;
 }
 
 const nodeTypes = {
@@ -35,9 +38,10 @@ export function WorkflowCanvas({
   onSelectNode?: (nodeId: string) => void;
 }) {
   const theme = useTheme();
-  const { nodes, edges } = useMemo(() => toReactFlowElements(definition, selectedNodeId), [
+  const { nodes, edges } = useMemo(() => toReactFlowElements(definition, selectedNodeId, theme.theme), [
     definition,
-    selectedNodeId
+    selectedNodeId,
+    theme.theme
   ]);
 
   return (
@@ -51,11 +55,13 @@ export function WorkflowCanvas({
       nodes={nodes}
       nodesConnectable={false}
       nodesDraggable={false}
+      nodesFocusable
       nodeTypes={nodeTypes}
+      panOnScroll
       onNodeClick={(_, node) => onSelectNode?.(node.id)}
       proOptions={{ hideAttribution: true }}
     >
-      <Background color={theme.theme === "dark" ? "#46315f" : "#dbe4e0"} gap={18} />
+      <Background color={theme.theme === "dark" ? "#6d4c93" : "#d4cee8"} gap={20} />
       <MiniMap pannable zoomable className="!border !border-border !bg-card dark:!bg-card/70" />
       <Controls showInteractive={false} />
     </ReactFlow>
@@ -65,36 +71,45 @@ export function WorkflowCanvas({
 function FlowPilotNode({ data, selected }: NodeProps<Node<FlowPilotNodeData>>) {
   const workflowNode = data.node;
   const Icon = getNodeIcon(workflowNode.type);
+  const nodeKind = getNodeKind(workflowNode.type);
+  const summary = getNodeSummary(workflowNode);
 
   return (
     <div
       className={cn(
-        "liquid-glass w-56 rounded-lg border bg-card p-3 text-left shadow-sm transition-colors",
+        "liquid-glass w-64 rounded-lg border bg-card p-3 text-left shadow-sm transition-colors",
         selected
-          ? "border-teal-500 ring-2 ring-teal-500/20 dark:border-purple-300 dark:ring-purple-300/24"
+          ? "border-violet-500 ring-2 ring-violet-500/20 dark:border-purple-300 dark:ring-purple-300/24"
           : "border-border"
       )}
     >
-      <Handle className="!bg-teal-700 dark:!bg-purple-300" type="target" position={Position.Left} />
+      {data.incomingCount > 0 ? (
+        <Handle className="!bg-violet-600 dark:!bg-purple-300" type="target" position={Position.Left} />
+      ) : null}
       <div className="flex items-start gap-3">
         <div className="flex size-9 shrink-0 items-center justify-center rounded-md bg-accent text-accent-foreground">
           <Icon className="size-4" />
         </div>
         <div className="min-w-0">
-          <p className="truncate text-sm font-semibold">{workflowNode.name}</p>
-          <div className="mt-1">
-            <Badge variant="outline">{humanizeIdentifier(workflowNode.type)}</Badge>
+          <div className="flex flex-wrap items-center gap-1.5">
+            <Badge variant={workflowNode.type.startsWith("trigger.") ? "info" : "outline"}>{nodeKind}</Badge>
+            <span className="text-xs text-muted-foreground">{workflowNode.id}</span>
           </div>
+          <p className="mt-1 truncate text-sm font-semibold">{workflowNode.name}</p>
+          <p className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">{summary}</p>
         </div>
       </div>
-      <Handle className="!bg-teal-700 dark:!bg-purple-300" type="source" position={Position.Right} />
+      {data.outgoingCount > 0 ? (
+        <Handle className="!bg-violet-600 dark:!bg-purple-300" type="source" position={Position.Right} />
+      ) : null}
     </div>
   );
 }
 
-function toReactFlowElements(definition: WorkflowDefinition, selectedNodeId?: string) {
+function toReactFlowElements(definition: WorkflowDefinition, selectedNodeId: string | undefined, theme: "light" | "dark") {
   const levels = getNodeLevels(definition);
   const lanes = new Map<number, number>();
+  const degrees = getNodeDegrees(definition);
   const nodes: Node<FlowPilotNodeData>[] = definition.nodes.map((workflowNode, index) => {
     const level = levels.get(workflowNode.id) ?? index;
     const lane = lanes.get(level) ?? 0;
@@ -109,7 +124,9 @@ function toReactFlowElements(definition: WorkflowDefinition, selectedNodeId?: st
       },
       selected: workflowNode.id === selectedNodeId,
       data: {
-        node: workflowNode
+        node: workflowNode,
+        incomingCount: degrees.incoming.get(workflowNode.id) ?? 0,
+        outgoingCount: degrees.outgoing.get(workflowNode.id) ?? 0
       }
     };
   });
@@ -119,8 +136,12 @@ function toReactFlowElements(definition: WorkflowDefinition, selectedNodeId?: st
     target: edge.targetNodeId,
     animated: true,
     style: {
-      stroke: "#a855f7",
+      stroke: theme === "dark" ? "#c084fc" : "#7c3aed",
       strokeWidth: 2
+    },
+    markerEnd: {
+      type: MarkerType.ArrowClosed,
+      color: theme === "dark" ? "#c084fc" : "#7c3aed"
     }
   }));
 
@@ -169,18 +190,57 @@ function getNodeLevels(definition: WorkflowDefinition) {
   return levels;
 }
 
+function getNodeDegrees(definition: WorkflowDefinition) {
+  const incoming = new Map<string, number>();
+  const outgoing = new Map<string, number>();
+
+  for (const node of definition.nodes) {
+    incoming.set(node.id, 0);
+    outgoing.set(node.id, 0);
+  }
+
+  for (const edge of definition.edges) {
+    outgoing.set(edge.sourceNodeId, (outgoing.get(edge.sourceNodeId) ?? 0) + 1);
+    incoming.set(edge.targetNodeId, (incoming.get(edge.targetNodeId) ?? 0) + 1);
+  }
+
+  return { incoming, outgoing };
+}
+
 function getNodeIcon(type: string) {
   if (type === "trigger.manual") {
     return Play;
   }
 
   if (type === "action.transform") {
-    return Split;
+    return Braces;
   }
 
   if (type === "action.httpRequest") {
-    return MousePointer2;
+    return Globe2;
   }
 
   return WorkflowIcon;
+}
+
+function getNodeKind(type: string) {
+  return type.startsWith("trigger.") ? "Trigger" : "Action";
+}
+
+function getNodeSummary(node: WorkflowNode) {
+  if (node.type === "trigger.manual") {
+    return "Receives manual run input and starts the workflow.";
+  }
+
+  if (node.type === "action.transform") {
+    return node.config.mode === "pick"
+      ? `Pick fields: ${node.config.pick?.join(", ")}`
+      : "Pass input through unchanged.";
+  }
+
+  if (node.type === "action.httpRequest") {
+    return `${node.config.method} ${node.config.url}`;
+  }
+
+  return "Workflow node";
 }

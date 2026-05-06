@@ -38,6 +38,27 @@ export function formatRelative(value: string | null | undefined) {
   return formatter.format(Math.round(diffHours / 24), "day");
 }
 
+export function formatDuration(startedAt: string | null | undefined, completedAt: string | null | undefined) {
+  if (!startedAt) {
+    return "Not started";
+  }
+
+  const end = completedAt ? new Date(completedAt).getTime() : Date.now();
+  const durationMs = Math.max(0, end - new Date(startedAt).getTime());
+
+  if (durationMs < 1_000) {
+    return `${durationMs}ms`;
+  }
+
+  if (durationMs < 60_000) {
+    return `${(durationMs / 1_000).toFixed(1)}s`;
+  }
+
+  const minutes = Math.floor(durationMs / 60_000);
+  const seconds = Math.round((durationMs % 60_000) / 1_000);
+  return seconds > 0 ? `${minutes}m ${seconds}s` : `${minutes}m`;
+}
+
 export function humanizeIdentifier(value: string) {
   return value
     .replaceAll(".", " ")

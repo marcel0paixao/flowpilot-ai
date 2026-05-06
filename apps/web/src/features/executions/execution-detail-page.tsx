@@ -1,11 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
-import { Activity, GitBranch, ListChecks } from "lucide-react";
+import { Activity, Clock3, GitBranch, ListChecks } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
 
 import { queryKeys } from "@/shared/api/query-keys";
 import type { WorkflowExecutionSummary } from "@/shared/api/types";
 import { getExecutionSummary } from "@/shared/api/workflows";
-import { formatDateTime, humanizeIdentifier, isTerminalExecutionStatus } from "@/shared/lib/utils";
+import { formatDateTime, formatDuration, humanizeIdentifier, isTerminalExecutionStatus } from "@/shared/lib/utils";
 import { Badge } from "@/shared/ui/badge";
 import { Button } from "@/shared/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/ui/card";
@@ -38,6 +38,10 @@ export function ExecutionDetailPage() {
 
   const summary = summaryQuery.data;
   const succeededNodes = summary.nodes.filter((node) => node.status === "SUCCEEDED").length;
+  const isLive = !isTerminalExecutionStatus(summary.execution.status);
+  const orderedEvents = [...summary.events].sort(
+    (left, right) => new Date(left.occurredAt).getTime() - new Date(right.occurredAt).getTime()
+  );
 
   return (
     <section className="mx-auto flex w-full max-w-7xl flex-col gap-6 p-4 lg:p-6">
@@ -46,6 +50,7 @@ export function ExecutionDetailPage() {
           <div className="flex flex-wrap items-center gap-2">
             <h1 className="truncate text-2xl font-semibold tracking-normal">Execution Detail</h1>
             <StatusBadge status={summary.execution.status} />
+            {isLive ? <Badge variant="info">Polling every 2s</Badge> : null}
           </div>
           <p className="mt-1 truncate text-sm text-muted-foreground">{summary.execution.id}</p>
         </div>
@@ -54,10 +59,15 @@ export function ExecutionDetailPage() {
         </Button>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-4">
         <MetricCard icon={Activity} label="Status" value={summary.execution.status} />
         <MetricCard icon={GitBranch} label="Nodes" value={`${succeededNodes}/${summary.nodes.length}`} />
         <MetricCard icon={ListChecks} label="Events" value={String(summary.events.length)} />
+        <MetricCard
+          icon={Clock3}
+          label="Duration"
+          value={formatDuration(summary.execution.startedAt, summary.execution.completedAt)}
+        />
       </div>
 
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_24rem]">
@@ -74,26 +84,37 @@ export function ExecutionDetailPage() {
                   <TableHead>Type</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Started</TableHead>
+                  <TableHead>Duration</TableHead>
                   <TableHead>Completed</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {summary.nodes.map((node) => (
-                  <TableRow key={node.id}>
-                    <TableCell>
-                      <div className="font-medium">{node.nodeId}</div>
-                      <div className="mt-1 text-xs text-muted-foreground">{node.id}</div>
+                {summary.nodes.length > 0 ? (
+                  summary.nodes.map((node) => (
+                    <TableRow key={node.id}>
+                      <TableCell>
+                        <div className="font-medium">{node.nodeId}</div>
+                        <div className="mt-1 text-xs text-muted-foreground">{node.id}</div>
+                        {node.error ? <JsonBlock className="mt-2 max-h-28" value={node.error} /> : null}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline">{humanizeIdentifier(node.nodeType)}</Badge>
+                      </TableCell>
+                      <TableCell>
+                        <StatusBadge status={node.status} />
+                      </TableCell>
+                      <TableCell>{formatDateTime(node.startedAt)}</TableCell>
+                      <TableCell>{formatDuration(node.startedAt, node.completedAt)}</TableCell>
+                      <TableCell>{formatDateTime(node.completedAt)}</TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={6} className="py-8 text-center text-sm text-muted-foreground">
+                      Node progress has not been persisted for this execution yet.
                     </TableCell>
-                    <TableCell>
-                      <Badge variant="outline">{humanizeIdentifier(node.nodeType)}</Badge>
-                    </TableCell>
-                    <TableCell>
-                      <StatusBadge status={node.status} />
-                    </TableCell>
-                    <TableCell>{formatDateTime(node.startedAt)}</TableCell>
-                    <TableCell>{formatDateTime(node.completedAt)}</TableCell>
                   </TableRow>
-                ))}
+                )}
               </TableBody>
             </Table>
           </CardContent>
@@ -130,20 +151,31 @@ export function ExecutionDetailPage() {
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
-            {summary.events.map((event) => (
-              <div key={event.id} className="rounded-lg border border-border p-4">
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <p className="font-medium">{event.eventName}</p>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      {event.producer} · {formatDateTime(event.occurredAt)}
-                    </p>
+            {orderedEvents.length > 0 ? (
+              orderedEvents.map((event, index) => (
+                <div key={event.id} className="relative rounded-lg border border-border p-4">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex min-w-0 gap-3">
+                      <div className="mt-1 flex size-7 shrink-0 items-center justify-center rounded-full bg-accent text-xs font-semibold text-accent-foreground">
+                        {index + 1}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="truncate font-medium">{humanizeIdentifier(event.eventName)}</p>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          {event.producer} · {formatDateTime(event.occurredAt)}
+                        </p>
+                      </div>
+                    </div>
+                    <Badge variant="outline">{event.eventId.slice(0, 8)}</Badge>
                   </div>
-                  <Badge variant="outline">{event.eventId.slice(0, 8)}</Badge>
+                  <JsonBlock className="mt-3 max-h-44" value={event.payload} />
                 </div>
-                <JsonBlock className="mt-3 max-h-44" value={event.payload} />
+              ))
+            ) : (
+              <div className="rounded-lg border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
+                Timeline events have not arrived yet. Running executions will keep polling.
               </div>
-            ))}
+            )}
           </div>
         </CardContent>
       </Card>
