@@ -1,4 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { useState } from "react";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 
 import { AuthProvider } from "@/features/auth/auth-provider";
@@ -14,16 +15,20 @@ import { WorkflowDetailPage } from "@/features/workflows/workflow-detail-page";
 import { WorkflowsPage } from "@/features/workflows/workflows-page";
 import { AuthenticatedLayout } from "@/app/layout/authenticated-layout";
 
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      staleTime: 20_000,
-      refetchOnWindowFocus: false
+function createQueryClient() {
+  return new QueryClient({
+    defaultOptions: {
+      queries: {
+        staleTime: 20_000,
+        refetchOnWindowFocus: false
+      }
     }
-  }
-});
+  });
+}
 
 export function App() {
+  const [queryClient] = useState(createQueryClient);
+
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
