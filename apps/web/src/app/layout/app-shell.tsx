@@ -114,6 +114,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         <nav className={cn("flex-1 space-y-1 p-3", !isSidebarExpanded && "px-2")}>
           <SidebarLink
             collapsed={!isSidebarExpanded}
+            end
             icon={LayoutDashboard}
             to="/app/workspaces"
             label="Workspaces"
@@ -232,11 +233,13 @@ export function AppShell({ children }: { children: ReactNode }) {
 function SidebarLink({
   collapsed,
   icon: Icon,
+  end,
   to,
   label,
   disabled
 }: {
   collapsed: boolean;
+  end?: boolean;
   icon: typeof LayoutDashboard;
   to: string;
   label: string;
@@ -267,6 +270,7 @@ function SidebarLink({
           isActive ? "bg-accent text-accent-foreground" : "text-muted-foreground"
         )
       }
+      end={end}
       title={label}
       to={to}
     >

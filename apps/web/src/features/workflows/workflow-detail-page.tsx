@@ -7,7 +7,21 @@ import {
   type WorkflowNodeType
 } from "@flowpilot/contracts";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowRight, Clock3, GitBranch, History, Network, Plus, PlayCircle, RotateCcw, Save, Trash2, X } from "lucide-react";
+import {
+  ArrowRight,
+  Clock3,
+  Eye,
+  GitBranch,
+  History,
+  Link2,
+  Network,
+  Plus,
+  PlayCircle,
+  RotateCcw,
+  Save,
+  Trash2,
+  X
+} from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 
@@ -22,7 +36,7 @@ import {
   listWorkflowVersions,
   restoreWorkflowVersion
 } from "@/shared/api/workflows";
-import { formatDateTime, formatDuration, humanizeIdentifier, slugify } from "@/shared/lib/utils";
+import { cn, formatDateTime, formatDuration, humanizeIdentifier, slugify } from "@/shared/lib/utils";
 import { Badge } from "@/shared/ui/badge";
 import { Button } from "@/shared/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/ui/card";
@@ -50,6 +64,9 @@ export function WorkflowDetailPage() {
   const [isEditing, setIsEditing] = useState(false);
   const [draftDefinition, setDraftDefinition] = useState<WorkflowDefinition>();
   const [formError, setFormError] = useState<string>();
+  const [newEdgeSourceId, setNewEdgeSourceId] = useState("");
+  const [newEdgeTargetId, setNewEdgeTargetId] = useState("");
+  const [previewVersionId, setPreviewVersionId] = useState<string>();
   const workflowQuery = useQuery({
     queryKey: queryKeys.workflow(workspaceId, workflowId),
     queryFn: () => getWorkflow(workspaceId, workflowId),
@@ -67,12 +84,32 @@ export function WorkflowDetailPage() {
   });
   const definition = workflowQuery.data?.currentVersion.definition;
   const activeDefinition = isEditing && draftDefinition ? draftDefinition : definition;
+  const previewVersion = versionsQuery.data?.find((version) => version.id === previewVersionId);
+  const hasDraftChanges = Boolean(
+    isEditing && definition && draftDefinition && !areDefinitionsEqual(definition, draftDefinition)
+  );
 
   useEffect(() => {
     if (definition) {
       setDraftDefinition(cloneDefinition(definition));
+      setPreviewVersionId(undefined);
     }
   }, [definition, workflowQuery.data?.currentVersion.id]);
+
+  useEffect(() => {
+    function warnBeforeUnload(event: BeforeUnloadEvent) {
+      if (!hasDraftChanges) {
+        return;
+      }
+
+      event.preventDefault();
+      event.returnValue = "";
+    }
+
+    window.addEventListener("beforeunload", warnBeforeUnload);
+
+    return () => window.removeEventListener("beforeunload", warnBeforeUnload);
+  }, [hasDraftChanges]);
 
   useEffect(() => {
     if (!selectedNodeId && activeDefinition?.nodes[0]) {
@@ -117,6 +154,7 @@ export function WorkflowDetailPage() {
       setDraftDefinition(cloneDefinition(workflow.currentVersion.definition));
       setIsEditing(false);
       setFormError(undefined);
+      setPreviewVersionId(undefined);
     }
   });
   const restoreMutation = useMutation({
@@ -132,6 +170,7 @@ export function WorkflowDetailPage() {
       setSelectedNodeId(workflow.currentVersion.definition.nodes[0]?.id);
       setFormError(undefined);
       setIsEditing(false);
+      setPreviewVersionId(undefined);
     }
   });
 
@@ -144,6 +183,11 @@ export function WorkflowDetailPage() {
       setFormError(undefined);
       return updater(currentDefinition);
     });
+  }
+
+  function handleDefinitionChange(nextDefinition: WorkflowDefinition) {
+    setFormError(undefined);
+    setDraftDefinition(nextDefinition);
   }
 
   function updateSelectedNode(nextNode: WorkflowNode) {
@@ -185,11 +229,88 @@ export function WorkflowDetailPage() {
       return;
     }
 
+    deleteEdge(selectedEdge.id);
+  }
+
+  function deleteEdge(edgeId: string) {
     updateDraftDefinition((currentDefinition) => ({
       ...currentDefinition,
-      edges: currentDefinition.edges.filter((edge) => edge.id !== selectedEdge.id)
+      edges: currentDefinition.edges.filter((edge) => edge.id !== edgeId)
     }));
     setSelectedEdgeId(undefined);
+  }
+
+  function createManualEdge() {
+    if (!newEdgeSourceId || !newEdgeTargetId) {
+      setFormError("Choose a source and target node before adding an edge.");
+      return;
+    }
+
+    if (newEdgeSourceId === newEdgeTargetId) {
+      setFormError("Source and target nodes must be different.");
+      return;
+    }
+
+    updateDraftDefinition((currentDefinition) => {
+      const edgeId = getUniqueEdgeId(`${newEdgeSourceId}-to-${newEdgeTargetId}`, currentDefinition);
+
+      if (
+        currentDefinition.edges.some(
+          (edge) => edge.sourceNodeId === newEdgeSourceId && edge.targetNodeId === newEdgeTargetId
+        )
+      ) {
+        setFormError("This edge already exists.");
+        return currentDefinition;
+      }
+
+      setSelectedNodeId(undefined);
+      setSelectedEdgeId(edgeId);
+
+      return {
+        ...currentDefinition,
+        edges: [
+          ...currentDefinition.edges,
+          {
+            id: edgeId,
+            sourceNodeId: newEdgeSourceId,
+            targetNodeId: newEdgeTargetId
+          }
+        ]
+      };
+    });
+  }
+
+  function updateSelectedEdge(sourceNodeId: string, targetNodeId: string) {
+    if (!selectedEdge) {
+      return;
+    }
+
+    if (sourceNodeId === targetNodeId) {
+      setFormError("Source and target nodes must be different.");
+      return;
+    }
+
+    updateDraftDefinition((currentDefinition) => {
+      const edgeId =
+        selectedEdge.id === `${sourceNodeId}-to-${targetNodeId}`
+          ? selectedEdge.id
+          : getUniqueEdgeId(`${sourceNodeId}-to-${targetNodeId}`, currentDefinition, selectedEdge.id);
+
+      setSelectedEdgeId(edgeId);
+
+      return {
+        ...currentDefinition,
+        edges: currentDefinition.edges.map((edge) =>
+          edge.id === selectedEdge.id
+            ? {
+                id: edgeId,
+                sourceNodeId,
+                targetNodeId
+              }
+            : edge
+        )
+      };
+    });
   }
 
   async function saveDefinition() {
@@ -217,6 +338,7 @@ export function WorkflowDetailPage() {
     }
     setFormError(undefined);
     setIsEditing(false);
+    setPreviewVersionId(undefined);
   }
 
   async function restoreVersion(versionId: string) {
@@ -244,7 +366,7 @@ export function WorkflowDetailPage() {
             <h1 className="truncate text-2xl font-semibold tracking-normal">{workflowQuery.data.name}</h1>
             <StatusBadge status={workflowQuery.data.status} />
             <Badge variant="outline">v{workflowQuery.data.currentVersion.version}</Badge>
-            {isEditing ? <Badge variant="warning">Unsaved draft</Badge> : null}
+            {hasDraftChanges ? <Badge variant="warning">Unsaved draft</Badge> : null}
           </div>
           <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
             {workflowQuery.data.description ?? workflowQuery.data.slug}
@@ -275,16 +397,16 @@ export function WorkflowDetailPage() {
                     <DropdownMenuItem
                       key={version.id}
                       aria-label={
-                        isCurrent ? `Current version ${version.version}` : `Restore version ${version.version}`
+                        isCurrent ? `Current version ${version.version}` : `Preview version ${version.version}`
                       }
                       className="items-start gap-3 py-3"
-                      disabled={isCurrent || restoreMutation.isPending}
-                      onClick={() => restoreVersion(version.id)}
+                      disabled={restoreMutation.isPending}
+                      onClick={() => setPreviewVersionId(version.id)}
                     >
                       {isCurrent ? (
                         <History className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
                       ) : (
-                        <RotateCcw className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+                        <Eye className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
                       )}
                       <span className="min-w-0 flex-1">
                         <span className="flex items-center gap-2">
@@ -310,9 +432,9 @@ export function WorkflowDetailPage() {
                 <X />
                 Discard
               </Button>
-              <Button onClick={saveDefinition} disabled={saveMutation.isPending}>
+              <Button onClick={saveDefinition} disabled={!hasDraftChanges || saveMutation.isPending}>
                 <Save />
-                {saveMutation.isPending ? "Saving" : "Save version"}
+                {saveMutation.isPending ? "Saving" : hasDraftChanges ? "Save version" : "No changes"}
               </Button>
             </>
           ) : (
@@ -340,7 +462,64 @@ export function WorkflowDetailPage() {
               <Plus />
               HTTP request
             </Button>
+            <span className="mx-2 hidden h-6 w-px bg-border md:block" />
+            <span className="mr-2 text-sm font-medium">Add edge</span>
+            <NodeSelect
+              ariaLabel="Edge source"
+              className="w-48"
+              nodes={activeDefinition.nodes}
+              placeholder="Source node"
+              value={newEdgeSourceId}
+              onChange={setNewEdgeSourceId}
+            />
+            <NodeSelect
+              ariaLabel="Edge target"
+              className="w-48"
+              nodes={activeDefinition.nodes}
+              placeholder="Target node"
+              value={newEdgeTargetId}
+              onChange={setNewEdgeTargetId}
+            />
+            <Button size="sm" variant="outline" onClick={createManualEdge}>
+              <Link2 />
+              Connect
+            </Button>
             {formError ? <p className="w-full text-sm text-destructive">{formError}</p> : null}
+          </CardContent>
+        </Card>
+      ) : null}
+
+      {previewVersion ? (
+        <Card>
+          <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge variant={previewVersion.id === workflowQuery.data.currentVersion.id ? "success" : "outline"}>
+                  v{previewVersion.version}
+                </Badge>
+                <span className="text-sm font-medium">Version preview</span>
+              </div>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {formatDateTime(previewVersion.createdAt)} · {previewVersion.definition.nodes.length} nodes ·{" "}
+                {previewVersion.definition.edges.length} edges
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button size="sm" variant="outline" onClick={() => setPreviewVersionId(undefined)}>
+                <X />
+                Close
+              </Button>
+              <Button
+                size="sm"
+                disabled={
+                  previewVersion.id === workflowQuery.data.currentVersion.id || restoreMutation.isPending
+                }
+                onClick={() => restoreVersion(previewVersion.id)}
+              >
+                <RotateCcw />
+                {restoreMutation.isPending ? "Restoring" : "Restore this version"}
+              </Button>
+            </div>
           </CardContent>
         </Card>
       ) : null}
@@ -351,7 +530,7 @@ export function WorkflowDetailPage() {
           editable={isEditing}
           selectedEdgeId={selectedEdgeId}
           selectedNodeId={selectedNodeId}
-          onDefinitionChange={setDraftDefinition}
+          onDefinitionChange={handleDefinitionChange}
           onSelectEdge={setSelectedEdgeId}
           onSelectNode={setSelectedNodeId}
         />
@@ -375,6 +554,7 @@ export function WorkflowDetailPage() {
                 editable={isEditing}
                 edge={selectedEdge}
                 nodes={activeDefinition.nodes}
+                onChange={updateSelectedEdge}
                 onDelete={deleteSelectedEdge}
               />
             ) : selectedNode ? (
@@ -501,11 +681,13 @@ function EdgeInspector({
   editable,
   edge,
   nodes,
+  onChange,
   onDelete
 }: {
   editable: boolean;
   edge: WorkflowDefinition["edges"][number];
   nodes: WorkflowNode[];
+  onChange: (sourceNodeId: string, targetNodeId: string) => void;
   onDelete: () => void;
 }) {
   const source = nodes.find((node) => node.id === edge.sourceNodeId);
@@ -513,14 +695,41 @@ function EdgeInspector({
 
   return (
     <>
-      <div className="rounded-lg border border-border bg-muted/40 p-3">
-        <p className="text-xs font-medium uppercase text-muted-foreground">Source</p>
-        <p className="mt-1 text-sm">{source?.name ?? edge.sourceNodeId}</p>
-      </div>
-      <div className="rounded-lg border border-border bg-muted/40 p-3">
-        <p className="text-xs font-medium uppercase text-muted-foreground">Target</p>
-        <p className="mt-1 text-sm">{target?.name ?? edge.targetNodeId}</p>
-      </div>
+      {editable ? (
+        <div className="grid gap-3 md:grid-cols-2">
+          <div className="space-y-2">
+            <Label htmlFor="edge-source">Source</Label>
+            <NodeSelect
+              id="edge-source"
+              ariaLabel="Selected edge source"
+              nodes={nodes}
+              value={edge.sourceNodeId}
+              onChange={(sourceNodeId) => onChange(sourceNodeId, edge.targetNodeId)}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="edge-target">Target</Label>
+            <NodeSelect
+              id="edge-target"
+              ariaLabel="Selected edge target"
+              nodes={nodes}
+              value={edge.targetNodeId}
+              onChange={(targetNodeId) => onChange(edge.sourceNodeId, targetNodeId)}
+            />
+          </div>
+        </div>
+      ) : (
+        <div className="grid gap-3 md:grid-cols-2">
+          <div className="rounded-lg border border-border bg-muted/40 p-3">
+            <p className="text-xs font-medium uppercase text-muted-foreground">Source</p>
+            <p className="mt-1 text-sm">{source?.name ?? edge.sourceNodeId}</p>
+          </div>
+          <div className="rounded-lg border border-border bg-muted/40 p-3">
+            <p className="text-xs font-medium uppercase text-muted-foreground">Target</p>
+            <p className="mt-1 text-sm">{target?.name ?? edge.targetNodeId}</p>
+          </div>
+        </div>
+      )}
       <JsonBlock value={edge} />
       {editable ? (
         <Button variant="outline" className="w-full justify-center" onClick={onDelete}>
@@ -529,6 +738,41 @@ function EdgeInspector({
         </Button>
       ) : null}
     </>
+  );
+}
+
+function NodeSelect({
+  ariaLabel,
+  className,
+  id,
+  nodes,
+  placeholder,
+  value,
+  onChange
+}: {
+  ariaLabel: string;
+  className?: string;
+  id?: string;
+  nodes: WorkflowNode[];
+  placeholder?: string;
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <select
+      aria-label={ariaLabel}
+      className={cn("liquid-field h-9 rounded-md border border-input bg-card px-3 text-sm", className)}
+      id={id}
+      value={value}
+      onChange={(event) => onChange(event.target.value)}
+    >
+      {placeholder ? <option value="">{placeholder}</option> : null}
+      {nodes.map((node) => (
+        <option key={node.id} value={node.id}>
+          {node.name}
+        </option>
+      ))}
+    </select>
   );
 }
 
@@ -707,6 +951,10 @@ function cloneDefinition(definition: WorkflowDefinition): WorkflowDefinition {
   };
 }
 
+function areDefinitionsEqual(left: WorkflowDefinition, right: WorkflowDefinition) {
+  return JSON.stringify(left) === JSON.stringify(right);
+}
+
 function createNode(type: WorkflowNodeType, nodeNumber: number, definition: WorkflowDefinition): WorkflowNode {
   const baseId = slugify(humanizeIdentifier(type)) || "node";
   const id = getUniqueNodeId(baseId, definition);
@@ -745,6 +993,23 @@ function createNode(type: WorkflowNodeType, nodeNumber: number, definition: Work
 
 function getUniqueNodeId(baseId: string, definition: WorkflowDefinition) {
   const existingIds = new Set(definition.nodes.map((node) => node.id));
+
+  if (!existingIds.has(baseId)) {
+    return baseId;
+  }
+
+  let suffix = 2;
+  while (existingIds.has(`${baseId}-${suffix}`)) {
+    suffix += 1;
+  }
+
+  return `${baseId}-${suffix}`;
+}
+
+function getUniqueEdgeId(baseId: string, definition: WorkflowDefinition, ignoredEdgeId?: string) {
+  const existingIds = new Set(
+    definition.edges.filter((edge) => edge.id !== ignoredEdgeId).map((edge) => edge.id)
+  );
 
   if (!existingIds.has(baseId)) {
     return baseId;

@@ -224,7 +224,8 @@ describe("Workflow builder route", () => {
     render(<App />);
 
     await user.click(await screen.findByRole("button", { name: "Open version history" }));
-    await user.click(await screen.findByRole("menuitem", { name: "Restore version 1" }));
+    await user.click(await screen.findByRole("menuitem", { name: "Preview version 1" }));
+    await user.click(await screen.findByRole("button", { name: "Restore this version" }));
 
     await waitFor(() => {
       expect(restoredVersions).toEqual([demoWorkflowVersion1.id]);

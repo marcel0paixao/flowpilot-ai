@@ -1,19 +1,39 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { useState } from "react";
+import { lazy, Suspense, useState, type ReactNode } from "react";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 
 import { AuthProvider } from "@/features/auth/auth-provider";
 import { LoginPage } from "@/features/auth/login-page";
 import { ProtectedRoute } from "@/features/auth/protected-route";
-import { ExecutionDetailPage } from "@/features/executions/execution-detail-page";
-import { ExecutionsPage } from "@/features/executions/executions-page";
 import { ThemeProvider } from "@/features/theme/theme-provider";
-import { MembersPage } from "@/features/workspaces/members-page";
-import { WorkspaceSettingsPage } from "@/features/workspaces/workspace-settings-page";
-import { WorkspacesPage } from "@/features/workspaces/workspaces-page";
-import { WorkflowDetailPage } from "@/features/workflows/workflow-detail-page";
-import { WorkflowsPage } from "@/features/workflows/workflows-page";
 import { AuthenticatedLayout } from "@/app/layout/authenticated-layout";
+import { Skeleton } from "@/shared/ui/skeleton";
+
+const ExecutionDetailPage = lazy(() =>
+  import("@/features/executions/execution-detail-page").then((module) => ({
+    default: module.ExecutionDetailPage
+  }))
+);
+const ExecutionsPage = lazy(() =>
+  import("@/features/executions/executions-page").then((module) => ({ default: module.ExecutionsPage }))
+);
+const MembersPage = lazy(() =>
+  import("@/features/workspaces/members-page").then((module) => ({ default: module.MembersPage }))
+);
+const WorkspaceSettingsPage = lazy(() =>
+  import("@/features/workspaces/workspace-settings-page").then((module) => ({
+    default: module.WorkspaceSettingsPage
+  }))
+);
+const WorkspacesPage = lazy(() =>
+  import("@/features/workspaces/workspaces-page").then((module) => ({ default: module.WorkspacesPage }))
+);
+const WorkflowDetailPage = lazy(() =>
+  import("@/features/workflows/workflow-detail-page").then((module) => ({ default: module.WorkflowDetailPage }))
+);
+const WorkflowsPage = lazy(() =>
+  import("@/features/workflows/workflows-page").then((module) => ({ default: module.WorkflowsPage }))
+);
 
 function createQueryClient() {
   return new QueryClient({
@@ -40,17 +60,26 @@ export function App() {
               <Route element={<ProtectedRoute />}>
                 <Route path="/app" element={<AuthenticatedLayout />}>
                   <Route index element={<Navigate to="/app/workspaces" replace />} />
-                  <Route path="workspaces" element={<WorkspacesPage />} />
+                  <Route path="workspaces" element={<LazyRoute page={<WorkspacesPage />} />} />
                   <Route path="workspaces/:workspaceId" element={<Navigate to="workflows" replace />} />
-                  <Route path="workspaces/:workspaceId/workflows" element={<WorkflowsPage />} />
-                  <Route path="workspaces/:workspaceId/workflows/:workflowId" element={<WorkflowDetailPage />} />
+                  <Route path="workspaces/:workspaceId/workflows" element={<LazyRoute page={<WorkflowsPage />} />} />
+                  <Route
+                    path="workspaces/:workspaceId/workflows/:workflowId"
+                    element={<LazyRoute page={<WorkflowDetailPage />} />}
+                  />
                   <Route
                     path="workspaces/:workspaceId/workflows/:workflowId/executions/:executionId"
-                    element={<ExecutionDetailPage />}
+                    element={<LazyRoute page={<ExecutionDetailPage />} />}
                   />
-                  <Route path="workspaces/:workspaceId/executions" element={<ExecutionsPage />} />
-                  <Route path="workspaces/:workspaceId/members" element={<MembersPage />} />
-                  <Route path="workspaces/:workspaceId/settings" element={<WorkspaceSettingsPage />} />
+                  <Route
+                    path="workspaces/:workspaceId/executions"
+                    element={<LazyRoute page={<ExecutionsPage />} />}
+                  />
+                  <Route path="workspaces/:workspaceId/members" element={<LazyRoute page={<MembersPage />} />} />
+                  <Route
+                    path="workspaces/:workspaceId/settings"
+                    element={<LazyRoute page={<WorkspaceSettingsPage />} />}
+                  />
                 </Route>
               </Route>
               <Route path="*" element={<Navigate to="/app/workspaces" replace />} />
@@ -59,5 +88,18 @@ export function App() {
         </BrowserRouter>
       </ThemeProvider>
     </QueryClientProvider>
+  );
+}
+
+function LazyRoute({ page }: { page: ReactNode }) {
+  return <Suspense fallback={<RouteSkeleton />}>{page}</Suspense>;
+}
+
+function RouteSkeleton() {
+  return (
+    <section className="grid gap-6 p-4 lg:p-6">
+      <Skeleton className="h-16 w-full" />
+      <Skeleton className="h-72 w-full" />
+    </section>
   );
 }

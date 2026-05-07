@@ -4,8 +4,11 @@ import {
   Background,
   applyEdgeChanges,
   applyNodeChanges,
+  BaseEdge,
   Controls,
+  EdgeLabelRenderer,
   Handle,
+  getBezierPath,
   MiniMap,
   Position,
   ReactFlow,
@@ -13,11 +16,12 @@ import {
   type Connection,
   type Edge,
   type EdgeChange,
+  type EdgeProps,
   type Node,
   type NodeChange,
   type NodeProps
 } from "@xyflow/react";
-import { Braces, Globe2, Play, Workflow as WorkflowIcon } from "lucide-react";
+import { Braces, Globe2, Play, Workflow as WorkflowIcon, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 import { humanizeIdentifier, cn } from "@/shared/lib/utils";
@@ -31,8 +35,17 @@ interface FlowPilotNodeData extends Record<string, unknown> {
   outgoingCount: number;
 }
 
+interface FlowPilotEdgeData extends Record<string, unknown> {
+  editable: boolean;
+  onDelete: (edgeId: string) => void;
+}
+
 const nodeTypes = {
   flowpilot: FlowPilotNode
+};
+
+const edgeTypes = {
+  flowpilot: FlowPilotEdge
 };
 
 export function WorkflowCanvas({
@@ -62,7 +75,7 @@ export function WorkflowCanvas({
 
   useEffect(() => {
     const nextElements = toReactFlowElements(definition, selectedNodeId, selectedEdgeId, theme.theme, editable);
-    setNodes(nextElements.nodes);
+    setNodes((currentNodes) => preserveNodePositions(nextElements.nodes, currentNodes));
     setEdges(nextElements.edges);
   }, [definition, editable, selectedEdgeId, selectedNodeId, theme.theme]);
 
@@ -94,9 +107,9 @@ export function WorkflowCanvas({
     }
   }
 
-  function handleEdgesChange(changes: EdgeChange<Edge>[]) {
+  function handleEdgesChange(changes: EdgeChange<Edge<FlowPilotEdgeData>>[]) {
     setEdges((currentEdges) => {
-      const nextEdges = applyEdgeChanges(changes, currentEdges);
+      const nextEdges = applyEdgeChanges(changes, currentEdges) as Edge<FlowPilotEdgeData>[];
       if (changes.some((change) => change.type === "remove")) {
         updateDefinitionFromEdges(nextEdges);
       }
@@ -116,18 +129,39 @@ export function WorkflowCanvas({
         id: edgeId
       },
       edges
-    );
+    ) as Edge<FlowPilotEdgeData>[];
 
     setEdges(nextEdges);
     updateDefinitionFromEdges(nextEdges);
     onSelectEdge?.(edgeId);
   }
 
+  function deleteEdge(edgeId: string) {
+    const nextEdges = edges.filter((edge) => edge.id !== edgeId);
+    setEdges(nextEdges);
+    updateDefinitionFromEdges(nextEdges);
+    onSelectEdge?.(undefined);
+  }
+
+  const renderedEdges = useMemo(
+    () =>
+      edges.map((edge) => ({
+        ...edge,
+        data: {
+          ...edge.data,
+          editable,
+          onDelete: deleteEdge
+        }
+      })),
+    [editable, edges]
+  );
+
   return (
     <ReactFlow
       className="liquid-glass h-full min-h-[36rem] rounded-lg border border-border bg-card lg:min-h-[40rem] 2xl:min-h-[44rem]"
       colorMode={theme.theme}
-      edges={edges}
+      edges={renderedEdges}
+      edgeTypes={edgeTypes}
       fitView
       fitViewOptions={{ padding: 0.25 }}
       minZoom={0.45}
@@ -156,6 +190,58 @@ export function WorkflowCanvas({
   );
 }
 
+function FlowPilotEdge({
+  id,
+  sourceX,
+  sourceY,
+  targetX,
+  targetY,
+  sourcePosition,
+  targetPosition,
+  markerEnd,
+  selected,
+  style,
+  data
+}: EdgeProps<Edge<FlowPilotEdgeData>>) {
+  const [edgePath, labelX, labelY] = getBezierPath({
+    sourceX,
+    sourceY,
+    sourcePosition,
+    targetX,
+    targetY,
+    targetPosition
+  });
+  const editable = Boolean(data?.editable);
+
+  return (
+    <>
+      <BaseEdge id={id} markerEnd={markerEnd} path={edgePath} style={style} />
+      {editable ? (
+        <EdgeLabelRenderer>
+          <button
+            aria-label={`Remove connection ${id}`}
+            className={cn(
+              "nodrag nopan absolute flex size-6 items-center justify-center rounded-full border border-border bg-card text-muted-foreground shadow-sm transition-colors hover:bg-destructive hover:text-destructive-foreground",
+              selected && "border-violet-400 text-foreground"
+            )}
+            style={{
+              transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,
+              pointerEvents: "all"
+            }}
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              data?.onDelete(id);
+            }}
+          >
+            <X className="size-3.5" />
+          </button>
+        </EdgeLabelRenderer>
+      ) : null}
+    </>
+  );
+}
+
 function FlowPilotNode({ data, selected }: NodeProps<Node<FlowPilotNodeData>>) {
   const workflowNode = data.node;
   const Icon = getNodeIcon(workflowNode.type);
@@ -174,7 +260,15 @@ function FlowPilotNode({ data, selected }: NodeProps<Node<FlowPilotNodeData>>) {
       )}
     >
       {data.incomingCount > 0 || canReceiveInput ? (
-        <Handle className="!bg-violet-600 dark:!bg-purple-300" type="target" position={Position.Left} />
+        <Handle
+          className={cn(
+            "!size-3 !border-2 !border-background !bg-violet-600 dark:!bg-purple-300",
+            data.editable && "!size-4 hover:!scale-125"
+          )}
+          title="Input"
+          type="target"
+          position={Position.Left}
+        />
       ) : null}
       <div className="flex items-start gap-3">
         <div className="flex size-9 shrink-0 items-center justify-center rounded-md bg-accent text-accent-foreground">
@@ -190,7 +284,15 @@ function FlowPilotNode({ data, selected }: NodeProps<Node<FlowPilotNodeData>>) {
         </div>
       </div>
       {canEmitOutput ? (
-        <Handle className="!bg-violet-600 dark:!bg-purple-300" type="source" position={Position.Right} />
+        <Handle
+          className={cn(
+            "!size-3 !border-2 !border-background !bg-violet-600 dark:!bg-purple-300",
+            data.editable && "!size-4 hover:!scale-125"
+          )}
+          title="Output"
+          type="source"
+          position={Position.Right}
+        />
       ) : null}
     </div>
   );
@@ -227,11 +329,16 @@ function toReactFlowElements(
       }
     };
   });
-  const edges: Edge[] = definition.edges.map((edge) => ({
+  const edges: Edge<FlowPilotEdgeData>[] = definition.edges.map((edge) => ({
     id: edge.id,
+    type: "flowpilot",
     source: edge.sourceNodeId,
     target: edge.targetNodeId,
     animated: true,
+    data: {
+      editable,
+      onDelete: () => undefined
+    },
     selected: edge.id === selectedEdgeId,
     style: {
       stroke: edge.id === selectedEdgeId ? "#f59e0b" : theme === "dark" ? "#c084fc" : "#7c3aed",
@@ -244,6 +351,18 @@ function toReactFlowElements(
   }));
 
   return { nodes, edges };
+}
+
+function preserveNodePositions(
+  nextNodes: Node<FlowPilotNodeData>[],
+  currentNodes: Node<FlowPilotNodeData>[]
+) {
+  const currentPositions = new Map(currentNodes.map((node) => [node.id, node.position]));
+
+  return nextNodes.map((node) => ({
+    ...node,
+    position: currentPositions.get(node.id) ?? node.position
+  }));
 }
 
 function getNodeLevels(definition: WorkflowDefinition) {

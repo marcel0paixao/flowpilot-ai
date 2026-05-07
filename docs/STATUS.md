@@ -163,6 +163,11 @@ Editable workflow builder MVP.
 - Added version history UI showing recent versions, current version marker, node/edge counts, and restore buttons.
 - Restore creates a new immutable `WorkflowVersion` from the selected historical definition instead of mutating history.
 - Re-seeded the local demo data after adding the frontend.
+- Added workflow detail layout polish so React Flow is the primary surface, node details sit below the canvas, and workflow metrics are compact supporting metadata.
+- Added sidebar display modes in the web shell: auto-hide, pinned open, and minimal icon rail, persisted in local storage.
+- Added a compact version history dropdown with preview-before-restore behavior.
+- Improved workflow builder editing with larger React Flow handles, manual source/target edge creation, edge source/target editing from the inspector, dirty-draft detection, and a browser unload warning for unsaved changes.
+- Added route-level code splitting for authenticated web pages so the initial web bundle is smaller.
 
 ## In Progress
 
@@ -347,6 +352,10 @@ Editable workflow builder MVP.
 - `pnpm --filter @flowpilot/web test` passed with 5 integration tests after adding version history/restore coverage and disconnected node insertion coverage.
 - `pnpm --filter @flowpilot/api build`, `pnpm --filter @flowpilot/web build`, and `pnpm -r typecheck` passed after the version restore and connection UX fixes.
 - Browser smoke-test confirmed that adding an HTTP request node no longer auto-connects it, save shows the shared-contract reachability validation until a user connects it, and version history restore controls are visible.
+- `pnpm --filter @flowpilot/web typecheck` passed after builder manual-edge and code-splitting changes.
+- `pnpm --filter @flowpilot/web test` passed with 5 tests after updating restore coverage for preview-before-restore.
+- `pnpm --filter @flowpilot/web build` passed and split route chunks; the main JS chunk is now under 500 kB.
+- `pnpm --filter @flowpilot/web dev` started Vite at `http://localhost:5173/`.
 
 ## Notes
 

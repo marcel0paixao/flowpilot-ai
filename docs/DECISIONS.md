@@ -263,3 +263,15 @@ Reason: Auto-connecting new nodes made the builder feel constrained and obscured
 Decision: Restoring an older workflow version creates a new latest `WorkflowVersion` copied from the selected historical definition.
 
 Reason: Version history should stay append-only. A restore is itself a new decision in time, so it should not move or mutate old rows; executions that reference older versions remain historically accurate.
+
+## 2026-05-07: Builder Supports Manual Edge Creation Outside Drag Handles
+
+Decision: Keep React Flow drag-to-connect behavior, but also expose explicit source/target edge creation and edge source/target editing in the workflow detail inspector.
+
+Reason: Drag handles alone were not discoverable enough for the MVP builder. A form-based edge path makes the graph model clear, improves keyboard/accessibility ergonomics, and gives users a deterministic way to connect nodes even when canvas gestures feel fiddly.
+
+## 2026-05-07: Code Split Authenticated Web Routes
+
+Decision: Lazy-load authenticated route pages while keeping the app shell, auth provider, login page, and shared route skeleton in the initial bundle.
+
+Reason: React Flow makes workflow detail comparatively heavy. Splitting route chunks keeps the initial app load smaller without changing the Vite SPA architecture or introducing framework complexity.

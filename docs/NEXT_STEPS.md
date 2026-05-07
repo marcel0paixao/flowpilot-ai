@@ -146,14 +146,20 @@ Create the project foundation.
 - Added version history and restore support; restoring an old version creates a new immutable latest version.
 - Added API/web tests for version list/restore and disconnected node validation behavior.
 - Verified local API health, Docker service status, demo seed, web lint/test/build, and monorepo typecheck.
+- Moved workflow detail toward a canvas-first layout with node details and compact metrics below React Flow.
+- Added sidebar auto-hide/pinned/minimal display modes and fixed dropdown/minimal-mode navigation behavior.
+- Added compact version history with preview-before-restore.
+- Added manual edge creation by source/target selects and edge source/target editing in the inspector.
+- Added draft dirty detection, unsaved-draft badge behavior, and browser unload protection for unsaved workflow edits.
+- Added route-level lazy loading for authenticated web pages and reduced the main Vite bundle below the default 500 kB warning threshold.
 
 ## Immediate Tasks
 
 - Preserve canvas node positions across inspector edits and saved versions.
-- Improve the visual affordance for connect handles so users immediately understand how to drag edges between nodes.
 - Improve builder validation UX with field-level messages for invalid edges, duplicate IDs, unreachable nodes, and invalid config JSON.
 - Add keyboard deletion/selection polish for nodes and edges.
 - Add frontend integration coverage for invalid workflow definitions and edge deletion.
+- Add a backend workflow metadata update endpoint before exposing edit controls for name, slug, description, and status.
 - Add explicit ownership-transfer policy only when product requirements need it.
 
 ## Next Architecture Tasks
