@@ -9,6 +9,7 @@ import { formatDateTime, formatDuration, humanizeIdentifier, isTerminalExecution
 import { Badge } from "@/shared/ui/badge";
 import { Button } from "@/shared/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/ui/card";
+import { ErrorState } from "@/shared/ui/error-state";
 import { JsonBlock } from "@/shared/ui/json-block";
 import { Skeleton } from "@/shared/ui/skeleton";
 import { StatusBadge } from "@/shared/ui/status-badge";
@@ -26,6 +27,18 @@ export function ExecutionDetailPage() {
       return data && !isTerminalExecutionStatus(data.execution.status) ? 2_000 : false;
     }
   });
+
+  if (summaryQuery.isError) {
+    return (
+      <section className="mx-auto flex w-full max-w-7xl flex-col gap-6 p-4 lg:p-6">
+        <ErrorState
+          title="Execution summary could not be loaded"
+          message={summaryQuery.error instanceof Error ? summaryQuery.error.message : undefined}
+          onRetry={() => void summaryQuery.refetch()}
+        />
+      </section>
+    );
+  }
 
   if (summaryQuery.isLoading || !summaryQuery.data) {
     return (
@@ -71,7 +84,7 @@ export function ExecutionDetailPage() {
       </div>
 
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_24rem]">
-        <Card>
+        <Card className="overflow-x-auto">
           <CardHeader>
             <CardTitle>Node progress</CardTitle>
             <CardDescription>Status by executed workflow node.</CardDescription>

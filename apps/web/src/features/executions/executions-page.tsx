@@ -8,6 +8,7 @@ import { listWorkflowExecutions, listWorkflows } from "@/shared/api/workflows";
 import { formatDateTime } from "@/shared/lib/utils";
 import { Button } from "@/shared/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/ui/card";
+import { ErrorState } from "@/shared/ui/error-state";
 import { Skeleton } from "@/shared/ui/skeleton";
 import { StatusBadge } from "@/shared/ui/status-badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/shared/ui/table";
@@ -42,6 +43,19 @@ export function ExecutionsPage() {
       )
       .sort((left, right) => right.execution.createdAt.localeCompare(left.execution.createdAt)) ?? [];
   const loading = workflowsQuery.isLoading || executionQueries.some((query) => query.isLoading);
+  const failedExecutionQuery = executionQueries.find((query) => query.isError);
+
+  if (workflowsQuery.isError) {
+    return (
+      <section className="mx-auto flex w-full max-w-7xl flex-col gap-6 p-4 lg:p-6">
+        <ErrorState
+          title="Executions could not be loaded"
+          message={workflowsQuery.error instanceof Error ? workflowsQuery.error.message : undefined}
+          onRetry={() => void workflowsQuery.refetch()}
+        />
+      </section>
+    );
+  }
 
   return (
     <section className="mx-auto flex w-full max-w-7xl flex-col gap-6 p-4 lg:p-6">
@@ -58,13 +72,20 @@ export function ExecutionsPage() {
           <Clock3 className="size-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
+          {failedExecutionQuery ? (
+            <ErrorState
+              title="Some execution rows could not be loaded"
+              message={failedExecutionQuery.error instanceof Error ? failedExecutionQuery.error.message : undefined}
+              onRetry={() => void failedExecutionQuery.refetch()}
+            />
+          ) : null}
           {loading ? (
             <div className="space-y-3">
               <Skeleton className="h-10 w-full" />
               <Skeleton className="h-10 w-full" />
               <Skeleton className="h-10 w-full" />
             </div>
-          ) : (
+          ) : failedExecutionQuery ? null : (
             <Table>
               <TableHeader>
                 <TableRow>

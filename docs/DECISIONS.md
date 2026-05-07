@@ -275,3 +275,15 @@ Reason: Drag handles alone were not discoverable enough for the MVP builder. A f
 Decision: Lazy-load authenticated route pages while keeping the app shell, auth provider, login page, and shared route skeleton in the initial bundle.
 
 Reason: React Flow makes workflow detail comparatively heavy. Splitting route chunks keeps the initial app load smaller without changing the Vite SPA architecture or introducing framework complexity.
+
+## 2026-05-07: Persist Canvas Node Positions In Workflow Definitions
+
+Decision: Allow workflow nodes to carry an optional `position: { x, y }` field in the shared `WorkflowDefinition` contract, and have the React Flow builder save positions when users drag nodes.
+
+Reason: Canvas layout is user-authored workflow state, not a purely derived view. Persisting positions keeps saved versions, restores, and future browser sessions from unexpectedly reorganizing the graph after normal edits such as deleting an edge.
+
+## 2026-05-07: Keep Builder Validation In A Testable Front-End Helper
+
+Decision: Move builder validation messages for save and edge edits into a small workflow validation helper that wraps the shared contract schema and adds UX-specific edge checks.
+
+Reason: The API remains the source of truth, but the builder needs immediate, readable feedback for duplicate edges, invalid trigger inputs, unreachable nodes, and invalid graph edits. A helper keeps this logic covered by focused frontend tests instead of hiding it inside page event handlers.

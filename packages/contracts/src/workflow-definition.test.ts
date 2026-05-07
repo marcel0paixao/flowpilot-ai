@@ -64,6 +64,23 @@ test("workflow definition accepts the initial demo node types", () => {
   assert.equal(result.success, true);
 });
 
+test("workflow definition accepts optional node canvas positions", () => {
+  const result = workflowDefinitionSchema.safeParse({
+    nodes: [
+      {
+        id: "manual-trigger",
+        type: WORKFLOW_NODE_TYPES.manualTrigger,
+        name: "Manual Trigger",
+        position: { x: 120, y: 80 },
+        config: {}
+      }
+    ],
+    edges: []
+  });
+
+  assert.equal(result.success, true);
+});
+
 test("workflow definition rejects broken edges and unreachable nodes", () => {
   const result = workflowDefinitionSchema.safeParse({
     nodes: [

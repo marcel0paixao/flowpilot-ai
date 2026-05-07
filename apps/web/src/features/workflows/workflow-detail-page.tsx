@@ -1,7 +1,6 @@
 import {
   WORKFLOW_HTTP_METHODS,
   WORKFLOW_NODE_TYPES,
-  workflowDefinitionSchema,
   type WorkflowDefinition,
   type WorkflowNode,
   type WorkflowNodeType
@@ -27,6 +26,7 @@ import { Link, useParams } from "react-router-dom";
 
 import { WorkflowCanvas } from "@/features/workflow-canvas/workflow-canvas";
 import { RunWorkflowButton } from "@/features/workflows/run-workflow-button";
+import { validateEdgeDraft, validateWorkflowDefinition } from "@/features/workflows/workflow-definition-validation";
 import { ApiError } from "@/shared/api/http";
 import { queryKeys } from "@/shared/api/query-keys";
 import {
@@ -49,6 +49,7 @@ import {
   DropdownMenuTrigger
 } from "@/shared/ui/dropdown-menu";
 import { Input } from "@/shared/ui/input";
+import { ErrorState } from "@/shared/ui/error-state";
 import { JsonBlock } from "@/shared/ui/json-block";
 import { Label } from "@/shared/ui/label";
 import { Skeleton } from "@/shared/ui/skeleton";
@@ -241,27 +242,19 @@ export function WorkflowDetailPage() {
   }
 
   function createManualEdge() {
-    if (!newEdgeSourceId || !newEdgeTargetId) {
-      setFormError("Choose a source and target node before adding an edge.");
-      return;
-    }
-
-    if (newEdgeSourceId === newEdgeTargetId) {
-      setFormError("Source and target nodes must be different.");
-      return;
-    }
-
     updateDraftDefinition((currentDefinition) => {
-      const edgeId = getUniqueEdgeId(`${newEdgeSourceId}-to-${newEdgeTargetId}`, currentDefinition);
+      const edgeValidationError = validateEdgeDraft({
+        definition: currentDefinition,
+        sourceNodeId: newEdgeSourceId,
+        targetNodeId: newEdgeTargetId
+      });
 
-      if (
-        currentDefinition.edges.some(
-          (edge) => edge.sourceNodeId === newEdgeSourceId && edge.targetNodeId === newEdgeTargetId
-        )
-      ) {
-        setFormError("This edge already exists.");
+      if (edgeValidationError) {
+        setFormError(edgeValidationError);
         return currentDefinition;
       }
+
+      const edgeId = getUniqueEdgeId(`${newEdgeSourceId}-to-${newEdgeTargetId}`, currentDefinition);
 
       setSelectedNodeId(undefined);
       setSelectedEdgeId(edgeId);
@@ -285,12 +278,19 @@ export function WorkflowDetailPage() {
       return;
     }
 
-    if (sourceNodeId === targetNodeId) {
-      setFormError("Source and target nodes must be different.");
-      return;
-    }
-
     updateDraftDefinition((currentDefinition) => {
+      const edgeValidationError = validateEdgeDraft({
+        definition: currentDefinition,
+        sourceNodeId,
+        targetNodeId,
+        ignoredEdgeId: selectedEdge.id
+      });
+
+      if (edgeValidationError) {
+        setFormError(edgeValidationError);
+        return currentDefinition;
+      }
+
       const edgeId =
         selectedEdge.id === `${sourceNodeId}-to-${targetNodeId}`
           ? selectedEdge.id
@@ -318,15 +318,15 @@ export function WorkflowDetailPage() {
       return;
     }
 
-    const validation = workflowDefinitionSchema.safeParse(draftDefinition);
+    const validation = validateWorkflowDefinition(draftDefinition);
 
     if (!validation.success) {
-      setFormError(validation.error.issues.map((issue) => issue.message).join("; "));
+      setFormError(validation.messages.join("; "));
       return;
     }
 
     try {
-      await saveMutation.mutateAsync(validation.data);
+      await saveMutation.mutateAsync(validation.definition);
     } catch (error) {
       setFormError(error instanceof ApiError ? error.message : "Workflow version save failed");
     }
@@ -347,6 +347,18 @@ export function WorkflowDetailPage() {
     } catch (error) {
       setFormError(error instanceof ApiError ? error.message : "Workflow version restore failed");
     }
+  }
+
+  if (workflowQuery.isError) {
+    return (
+      <section className="grid gap-6 p-4 lg:p-6">
+        <ErrorState
+          title="Workflow could not be loaded"
+          message={workflowQuery.error instanceof Error ? workflowQuery.error.message : undefined}
+          onRetry={() => void workflowQuery.refetch()}
+        />
+      </section>
+    );
   }
 
   if (workflowQuery.isLoading || !workflowQuery.data || !definition || !activeDefinition) {

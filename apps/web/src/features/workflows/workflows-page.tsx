@@ -25,6 +25,7 @@ import {
   DialogTrigger
 } from "@/shared/ui/dialog";
 import { Input } from "@/shared/ui/input";
+import { ErrorState } from "@/shared/ui/error-state";
 import { Label } from "@/shared/ui/label";
 import { Skeleton } from "@/shared/ui/skeleton";
 import { StatusBadge } from "@/shared/ui/status-badge";
@@ -153,6 +154,14 @@ export function WorkflowsPage() {
         </Dialog>
       </div>
 
+      {workflowsQuery.isError ? (
+        <ErrorState
+          title="Workflows could not be loaded"
+          message={workflowsQuery.error instanceof Error ? workflowsQuery.error.message : undefined}
+          onRetry={() => void workflowsQuery.refetch()}
+        />
+      ) : null}
+
       {workflowsQuery.isLoading ? <WorkflowsSkeleton /> : null}
 
       {workflowsQuery.data && workflowsQuery.data.length === 0 ? (
@@ -168,7 +177,7 @@ export function WorkflowsPage() {
       ) : null}
 
       {workflowsQuery.data && workflowsQuery.data.length > 0 ? (
-        <Card>
+        <Card className="overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>

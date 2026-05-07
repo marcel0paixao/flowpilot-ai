@@ -20,7 +20,14 @@ const workflowNodeNameSchema = z.string().min(1).max(120);
 
 const workflowNodeBaseSchema = z.object({
   id: workflowNodeIdSchema,
-  name: workflowNodeNameSchema
+  name: workflowNodeNameSchema,
+  position: z
+    .object({
+      x: z.number().finite(),
+      y: z.number().finite()
+    })
+    .strict()
+    .optional()
 });
 
 export const manualTriggerNodeSchema = workflowNodeBaseSchema

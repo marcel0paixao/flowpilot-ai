@@ -13,16 +13,18 @@ import {
   Position,
   ReactFlow,
   MarkerType,
+  Panel,
   type Connection,
   type Edge,
   type EdgeChange,
   type EdgeProps,
   type Node,
   type NodeChange,
-  type NodeProps
+  type NodeProps,
+  type ReactFlowInstance
 } from "@xyflow/react";
-import { Braces, Globe2, Play, Workflow as WorkflowIcon, X } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { Braces, Globe2, Maximize2, Play, RotateCcw, Workflow as WorkflowIcon, X } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { humanizeIdentifier, cn } from "@/shared/lib/utils";
 import { useTheme } from "@/features/theme/theme-provider";
@@ -72,11 +74,20 @@ export function WorkflowCanvas({
   );
   const [nodes, setNodes] = useState(initialElements.nodes);
   const [edges, setEdges] = useState(initialElements.edges);
+  const [flowInstance, setFlowInstance] =
+    useState<ReactFlowInstance<Node<FlowPilotNodeData>, Edge<FlowPilotEdgeData>>>();
+  const previousNodeModelKey = useRef(getNodeModelKey(definition));
 
   useEffect(() => {
     const nextElements = toReactFlowElements(definition, selectedNodeId, selectedEdgeId, theme.theme, editable);
-    setNodes((currentNodes) => preserveNodePositions(nextElements.nodes, currentNodes));
+    const nextNodeModelKey = getNodeModelKey(definition);
+    const shouldPreservePositions = nextNodeModelKey === previousNodeModelKey.current;
+
+    setNodes((currentNodes) =>
+      shouldPreservePositions ? preserveNodePositions(nextElements.nodes, currentNodes) : nextElements.nodes
+    );
     setEdges(nextElements.edges);
+    previousNodeModelKey.current = nextNodeModelKey;
   }, [definition, editable, selectedEdgeId, selectedNodeId, theme.theme]);
 
   function updateDefinitionFromEdges(nextEdges: Edge[]) {
@@ -87,6 +98,23 @@ export function WorkflowCanvas({
         sourceNodeId: edge.source,
         targetNodeId: edge.target
       }))
+    });
+  }
+
+  function updateDefinitionFromNodePosition(nextNode: Node<FlowPilotNodeData>) {
+    onDefinitionChange?.({
+      ...definition,
+      nodes: definition.nodes.map((node) =>
+        node.id === nextNode.id
+          ? {
+              ...node,
+              position: {
+                x: Math.round(nextNode.position.x),
+                y: Math.round(nextNode.position.y)
+              }
+            }
+          : node
+      )
     });
   }
 
@@ -160,6 +188,7 @@ export function WorkflowCanvas({
     <ReactFlow
       className="liquid-glass h-full min-h-[36rem] rounded-lg border border-border bg-card lg:min-h-[40rem] 2xl:min-h-[44rem]"
       colorMode={theme.theme}
+      deleteKeyCode={editable ? ["Backspace", "Delete"] : null}
       edges={renderedEdges}
       edgeTypes={edgeTypes}
       fitView
@@ -175,6 +204,8 @@ export function WorkflowCanvas({
       onEdgeClick={(_, edge) => {
         onSelectEdge?.(edge.id);
       }}
+      onInit={setFlowInstance}
+      onNodeDragStop={editable ? (_, node) => updateDefinitionFromNodePosition(node) : undefined}
       onNodesChange={editable ? handleNodesChange : undefined}
       panOnScroll
       onNodeClick={(_, node) => {
@@ -183,6 +214,29 @@ export function WorkflowCanvas({
       }}
       proOptions={{ hideAttribution: true }}
     >
+      <Panel position="top-right" className="flex items-center gap-2">
+        <div className="liquid-glass flex items-center gap-1 rounded-md border border-border bg-card/80 p-1 shadow-sm">
+          <span className="px-2 text-xs font-medium text-muted-foreground">
+            {editable ? "Editing" : "Viewing"}
+          </span>
+          <button
+            aria-label="Fit view"
+            className="flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+            type="button"
+            onClick={() => flowInstance?.fitView({ padding: 0.25, duration: 240 })}
+          >
+            <Maximize2 className="size-4" />
+          </button>
+          <button
+            aria-label="Reset zoom"
+            className="flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+            type="button"
+            onClick={() => flowInstance?.setViewport({ x: 32, y: 32, zoom: 1 }, { duration: 240 })}
+          >
+            <RotateCcw className="size-4" />
+          </button>
+        </div>
+      </Panel>
       <Background color={theme.theme === "dark" ? "#6d4c93" : "#d4cee8"} gap={20} />
       <MiniMap pannable zoomable className="!border !border-border !bg-card dark:!bg-card/70" />
       <Controls showInteractive={false} />
@@ -317,8 +371,8 @@ function toReactFlowElements(
       id: workflowNode.id,
       type: "flowpilot",
       position: {
-        x: level * 300,
-        y: lane * 130
+        x: workflowNode.position?.x ?? level * 300,
+        y: workflowNode.position?.y ?? lane * 130
       },
       selected: workflowNode.id === selectedNodeId,
       data: {
@@ -363,6 +417,18 @@ function preserveNodePositions(
     ...node,
     position: currentPositions.get(node.id) ?? node.position
   }));
+}
+
+function getNodeModelKey(definition: WorkflowDefinition) {
+  return JSON.stringify(
+    definition.nodes.map((node) => ({
+      id: node.id,
+      type: node.type,
+      name: node.name,
+      config: node.config,
+      position: node.position
+    }))
+  );
 }
 
 function getNodeLevels(definition: WorkflowDefinition) {

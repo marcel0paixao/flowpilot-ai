@@ -356,6 +356,16 @@ Editable workflow builder MVP.
 - `pnpm --filter @flowpilot/web test` passed with 5 tests after updating restore coverage for preview-before-restore.
 - `pnpm --filter @flowpilot/web build` passed and split route chunks; the main JS chunk is now under 500 kB.
 - `pnpm --filter @flowpilot/web dev` started Vite at `http://localhost:5173/`.
+- `WorkflowDefinition` now accepts optional per-node canvas positions, covered by `packages/contracts` tests.
+- The React Flow builder now persists node positions on drag stop and preserves positions when users add/remove edges or edit inspector fields.
+- Added canvas Fit View and Reset Zoom controls plus a clear Viewing/Editing mode indicator.
+- Enabled keyboard deletion for selected canvas elements in edit mode with `Backspace` and `Delete`.
+- Extracted builder validation into a focused frontend helper with unit coverage for valid definitions, duplicate edges, and manual-trigger incoming edges.
+- Added reusable web error states and applied them to workflow list/detail and execution list/detail screens.
+- `pnpm --filter @flowpilot/contracts test` passed with 10 tests after adding optional node positions.
+- `pnpm --filter @flowpilot/web typecheck` passed after the builder position/validation polish.
+- `pnpm --filter @flowpilot/web test` passed with 8 tests after adding workflow validation helper coverage.
+- Browser smoke-test against `http://localhost:5173` confirmed workflow detail renders, Fit View/Reset Zoom controls are present, and edit mode exposes the updated builder controls.
 
 ## Notes
 

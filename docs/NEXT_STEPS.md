@@ -155,10 +155,9 @@ Create the project foundation.
 
 ## Immediate Tasks
 
-- Preserve canvas node positions across inspector edits and saved versions.
-- Improve builder validation UX with field-level messages for invalid edges, duplicate IDs, unreachable nodes, and invalid config JSON.
-- Add keyboard deletion/selection polish for nodes and edges.
-- Add frontend integration coverage for invalid workflow definitions and edge deletion.
+- Smoke-test persisted canvas positions in the browser after dragging nodes, saving a version, refreshing, and restoring an older version.
+- Improve builder validation UX with field-level messages for invalid config JSON and inline node config errors.
+- Add frontend integration coverage for keyboard deletion, edge deletion, and persisted node positions once React Flow drag interactions are stable in the test environment.
 - Add a backend workflow metadata update endpoint before exposing edit controls for name, slug, description, and status.
 - Add explicit ownership-transfer policy only when product requirements need it.
 
