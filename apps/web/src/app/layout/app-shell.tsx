@@ -6,12 +6,15 @@ import {
   LayoutDashboard,
   LogOut,
   Moon,
+  PanelLeftClose,
+  PanelLeftDashed,
+  PanelLeftOpen,
   Settings,
   Sun,
   Users,
   Workflow
 } from "lucide-react";
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Link, NavLink, useLocation, useNavigate, useParams } from "react-router-dom";
 
 import { useAuth } from "@/features/auth/auth-provider";
@@ -31,12 +34,19 @@ import {
 } from "@/shared/ui/dropdown-menu";
 import { Separator } from "@/shared/ui/separator";
 
+type SidebarMode = "auto" | "pinned" | "minimal";
+
+const SIDEBAR_MODE_STORAGE_KEY = "flowpilot.sidebarMode";
+
 export function AppShell({ children }: { children: ReactNode }) {
   const auth = useAuth();
   const theme = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
   const { workspaceId } = useParams();
+  const [sidebarMode, setSidebarMode] = useState<SidebarMode>(getInitialSidebarMode);
+  const [isSidebarHovered, setIsSidebarHovered] = useState(false);
+  const [isSidebarModeMenuOpen, setIsSidebarModeMenuOpen] = useState(false);
   const workspacesQuery = useQuery({
     queryKey: queryKeys.workspaces,
     queryFn: listWorkspaces
@@ -45,6 +55,12 @@ export function AppShell({ children }: { children: ReactNode }) {
   const currentWorkspace = workspacesQuery.data?.find((workspace) => workspace.id === workspaceId);
   const workspaceBasePath = currentWorkspace ? `/app/workspaces/${currentWorkspace.id}` : "/app/workspaces";
   const userInitials = getInitials(auth.user?.displayName ?? auth.user?.email ?? "FP");
+  const isSidebarExpanded =
+    sidebarMode === "pinned" || (sidebarMode === "auto" && (isSidebarHovered || isSidebarModeMenuOpen));
+
+  useEffect(() => {
+    window.localStorage.setItem(SIDEBAR_MODE_STORAGE_KEY, sidebarMode);
+  }, [sidebarMode]);
 
   function signOut() {
     auth.signOut();
@@ -53,44 +69,91 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="flex min-h-screen bg-background text-foreground">
-      <aside className="liquid-bar hidden w-64 shrink-0 border-r border-border bg-card md:flex md:flex-col">
-        <Link className="flex h-16 items-center gap-3 px-5" to="/app/workspaces">
-          <div className="flex size-9 items-center justify-center rounded-lg bg-primary text-primary-foreground dark:shadow-[0_0_32px_rgba(192,132,252,0.3)]">
-            <Bot className="size-4" />
-          </div>
-          <div>
-            <p className="text-sm font-semibold leading-none">FlowPilot AI</p>
-            <p className="mt-1 text-xs text-muted-foreground">Workflow ops</p>
-          </div>
-        </Link>
+      <aside
+        className={cn(
+          "liquid-bar hidden shrink-0 border-r border-border bg-card transition-[width] duration-200 md:flex md:flex-col",
+          isSidebarExpanded ? "w-64" : "w-16"
+        )}
+        onMouseEnter={() => setIsSidebarHovered(true)}
+        onMouseLeave={() => setIsSidebarHovered(false)}
+      >
+        <div
+          className={cn(
+            "flex h-16 items-center gap-2 px-3",
+            isSidebarExpanded ? "justify-between" : "justify-center"
+          )}
+        >
+          {isSidebarExpanded ? (
+            <>
+              <Link aria-label="FlowPilot AI" className="flex min-w-0 items-center gap-3" to="/app/workspaces">
+                <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground dark:shadow-[0_0_32px_rgba(192,132,252,0.3)]">
+                  <Bot className="size-4" />
+                </div>
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold leading-none">FlowPilot AI</p>
+                  <p className="mt-1 truncate text-xs text-muted-foreground">Workflow ops</p>
+                </div>
+              </Link>
+              <SidebarModeMenu
+                mode={sidebarMode}
+                onModeChange={setSidebarMode}
+                onOpenChange={setIsSidebarModeMenuOpen}
+                open={isSidebarModeMenuOpen}
+              />
+            </>
+          ) : (
+            <SidebarModeMenu
+              mode={sidebarMode}
+              onModeChange={setSidebarMode}
+              onOpenChange={setIsSidebarModeMenuOpen}
+              open={isSidebarModeMenuOpen}
+            />
+          )}
+        </div>
         <Separator />
-        <nav className="flex-1 space-y-1 p-3">
-          <SidebarLink icon={LayoutDashboard} to="/app/workspaces" label="Workspaces" />
+        <nav className={cn("flex-1 space-y-1 p-3", !isSidebarExpanded && "px-2")}>
           <SidebarLink
+            collapsed={!isSidebarExpanded}
+            icon={LayoutDashboard}
+            to="/app/workspaces"
+            label="Workspaces"
+          />
+          <SidebarLink
+            collapsed={!isSidebarExpanded}
             icon={Workflow}
             to={`${workspaceBasePath}/workflows`}
             label="Workflows"
             disabled={!currentWorkspace}
           />
           <SidebarLink
+            collapsed={!isSidebarExpanded}
             icon={Clock3}
             to={`${workspaceBasePath}/executions`}
             label="Executions"
             disabled={!currentWorkspace}
           />
           <SidebarLink
+            collapsed={!isSidebarExpanded}
             icon={Users}
             to={`${workspaceBasePath}/members`}
             label="Members"
             disabled={!currentWorkspace}
           />
           <SidebarLink
+            collapsed={!isSidebarExpanded}
             icon={Settings}
             to={`${workspaceBasePath}/settings`}
             label="Settings"
             disabled={!currentWorkspace}
           />
         </nav>
+        {isSidebarExpanded ? (
+          <div className="p-3">
+            <p className="px-3 text-xs text-muted-foreground">
+              Sidebar: {getSidebarModeLabel(sidebarMode)}
+            </p>
+          </div>
+        ) : null}
       </aside>
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="liquid-bar flex h-16 shrink-0 items-center justify-between gap-3 border-b border-border bg-card px-4 lg:px-6">
@@ -167,11 +230,13 @@ export function AppShell({ children }: { children: ReactNode }) {
 }
 
 function SidebarLink({
+  collapsed,
   icon: Icon,
   to,
   label,
   disabled
 }: {
+  collapsed: boolean;
   icon: typeof LayoutDashboard;
   to: string;
   label: string;
@@ -179,9 +244,16 @@ function SidebarLink({
 }) {
   if (disabled) {
     return (
-      <span className="flex h-9 items-center gap-3 rounded-md px-3 text-sm text-muted-foreground opacity-60">
-        <Icon className="size-4" />
-        {label}
+      <span
+        aria-label={label}
+        className={cn(
+          "flex h-9 items-center rounded-md text-sm text-muted-foreground opacity-60",
+          collapsed ? "justify-center px-0" : "gap-3 px-3"
+        )}
+        title={label}
+      >
+        <Icon className="size-4 shrink-0" />
+        {collapsed ? null : label}
       </span>
     );
   }
@@ -190,16 +262,82 @@ function SidebarLink({
     <NavLink
       className={({ isActive }) =>
         cn(
-          "flex h-9 items-center gap-3 rounded-md px-3 text-sm font-medium transition-colors hover:bg-muted",
+          "flex h-9 items-center rounded-md text-sm font-medium transition-colors hover:bg-muted",
+          collapsed ? "justify-center px-0" : "gap-3 px-3",
           isActive ? "bg-accent text-accent-foreground" : "text-muted-foreground"
         )
       }
+      title={label}
       to={to}
     >
-      <Icon className="size-4" />
-      {label}
+      <Icon className="size-4 shrink-0" />
+      {collapsed ? null : label}
     </NavLink>
   );
+}
+
+function SidebarModeMenu({
+  mode,
+  onModeChange,
+  onOpenChange,
+  open
+}: {
+  mode: SidebarMode;
+  onModeChange: (mode: SidebarMode) => void;
+  onOpenChange: (open: boolean) => void;
+  open: boolean;
+}) {
+  const Icon = mode === "pinned" ? PanelLeftOpen : mode === "minimal" ? PanelLeftClose : PanelLeftDashed;
+
+  return (
+    <DropdownMenu onOpenChange={onOpenChange} open={open}>
+      <DropdownMenuTrigger asChild>
+        <Button aria-label="Sidebar display" size="icon" variant="ghost">
+          <Icon />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="w-56">
+        <DropdownMenuLabel>Sidebar</DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={() => onModeChange("auto")}>
+          <PanelLeftDashed className="size-4" />
+          Auto-hide
+          {mode === "auto" ? <span className="ml-auto text-xs text-muted-foreground">Active</span> : null}
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => onModeChange("pinned")}>
+          <PanelLeftOpen className="size-4" />
+          Keep open
+          {mode === "pinned" ? <span className="ml-auto text-xs text-muted-foreground">Active</span> : null}
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => onModeChange("minimal")}>
+          <PanelLeftClose className="size-4" />
+          Minimal
+          {mode === "minimal" ? <span className="ml-auto text-xs text-muted-foreground">Active</span> : null}
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+function getInitialSidebarMode(): SidebarMode {
+  if (typeof window === "undefined") {
+    return "auto";
+  }
+
+  const storedMode = window.localStorage.getItem(SIDEBAR_MODE_STORAGE_KEY);
+  return storedMode === "pinned" || storedMode === "minimal" || storedMode === "auto" ? storedMode : "auto";
+}
+
+function getSidebarModeLabel(mode: SidebarMode) {
+  if (mode === "pinned") {
+    return "keep open";
+  }
+
+  if (mode === "minimal") {
+    return "minimal";
+  }
+
+  return "auto-hide";
 }
 
 function getBreadcrumb(pathname: string) {

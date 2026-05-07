@@ -125,7 +125,7 @@ export function WorkflowCanvas({
 
   return (
     <ReactFlow
-      className="liquid-glass h-full min-h-[32rem] rounded-lg border border-border bg-card"
+      className="liquid-glass h-full min-h-[36rem] rounded-lg border border-border bg-card lg:min-h-[40rem] 2xl:min-h-[44rem]"
       colorMode={theme.theme}
       edges={edges}
       fitView

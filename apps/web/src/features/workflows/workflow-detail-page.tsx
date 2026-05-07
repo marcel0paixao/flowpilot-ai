@@ -26,6 +26,14 @@ import { formatDateTime, formatDuration, humanizeIdentifier, slugify } from "@/s
 import { Badge } from "@/shared/ui/badge";
 import { Button } from "@/shared/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/ui/card";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger
+} from "@/shared/ui/dropdown-menu";
 import { Input } from "@/shared/ui/input";
 import { JsonBlock } from "@/shared/ui/json-block";
 import { Label } from "@/shared/ui/label";
@@ -243,6 +251,59 @@ export function WorkflowDetailPage() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button aria-label="Open version history" disabled={versionsQuery.isLoading} variant="outline">
+                <History />
+                Versions
+                <Badge variant="outline">v{workflowQuery.data.currentVersion.version}</Badge>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="max-h-80 w-80 overflow-y-auto">
+              <DropdownMenuLabel>
+                <span className="block">Version history</span>
+                <span className="block text-xs font-normal text-muted-foreground">
+                  Restore creates a new version from the selected snapshot.
+                </span>
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              {versionsQuery.data && versionsQuery.data.length > 0 ? (
+                versionsQuery.data.map((version) => {
+                  const isCurrent = version.id === workflowQuery.data.currentVersion.id;
+
+                  return (
+                    <DropdownMenuItem
+                      key={version.id}
+                      aria-label={
+                        isCurrent ? `Current version ${version.version}` : `Restore version ${version.version}`
+                      }
+                      className="items-start gap-3 py-3"
+                      disabled={isCurrent || restoreMutation.isPending}
+                      onClick={() => restoreVersion(version.id)}
+                    >
+                      {isCurrent ? (
+                        <History className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+                      ) : (
+                        <RotateCcw className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+                      )}
+                      <span className="min-w-0 flex-1">
+                        <span className="flex items-center gap-2">
+                          <Badge variant={isCurrent ? "success" : "outline"}>v{version.version}</Badge>
+                          {isCurrent ? <span className="text-xs text-muted-foreground">Current</span> : null}
+                        </span>
+                        <span className="mt-1 block text-xs text-muted-foreground">
+                          {formatDateTime(version.createdAt)} · {version.definition.nodes.length} nodes ·{" "}
+                          {version.definition.edges.length} edges
+                        </span>
+                      </span>
+                    </DropdownMenuItem>
+                  );
+                })
+              ) : (
+                <div className="px-2 py-6 text-center text-sm text-muted-foreground">No versions yet.</div>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
           {isEditing ? (
             <>
               <Button variant="outline" onClick={discardDraft}>
@@ -262,14 +323,6 @@ export function WorkflowDetailPage() {
           <RunWorkflowButton workspaceId={workspaceId} workflowId={workflowId} />
         </div>
       </div>
-
-      {definitionStats ? (
-        <div className="grid gap-3 md:grid-cols-3">
-          <WorkflowMetric icon={PlayCircle} label="Triggers" value={String(definitionStats.triggers)} />
-          <WorkflowMetric icon={GitBranch} label="Actions" value={String(definitionStats.actions)} />
-          <WorkflowMetric icon={Network} label="Edges" value={String(definitionStats.edges)} />
-        </div>
-      ) : null}
 
       {isEditing ? (
         <Card>
@@ -292,56 +345,7 @@ export function WorkflowDetailPage() {
         </Card>
       ) : null}
 
-      <Card>
-        <CardHeader className="flex-row items-center justify-between">
-          <div>
-            <CardTitle>Version history</CardTitle>
-            <CardDescription>Restore creates a new version from the selected snapshot.</CardDescription>
-          </div>
-          <History className="size-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent className="space-y-2">
-          {versionsQuery.isLoading ? (
-            <>
-              <Skeleton className="h-10 w-full" />
-              <Skeleton className="h-10 w-full" />
-            </>
-          ) : (
-            versionsQuery.data?.slice(0, 5).map((version) => {
-              const isCurrent = version.id === workflowQuery.data.currentVersion.id;
-
-              return (
-                <div
-                  key={version.id}
-                  className="flex flex-col gap-2 rounded-lg border border-border p-3 sm:flex-row sm:items-center sm:justify-between"
-                >
-                  <div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <Badge variant={isCurrent ? "success" : "outline"}>v{version.version}</Badge>
-                      {isCurrent ? <span className="text-xs text-muted-foreground">Current</span> : null}
-                    </div>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      {formatDateTime(version.createdAt)} · {version.definition.nodes.length} nodes ·{" "}
-                      {version.definition.edges.length} edges
-                    </p>
-                  </div>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    disabled={isCurrent || restoreMutation.isPending}
-                    onClick={() => restoreVersion(version.id)}
-                  >
-                    <RotateCcw />
-                    Restore
-                  </Button>
-                </div>
-              );
-            })
-          )}
-        </CardContent>
-      </Card>
-
-      <div className="grid min-h-[34rem] gap-4 xl:grid-cols-[minmax(0,1fr)_22rem]">
+      <div className="flex flex-col gap-4">
         <WorkflowCanvas
           definition={activeDefinition}
           editable={isEditing}
@@ -351,7 +355,14 @@ export function WorkflowDetailPage() {
           onSelectEdge={setSelectedEdgeId}
           onSelectNode={setSelectedNodeId}
         />
-        <Card className="min-h-0">
+        {definitionStats ? (
+          <div className="liquid-glass grid gap-0 overflow-hidden rounded-lg border border-border bg-card/70 md:grid-cols-3">
+            <WorkflowMetric icon={PlayCircle} label="Triggers" value={String(definitionStats.triggers)} />
+            <WorkflowMetric icon={GitBranch} label="Actions" value={String(definitionStats.actions)} />
+            <WorkflowMetric icon={Network} label="Edges" value={String(definitionStats.edges)} />
+          </div>
+        ) : null}
+        <Card>
           <CardHeader>
             <CardTitle>{selectedEdge ? "Edge details" : "Node details"}</CardTitle>
             <CardDescription>
@@ -658,17 +669,15 @@ function WorkflowMetric({
   value: string;
 }) {
   return (
-    <Card>
-      <CardContent className="flex items-center gap-3 p-4">
-        <div className="flex size-9 items-center justify-center rounded-lg bg-accent text-accent-foreground">
-          <Icon className="size-4" />
-        </div>
-        <div>
-          <p className="text-xs text-muted-foreground">{label}</p>
-          <p className="text-lg font-semibold">{value}</p>
-        </div>
-      </CardContent>
-    </Card>
+    <div className="flex items-center gap-3 border-border px-4 py-3 md:border-r md:last:border-r-0">
+      <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-accent text-accent-foreground">
+        <Icon className="size-4" />
+      </div>
+      <div className="min-w-0">
+        <p className="text-xs text-muted-foreground">{label}</p>
+        <p className="text-base font-semibold leading-tight">{value}</p>
+      </div>
+    </div>
   );
 }
 
