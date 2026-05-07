@@ -25,6 +25,7 @@ import { useTheme } from "@/features/theme/theme-provider";
 import { Badge } from "@/shared/ui/badge";
 
 interface FlowPilotNodeData extends Record<string, unknown> {
+  editable: boolean;
   node: WorkflowNode;
   incomingCount: number;
   outgoingCount: number;
@@ -52,20 +53,18 @@ export function WorkflowCanvas({
   onSelectNode?: (nodeId: string) => void;
 }) {
   const theme = useTheme();
-  const initialElements = useMemo(() => toReactFlowElements(definition, selectedNodeId, selectedEdgeId, theme.theme), [
-    definition,
-    selectedEdgeId,
-    selectedNodeId,
-    theme.theme
-  ]);
+  const initialElements = useMemo(
+    () => toReactFlowElements(definition, selectedNodeId, selectedEdgeId, theme.theme, editable),
+    [definition, editable, selectedEdgeId, selectedNodeId, theme.theme]
+  );
   const [nodes, setNodes] = useState(initialElements.nodes);
   const [edges, setEdges] = useState(initialElements.edges);
 
   useEffect(() => {
-    const nextElements = toReactFlowElements(definition, selectedNodeId, selectedEdgeId, theme.theme);
+    const nextElements = toReactFlowElements(definition, selectedNodeId, selectedEdgeId, theme.theme, editable);
     setNodes(nextElements.nodes);
     setEdges(nextElements.edges);
-  }, [definition, selectedEdgeId, selectedNodeId, theme.theme]);
+  }, [definition, editable, selectedEdgeId, selectedNodeId, theme.theme]);
 
   function updateDefinitionFromEdges(nextEdges: Edge[]) {
     onDefinitionChange?.({
@@ -162,6 +161,8 @@ function FlowPilotNode({ data, selected }: NodeProps<Node<FlowPilotNodeData>>) {
   const Icon = getNodeIcon(workflowNode.type);
   const nodeKind = getNodeKind(workflowNode.type);
   const summary = getNodeSummary(workflowNode);
+  const canReceiveInput = data.editable && workflowNode.type !== "trigger.manual";
+  const canEmitOutput = data.editable || data.outgoingCount > 0;
 
   return (
     <div
@@ -172,7 +173,7 @@ function FlowPilotNode({ data, selected }: NodeProps<Node<FlowPilotNodeData>>) {
           : "border-border"
       )}
     >
-      {data.incomingCount > 0 ? (
+      {data.incomingCount > 0 || canReceiveInput ? (
         <Handle className="!bg-violet-600 dark:!bg-purple-300" type="target" position={Position.Left} />
       ) : null}
       <div className="flex items-start gap-3">
@@ -188,7 +189,7 @@ function FlowPilotNode({ data, selected }: NodeProps<Node<FlowPilotNodeData>>) {
           <p className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">{summary}</p>
         </div>
       </div>
-      {data.outgoingCount > 0 ? (
+      {canEmitOutput ? (
         <Handle className="!bg-violet-600 dark:!bg-purple-300" type="source" position={Position.Right} />
       ) : null}
     </div>
@@ -199,7 +200,8 @@ function toReactFlowElements(
   definition: WorkflowDefinition,
   selectedNodeId: string | undefined,
   selectedEdgeId: string | undefined,
-  theme: "light" | "dark"
+  theme: "light" | "dark",
+  editable = false
 ) {
   const levels = getNodeLevels(definition);
   const lanes = new Map<number, number>();
@@ -218,6 +220,7 @@ function toReactFlowElements(
       },
       selected: workflowNode.id === selectedNodeId,
       data: {
+        editable,
         node: workflowNode,
         incomingCount: degrees.incoming.get(workflowNode.id) ?? 0,
         outgoingCount: degrees.outgoing.get(workflowNode.id) ?? 0

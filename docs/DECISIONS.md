@@ -251,3 +251,15 @@ Reason: Workflow executions already point at a specific `WorkflowVersion`, so im
 Decision: The web builder validates draft definitions with `workflowDefinitionSchema` before save, and the API validates the same payload again before creating a new version.
 
 Reason: Client-side validation gives immediate feedback while server-side validation remains the source of truth. Sharing the contract keeps supported node types, edge rules, reachability, and acyclic graph requirements aligned across the canvas, API, and execution worker.
+
+## 2026-05-07: Builder Node Creation Does Not Auto-Connect
+
+Decision: Adding a node in the builder places it disconnected. The user chooses source and target by connecting React Flow handles manually.
+
+Reason: Auto-connecting new nodes made the builder feel constrained and obscured the graph model. Disconnected insertion is more predictable for an editor: the shared contract validation can block unreachable nodes at save time, while the canvas gives users freedom to choose the actual graph topology.
+
+## 2026-05-07: Version Restore Creates Another Immutable Version
+
+Decision: Restoring an older workflow version creates a new latest `WorkflowVersion` copied from the selected historical definition.
+
+Reason: Version history should stay append-only. A restore is itself a new decision in time, so it should not move or mutate old rows; executions that reference older versions remain historically accurate.

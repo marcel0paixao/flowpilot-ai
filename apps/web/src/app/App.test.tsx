@@ -3,7 +3,14 @@ import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 
 import { App } from "@/app/App";
-import { demoExecution, demoUser, demoWorkflow, demoWorkspace } from "@/test/fixtures";
+import {
+  demoExecution,
+  demoUser,
+  demoWorkflow,
+  demoWorkspace,
+  demoWorkflowVersion1,
+  demoWorkflowVersion2
+} from "@/test/fixtures";
 import { server } from "@/test/server";
 
 const API_BASE_URL = "http://localhost:3000/api";
@@ -103,7 +110,7 @@ describe("Workspaces route", () => {
 });
 
 describe("Workflow builder route", () => {
-  it("saves an edited workflow definition as a new version and can request a run", async () => {
+  it("keeps new nodes unconnected until the user connects them", async () => {
     const user = userEvent.setup();
     const savedDefinitions: unknown[] = [];
 
@@ -115,6 +122,9 @@ describe("Workflow builder route", () => {
       ),
       http.get(`${API_BASE_URL}/workspaces/${demoWorkspace.id}/workflows/${demoWorkflow.id}/executions`, () =>
         HttpResponse.json([])
+      ),
+      http.get(`${API_BASE_URL}/workspaces/${demoWorkspace.id}/workflows/${demoWorkflow.id}/versions`, () =>
+        HttpResponse.json([demoWorkflowVersion1])
       ),
       http.post(
         `${API_BASE_URL}/workspaces/${demoWorkspace.id}/workflows/${demoWorkflow.id}/versions`,
@@ -163,19 +173,61 @@ describe("Workflow builder route", () => {
     await user.click(screen.getByRole("button", { name: "Save version" }));
 
     await waitFor(() => {
-      expect(savedDefinitions).toHaveLength(1);
+      expect(screen.getByText("all nodes must be reachable from a manual trigger")).toBeInTheDocument();
     });
 
-    expect(savedDefinitions[0]).toMatchObject({
-      nodes: expect.arrayContaining([
-        expect.objectContaining({
-          type: "action.httpRequest"
+    expect(savedDefinitions).toHaveLength(0);
+  });
+
+  it("restores an earlier workflow version by creating a new current version", async () => {
+    const user = userEvent.setup();
+    const restoredVersions: string[] = [];
+
+    server.use(
+      http.get(`${API_BASE_URL}/auth/me`, () => HttpResponse.json({ user: demoUser })),
+      http.get(`${API_BASE_URL}/workspaces`, () => HttpResponse.json([demoWorkspace])),
+      http.get(`${API_BASE_URL}/workspaces/${demoWorkspace.id}/workflows/${demoWorkflow.id}`, () =>
+        HttpResponse.json({
+          ...demoWorkflow,
+          currentVersion: demoWorkflowVersion2
         })
-      ])
+      ),
+      http.get(`${API_BASE_URL}/workspaces/${demoWorkspace.id}/workflows/${demoWorkflow.id}/executions`, () =>
+        HttpResponse.json([])
+      ),
+      http.get(`${API_BASE_URL}/workspaces/${demoWorkspace.id}/workflows/${demoWorkflow.id}/versions`, () =>
+        HttpResponse.json([demoWorkflowVersion2, demoWorkflowVersion1])
+      ),
+      http.post(
+        `${API_BASE_URL}/workspaces/${demoWorkspace.id}/workflows/${demoWorkflow.id}/versions/${demoWorkflowVersion1.id}/restore`,
+        () => {
+          restoredVersions.push(demoWorkflowVersion1.id);
+
+          return HttpResponse.json(
+            {
+              ...demoWorkflow,
+              currentVersion: {
+                ...demoWorkflowVersion1,
+                id: "workflow-version-3",
+                version: 3
+              }
+            },
+            { status: 201 }
+          );
+        }
+      )
+    );
+
+    window.localStorage.setItem("flowpilot.accessToken", "existing-token");
+    window.history.replaceState({}, "", `/app/workspaces/${demoWorkspace.id}/workflows/${demoWorkflow.id}`);
+
+    render(<App />);
+
+    expect(await screen.findByText("Version history")).toBeInTheDocument();
+    await user.click(screen.getAllByRole("button", { name: "Restore" })[1]!);
+
+    await waitFor(() => {
+      expect(restoredVersions).toEqual([demoWorkflowVersion1.id]);
     });
-
-    await user.click(await screen.findByRole("button", { name: "Run" }));
-
-    expect(await screen.findByRole("heading", { name: "Execution Detail" })).toBeInTheDocument();
   });
 });

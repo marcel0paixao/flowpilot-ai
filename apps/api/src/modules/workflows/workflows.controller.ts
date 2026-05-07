@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Inject, Param, Post, UseGuards } from "@nestjs/common";
+import { Body, Controller, Get, HttpCode, Inject, Param, Post, UseGuards } from "@nestjs/common";
 import { ApiBearerAuth, ApiCreatedResponse, ApiOkResponse, ApiTags } from "@nestjs/swagger";
 import { WorkspaceRole } from "@prisma/client/index";
 
@@ -21,7 +21,7 @@ import { WorkflowExecutionEventResponseDto } from "./dto/workflow-execution-even
 import { WorkflowExecutionResponseDto } from "./dto/workflow-execution-response.dto.js";
 import { WorkflowExecutionSummaryResponseDto } from "./dto/workflow-execution-summary-response.dto.js";
 import { WorkflowNodeExecutionResponseDto } from "./dto/workflow-node-execution-response.dto.js";
-import { WorkflowResponseDto } from "./dto/workflow-response.dto.js";
+import { WorkflowResponseDto, WorkflowVersionResponseDto } from "./dto/workflow-response.dto.js";
 import { WorkflowsService } from "./workflows.service.js";
 
 @ApiTags("workflows")
@@ -59,6 +59,37 @@ export class WorkflowsController {
   })
   findAll(@Param("workspaceId") workspaceId: string) {
     return this.workflowsService.findAllForWorkspace(workspaceId);
+  }
+
+  @Get(":workflowId/versions")
+  @WorkspaceRoles(
+    WorkspaceRole.OWNER,
+    WorkspaceRole.ADMIN,
+    WorkspaceRole.MEMBER,
+    WorkspaceRole.VIEWER
+  )
+  @ApiOkResponse({
+    description: "Workflow version history.",
+    type: WorkflowVersionResponseDto,
+    isArray: true
+  })
+  findVersions(@Param("workspaceId") workspaceId: string, @Param("workflowId") workflowId: string) {
+    return this.workflowsService.findVersions(workspaceId, workflowId);
+  }
+
+  @Post(":workflowId/versions/:versionId/restore")
+  @HttpCode(201)
+  @WorkspaceRoles(WorkspaceRole.OWNER, WorkspaceRole.ADMIN, WorkspaceRole.MEMBER)
+  @ApiCreatedResponse({
+    description: "Workflow version restored by creating a new immutable version from it.",
+    type: WorkflowResponseDto
+  })
+  restoreVersion(
+    @Param("workspaceId") workspaceId: string,
+    @Param("workflowId") workflowId: string,
+    @Param("versionId") versionId: string
+  ) {
+    return this.workflowsService.restoreVersion(workspaceId, workflowId, versionId);
   }
 
   @Get(":workflowId")

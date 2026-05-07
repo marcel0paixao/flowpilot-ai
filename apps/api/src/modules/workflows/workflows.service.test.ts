@@ -170,6 +170,35 @@ test("WorkflowsService saves workflow definitions as a new immutable version", a
   assert.deepEqual(updateArgs.data.versions.create.definition, definition);
 });
 
+test("WorkflowsService lists workflow versions newest first", async () => {
+  const versions = [
+    workflowVersionFixture({ id: "version-2", version: 2 }),
+    workflowVersionFixture({ id: "version-1", version: 1 })
+  ];
+  const prisma = {
+    workflow: {
+      findFirst: mockAsync({ id: "workflow-1" })
+    },
+    workflowVersion: {
+      findMany: mockAsync(versions)
+    }
+  };
+  const service = new WorkflowsService(prisma as never, fakeMessagingService());
+
+  const result = await service.findVersions("workspace-1", "workflow-1");
+
+  assert.equal(result.length, 2);
+  assert.equal(result[0]?.version, 2);
+
+  const findManyArgs = prisma.workflowVersion.findMany.calls[0]?.[0] as {
+    where: { workflowId: string };
+    orderBy: { version: "desc" };
+  };
+
+  assert.equal(findManyArgs.where.workflowId, "workflow-1");
+  assert.equal(findManyArgs.orderBy.version, "desc");
+});
+
 test("WorkflowsService rejects saving a new version for missing workflows", async () => {
   const prisma = {
     workflow: {
@@ -180,6 +209,59 @@ test("WorkflowsService rejects saving a new version for missing workflows", asyn
 
   await assert.rejects(
     () => service.createVersion("workspace-1", "missing-workflow", { definition: workflowDefinitionFixture() }),
+    NotFoundException
+  );
+});
+
+test("WorkflowsService restores an old version by creating a new immutable version", async () => {
+  const workflow = workflowFixture({ currentVersion: 3, currentVersionId: "version-3" });
+  const sourceVersion = workflowVersionFixture({
+    id: "version-1",
+    version: 1,
+    definition: workflowDefinitionFixture()
+  });
+  const updatedWorkflow = workflowFixture({
+    currentVersion: 4,
+    currentVersionId: "version-4",
+    definition: workflowDefinitionFixture()
+  });
+  const prisma = {
+    workflow: {
+      findFirst: mockAsync(workflow),
+      update: mockAsync(updatedWorkflow)
+    },
+    workflowVersion: {
+      findFirst: mockAsync(sourceVersion)
+    }
+  };
+  const service = new WorkflowsService(prisma as never, fakeMessagingService());
+
+  const result = await service.restoreVersion("workspace-1", "workflow-1", "version-1");
+
+  assert.equal(result.currentVersion.version, 4);
+  assert.deepEqual(result.currentVersion.definition, sourceVersion.definition);
+
+  const updateArgs = prisma.workflow.update.calls[0]?.[0] as {
+    data: { versions: { create: { version: number; definition: unknown } } };
+  };
+
+  assert.equal(updateArgs.data.versions.create.version, 4);
+  assert.deepEqual(updateArgs.data.versions.create.definition, sourceVersion.definition);
+});
+
+test("WorkflowsService rejects restoring missing workflow versions", async () => {
+  const prisma = {
+    workflow: {
+      findFirst: mockAsync(workflowFixture())
+    },
+    workflowVersion: {
+      findFirst: mockAsync(null)
+    }
+  };
+  const service = new WorkflowsService(prisma as never, fakeMessagingService());
+
+  await assert.rejects(
+    () => service.restoreVersion("workspace-1", "workflow-1", "missing-version"),
     NotFoundException
   );
 });
@@ -528,6 +610,27 @@ function workflowExecutionFixture() {
     error: null,
     startedAt: null,
     completedAt: null,
+    createdAt: now,
+    updatedAt: now
+  };
+}
+
+function workflowVersionFixture({
+  id = "version-1",
+  version = 1,
+  definition = DEFAULT_WORKFLOW_DEFINITION
+}: {
+  id?: string;
+  version?: number;
+  definition?: WorkflowDefinition;
+} = {}) {
+  const now = new Date("2026-05-01T12:00:00.000Z");
+
+  return {
+    id,
+    workflowId: "workflow-1",
+    version,
+    definition,
     createdAt: now,
     updatedAt: now
   };

@@ -3,7 +3,8 @@ import type { WorkflowDefinition } from "@flowpilot/contracts";
 import type {
   Workflow,
   WorkflowExecution,
-  WorkflowExecutionSummary
+  WorkflowExecutionSummary,
+  WorkflowVersion
 } from "@/shared/api/types";
 
 export interface CreateWorkflowRequest {
@@ -44,6 +45,19 @@ export function createWorkflowVersion(
     method: "POST",
     body: request
   });
+}
+
+export function listWorkflowVersions(workspaceId: string, workflowId: string) {
+  return apiRequest<WorkflowVersion[]>(`/workspaces/${workspaceId}/workflows/${workflowId}/versions`);
+}
+
+export function restoreWorkflowVersion(workspaceId: string, workflowId: string, versionId: string) {
+  return apiRequest<Workflow>(
+    `/workspaces/${workspaceId}/workflows/${workflowId}/versions/${versionId}/restore`,
+    {
+      method: "POST"
+    }
+  );
 }
 
 export function listWorkflowExecutions(workspaceId: string, workflowId: string) {

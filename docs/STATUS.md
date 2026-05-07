@@ -154,6 +154,14 @@ Editable workflow builder MVP.
   - Validate draft definitions with the shared `workflowDefinitionSchema` before saving.
 - Added frontend integration coverage for saving an edited workflow definition and requesting a run.
 - Browser smoke-tested the builder against the local Docker/API stack: saved a new version, ran the workflow, and confirmed the execution summary reached `SUCCEEDED` with 4/4 nodes.
+- Changed builder node insertion so new nodes are added disconnected, leaving the user free to choose source and target edges manually.
+- In edit mode, React Flow handles are visible for connectable nodes even before they have edges.
+- Added workflow version history reads:
+  - `GET /api/workspaces/:workspaceId/workflows/:workflowId/versions`
+- Added workflow version restore:
+  - `POST /api/workspaces/:workspaceId/workflows/:workflowId/versions/:versionId/restore`
+- Added version history UI showing recent versions, current version marker, node/edge counts, and restore buttons.
+- Restore creates a new immutable `WorkflowVersion` from the selected historical definition instead of mutating history.
 - Re-seeded the local demo data after adding the frontend.
 
 ## In Progress
@@ -335,6 +343,10 @@ Editable workflow builder MVP.
 - `docker compose restart api web` restarted the local API and Vite services.
 - `pnpm --filter @flowpilot/api seed:demo` refreshed the local demo workspace and workflow.
 - Browser smoke-test against `http://localhost:5173` saved workflow version `v2`, requested execution `2f6d42fa-4bf8-4f50-bb3c-07ee701d3019`, and confirmed the execution detail showed `SUCCEEDED`, `4/4` nodes, and persisted timeline events.
+- `pnpm --filter @flowpilot/api test` passed with 47 tests after adding version list/restore.
+- `pnpm --filter @flowpilot/web test` passed with 5 integration tests after adding version history/restore coverage and disconnected node insertion coverage.
+- `pnpm --filter @flowpilot/api build`, `pnpm --filter @flowpilot/web build`, and `pnpm -r typecheck` passed after the version restore and connection UX fixes.
+- Browser smoke-test confirmed that adding an HTTP request node no longer auto-connects it, save shows the shared-contract reachability validation until a user connects it, and version history restore controls are visible.
 
 ## Notes
 
@@ -346,7 +358,7 @@ Editable workflow builder MVP.
 
 ## Recommended Next Step
 
-Polish the editable workflow builder: preserve manual node positions, add clearer validation affordances, support edge/node keyboard deletion consistently, and broaden frontend coverage around invalid definitions.
+Polish the editable workflow builder: preserve manual node positions, add clearer drag/connect affordances, support edge/node keyboard deletion consistently, and broaden frontend coverage around version restore and invalid definitions.
 
 ## Notes For Next Chat
 

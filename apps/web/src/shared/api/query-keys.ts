@@ -6,6 +6,8 @@ export const queryKeys = {
   workflows: (workspaceId: string) => ["workspaces", workspaceId, "workflows"] as const,
   workflow: (workspaceId: string, workflowId: string) =>
     ["workspaces", workspaceId, "workflows", workflowId] as const,
+  workflowVersions: (workspaceId: string, workflowId: string) =>
+    ["workspaces", workspaceId, "workflows", workflowId, "versions"] as const,
   workflowExecutions: (workspaceId: string, workflowId: string) =>
     ["workspaces", workspaceId, "workflows", workflowId, "executions"] as const,
   executionSummary: (workspaceId: string, workflowId: string, executionId: string) =>

@@ -7,7 +7,7 @@ import {
   type WorkflowNodeType
 } from "@flowpilot/contracts";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowRight, Clock3, GitBranch, Network, Plus, PlayCircle, Save, Trash2, X } from "lucide-react";
+import { ArrowRight, Clock3, GitBranch, History, Network, Plus, PlayCircle, RotateCcw, Save, Trash2, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 
@@ -15,7 +15,13 @@ import { WorkflowCanvas } from "@/features/workflow-canvas/workflow-canvas";
 import { RunWorkflowButton } from "@/features/workflows/run-workflow-button";
 import { ApiError } from "@/shared/api/http";
 import { queryKeys } from "@/shared/api/query-keys";
-import { createWorkflowVersion, getWorkflow, listWorkflowExecutions } from "@/shared/api/workflows";
+import {
+  createWorkflowVersion,
+  getWorkflow,
+  listWorkflowExecutions,
+  listWorkflowVersions,
+  restoreWorkflowVersion
+} from "@/shared/api/workflows";
 import { formatDateTime, formatDuration, humanizeIdentifier, slugify } from "@/shared/lib/utils";
 import { Badge } from "@/shared/ui/badge";
 import { Button } from "@/shared/ui/button";
@@ -44,6 +50,11 @@ export function WorkflowDetailPage() {
   const executionsQuery = useQuery({
     queryKey: queryKeys.workflowExecutions(workspaceId, workflowId),
     queryFn: () => listWorkflowExecutions(workspaceId, workflowId),
+    enabled: Boolean(workspaceId && workflowId)
+  });
+  const versionsQuery = useQuery({
+    queryKey: queryKeys.workflowVersions(workspaceId, workflowId),
+    queryFn: () => listWorkflowVersions(workspaceId, workflowId),
     enabled: Boolean(workspaceId && workflowId)
   });
   const definition = workflowQuery.data?.currentVersion.definition;
@@ -100,6 +111,21 @@ export function WorkflowDetailPage() {
       setFormError(undefined);
     }
   });
+  const restoreMutation = useMutation({
+    mutationFn: (versionId: string) => restoreWorkflowVersion(workspaceId, workflowId, versionId),
+    onSuccess: async (workflow) => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.workflow(workspaceId, workflowId) }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.workflowVersions(workspaceId, workflowId) }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.workflows(workspaceId) })
+      ]);
+      setDraftDefinition(cloneDefinition(workflow.currentVersion.definition));
+      setSelectedEdgeId(undefined);
+      setSelectedNodeId(workflow.currentVersion.definition.nodes[0]?.id);
+      setFormError(undefined);
+      setIsEditing(false);
+    }
+  });
 
   function updateDraftDefinition(updater: (definition: WorkflowDefinition) => WorkflowDefinition) {
     setDraftDefinition((currentDefinition) => {
@@ -123,28 +149,12 @@ export function WorkflowDetailPage() {
     updateDraftDefinition((currentDefinition) => {
       const nodeNumber = currentDefinition.nodes.length + 1;
       const node = createNode(type, nodeNumber, currentDefinition);
-      const sourceNodeId = selectedNodeId && currentDefinition.nodes.some((candidate) => candidate.id === selectedNodeId)
-        ? selectedNodeId
-        : currentDefinition.nodes.at(-1)?.id;
-      const nextEdges =
-        sourceNodeId && node.type.startsWith("action.")
-          ? [
-              ...currentDefinition.edges,
-              {
-                id: `${sourceNodeId}-to-${node.id}`,
-                sourceNodeId,
-                targetNodeId: node.id
-              }
-            ]
-          : currentDefinition.edges;
-
       setSelectedNodeId(node.id);
       setSelectedEdgeId(undefined);
 
       return {
         ...currentDefinition,
-        nodes: [...currentDefinition.nodes, node],
-        edges: nextEdges
+        nodes: [...currentDefinition.nodes, node]
       };
     });
   }
@@ -199,6 +209,14 @@ export function WorkflowDetailPage() {
     }
     setFormError(undefined);
     setIsEditing(false);
+  }
+
+  async function restoreVersion(versionId: string) {
+    try {
+      await restoreMutation.mutateAsync(versionId);
+    } catch (error) {
+      setFormError(error instanceof ApiError ? error.message : "Workflow version restore failed");
+    }
   }
 
   if (workflowQuery.isLoading || !workflowQuery.data || !definition || !activeDefinition) {
@@ -273,6 +291,55 @@ export function WorkflowDetailPage() {
           </CardContent>
         </Card>
       ) : null}
+
+      <Card>
+        <CardHeader className="flex-row items-center justify-between">
+          <div>
+            <CardTitle>Version history</CardTitle>
+            <CardDescription>Restore creates a new version from the selected snapshot.</CardDescription>
+          </div>
+          <History className="size-4 text-muted-foreground" />
+        </CardHeader>
+        <CardContent className="space-y-2">
+          {versionsQuery.isLoading ? (
+            <>
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-10 w-full" />
+            </>
+          ) : (
+            versionsQuery.data?.slice(0, 5).map((version) => {
+              const isCurrent = version.id === workflowQuery.data.currentVersion.id;
+
+              return (
+                <div
+                  key={version.id}
+                  className="flex flex-col gap-2 rounded-lg border border-border p-3 sm:flex-row sm:items-center sm:justify-between"
+                >
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Badge variant={isCurrent ? "success" : "outline"}>v{version.version}</Badge>
+                      {isCurrent ? <span className="text-xs text-muted-foreground">Current</span> : null}
+                    </div>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {formatDateTime(version.createdAt)} · {version.definition.nodes.length} nodes ·{" "}
+                      {version.definition.edges.length} edges
+                    </p>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={isCurrent || restoreMutation.isPending}
+                    onClick={() => restoreVersion(version.id)}
+                  >
+                    <RotateCcw />
+                    Restore
+                  </Button>
+                </div>
+              );
+            })
+          )}
+        </CardContent>
+      </Card>
 
       <div className="grid min-h-[34rem] gap-4 xl:grid-cols-[minmax(0,1fr)_22rem]">
         <WorkflowCanvas

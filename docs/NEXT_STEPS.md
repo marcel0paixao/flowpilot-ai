@@ -142,11 +142,15 @@ Create the project foundation.
 - Added editable React Flow builder support for adding, dragging, connecting, selecting, deleting, inspecting, validating, and saving MVP nodes.
 - Added frontend integration coverage for builder save plus run navigation.
 - Browser smoke-tested the local app: saved a new version, ran the workflow, and confirmed execution summary with `SUCCEEDED` and 4/4 nodes.
+- Changed node insertion to be disconnected by default so users manually choose graph connections.
+- Added version history and restore support; restoring an old version creates a new immutable latest version.
+- Added API/web tests for version list/restore and disconnected node validation behavior.
 - Verified local API health, Docker service status, demo seed, web lint/test/build, and monorepo typecheck.
 
 ## Immediate Tasks
 
 - Preserve canvas node positions across inspector edits and saved versions.
+- Improve the visual affordance for connect handles so users immediately understand how to drag edges between nodes.
 - Improve builder validation UX with field-level messages for invalid edges, duplicate IDs, unreachable nodes, and invalid config JSON.
 - Add keyboard deletion/selection polish for nodes and edges.
 - Add frontend integration coverage for invalid workflow definitions and edge deletion.

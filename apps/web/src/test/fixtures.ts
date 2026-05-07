@@ -98,3 +98,13 @@ export const demoExecution: WorkflowExecution = {
   createdAt: "2026-04-01T10:05:00.000Z",
   updatedAt: "2026-04-01T10:05:00.000Z"
 };
+
+export const demoWorkflowVersion1 = demoWorkflow.currentVersion;
+
+export const demoWorkflowVersion2 = {
+  ...demoWorkflow.currentVersion,
+  id: "workflow-version-2",
+  version: 2,
+  createdAt: "2026-04-01T10:10:00.000Z",
+  updatedAt: "2026-04-01T10:10:00.000Z"
+};

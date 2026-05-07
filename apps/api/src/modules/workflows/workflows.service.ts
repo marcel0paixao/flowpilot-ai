@@ -92,6 +92,21 @@ export class WorkflowsService {
     return toWorkflowResponse(workflow);
   }
 
+  async findVersions(workspaceId: string, workflowId: string) {
+    await this.ensureWorkflowExists(workspaceId, workflowId);
+
+    const versions = await this.prisma.workflowVersion.findMany({
+      where: {
+        workflowId
+      },
+      orderBy: {
+        version: "desc"
+      }
+    });
+
+    return versions.map(toWorkflowVersionResponse);
+  }
+
   async createVersion(workspaceId: string, workflowId: string, dto: CreateWorkflowVersionDto) {
     const workflow = await this.prisma.workflow.findFirst({
       where: {
@@ -122,6 +137,54 @@ export class WorkflowsService {
           create: {
             version: nextVersion,
             definition: dto.definition as Prisma.InputJsonObject
+          }
+        }
+      },
+      include: workflowWithCurrentVersion
+    });
+
+    return toWorkflowResponse(updatedWorkflow);
+  }
+
+  async restoreVersion(workspaceId: string, workflowId: string, versionId: string) {
+    const workflow = await this.prisma.workflow.findFirst({
+      where: {
+        id: workflowId,
+        workspaceId
+      },
+      include: workflowWithCurrentVersion
+    });
+
+    if (!workflow) {
+      throw new NotFoundException("Workflow not found");
+    }
+
+    const sourceVersion = await this.prisma.workflowVersion.findFirst({
+      where: {
+        id: versionId,
+        workflowId
+      }
+    });
+
+    if (!sourceVersion) {
+      throw new NotFoundException("Workflow version not found");
+    }
+
+    const currentVersion = workflow.versions[0];
+
+    if (!currentVersion) {
+      throw new NotFoundException("Workflow version not found");
+    }
+
+    const updatedWorkflow = await this.prisma.workflow.update({
+      where: {
+        id: workflow.id
+      },
+      data: {
+        versions: {
+          create: {
+            version: currentVersion.version + 1,
+            definition: sourceVersion.definition as Prisma.InputJsonObject
           }
         }
       },
@@ -393,6 +456,7 @@ type WorkflowWithCurrentVersion = Prisma.WorkflowGetPayload<{
   include: typeof workflowWithCurrentVersion;
 }>;
 
+type WorkflowVersion = Prisma.WorkflowVersionGetPayload<Record<string, never>>;
 type WorkflowExecution = Prisma.WorkflowExecutionGetPayload<Record<string, never>>;
 type WorkflowExecutionEvent = Prisma.WorkflowExecutionEventGetPayload<Record<string, never>>;
 type WorkflowNodeExecution = Prisma.WorkflowNodeExecutionGetPayload<Record<string, never>>;
@@ -414,12 +478,18 @@ function toWorkflowResponse(workflow: WorkflowWithCurrentVersion) {
     createdAt: workflow.createdAt,
     updatedAt: workflow.updatedAt,
     currentVersion: {
-      id: currentVersion.id,
-      version: currentVersion.version,
-      definition: currentVersion.definition,
-      createdAt: currentVersion.createdAt,
-      updatedAt: currentVersion.updatedAt
+      ...toWorkflowVersionResponse(currentVersion)
     }
+  };
+}
+
+function toWorkflowVersionResponse(version: WorkflowVersion) {
+  return {
+    id: version.id,
+    version: version.version,
+    definition: version.definition,
+    createdAt: version.createdAt,
+    updatedAt: version.updatedAt
   };
 }
 
