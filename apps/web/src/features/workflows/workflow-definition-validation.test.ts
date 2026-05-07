@@ -1,6 +1,10 @@
 import { WORKFLOW_NODE_TYPES, type WorkflowDefinition } from "@flowpilot/contracts";
 
-import { getWorkflowDefinitionIssueMessages, validateEdgeDraft } from "./workflow-definition-validation";
+import {
+  getNodeDefinitionIssueMessages,
+  getWorkflowDefinitionIssueMessages,
+  validateEdgeDraft
+} from "./workflow-definition-validation";
 
 const validDefinition: WorkflowDefinition = {
   nodes: [
@@ -51,5 +55,25 @@ describe("workflow definition validation", () => {
         targetNodeId: "manual-trigger"
       })
     ).toBe("Manual trigger nodes cannot receive incoming edges.");
+  });
+
+  it("returns node-specific config messages", () => {
+    const definition = {
+      ...validDefinition,
+      nodes: validDefinition.nodes.map((node) =>
+        node.id === "transform"
+          ? {
+              ...node,
+              config: {
+                mode: "pick"
+              }
+            }
+          : node
+      )
+    } as WorkflowDefinition;
+
+    expect(getNodeDefinitionIssueMessages(definition, "transform")).toEqual([
+      "pick mode requires a non-empty pick list"
+    ]);
   });
 });

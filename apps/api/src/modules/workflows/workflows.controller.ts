@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpCode, Inject, Param, Post, UseGuards } from "@nestjs/common";
+import { Body, Controller, Get, HttpCode, Inject, Param, Patch, Post, UseGuards } from "@nestjs/common";
 import { ApiBearerAuth, ApiCreatedResponse, ApiOkResponse, ApiTags } from "@nestjs/swagger";
 import { WorkspaceRole } from "@prisma/client/index";
 
@@ -17,6 +17,7 @@ import {
   CreateWorkflowVersionDto,
   createWorkflowVersionSchema
 } from "./dto/create-workflow-version.dto.js";
+import { UpdateWorkflowDto, updateWorkflowSchema } from "./dto/update-workflow.dto.js";
 import { WorkflowExecutionEventResponseDto } from "./dto/workflow-execution-event-response.dto.js";
 import { WorkflowExecutionResponseDto } from "./dto/workflow-execution-response.dto.js";
 import { WorkflowExecutionSummaryResponseDto } from "./dto/workflow-execution-summary-response.dto.js";
@@ -105,6 +106,20 @@ export class WorkflowsController {
   })
   findOne(@Param("workspaceId") workspaceId: string, @Param("workflowId") workflowId: string) {
     return this.workflowsService.findOne(workspaceId, workflowId);
+  }
+
+  @Patch(":workflowId")
+  @WorkspaceRoles(WorkspaceRole.OWNER, WorkspaceRole.ADMIN, WorkspaceRole.MEMBER)
+  @ApiOkResponse({
+    description: "Workflow metadata updated without changing the current immutable version.",
+    type: WorkflowResponseDto
+  })
+  updateMetadata(
+    @Param("workspaceId") workspaceId: string,
+    @Param("workflowId") workflowId: string,
+    @Body(new ZodValidationPipe(updateWorkflowSchema)) dto: UpdateWorkflowDto
+  ) {
+    return this.workflowsService.updateMetadata(workspaceId, workflowId, dto);
   }
 
   @Post(":workflowId/versions")

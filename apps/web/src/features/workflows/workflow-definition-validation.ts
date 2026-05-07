@@ -26,6 +26,28 @@ export function validateWorkflowDefinition(definition: WorkflowDefinition) {
   };
 }
 
+export function getNodeDefinitionIssueMessages(definition: WorkflowDefinition, nodeId: string) {
+  const nodeIndex = definition.nodes.findIndex((node) => node.id === nodeId);
+
+  if (nodeIndex === -1) {
+    return [];
+  }
+
+  const validation = workflowDefinitionSchema.safeParse(definition);
+
+  if (validation.success) {
+    return [];
+  }
+
+  return Array.from(
+    new Set(
+      validation.error.issues
+        .filter((issue) => issue.path[0] === "nodes" && issue.path[1] === nodeIndex)
+        .map((issue) => issue.message)
+    )
+  );
+}
+
 export function validateEdgeDraft({
   definition,
   sourceNodeId,

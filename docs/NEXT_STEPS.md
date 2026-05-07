@@ -155,16 +155,16 @@ Create the project foundation.
 
 ## Immediate Tasks
 
-- Smoke-test persisted canvas positions in the browser after dragging nodes, saving a version, refreshing, and restoring an older version.
-- Improve builder validation UX with field-level messages for invalid config JSON and inline node config errors.
-- Add frontend integration coverage for keyboard deletion, edge deletion, and persisted node positions once React Flow drag interactions are stable in the test environment.
-- Add a backend workflow metadata update endpoint before exposing edit controls for name, slug, description, and status.
+- Add end-to-end browser coverage for React Flow drag interactions once a stable browser automation harness is available.
+- Add API/frontend support for exposing retry attempts and DLQ entries for failed workflow executions.
+- Add structured worker logs/metrics around node execution duration, retry scheduling, terminal failures, and outbox dispatch.
 - Add explicit ownership-transfer policy only when product requirements need it.
 
 ## Next Architecture Tasks
 
 - Define role permissions for `OWNER`, `ADMIN`, `MEMBER`, and `VIEWER`.
-- Add local service Dockerfiles after the first service process is real.
+- Define the first AI-backed workflow action and the service boundary between `execution-worker` and `ai-orchestrator`.
+- Add local service Dockerfiles for any service that still relies on placeholder process setup.
 
 ## Open Questions
 

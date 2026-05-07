@@ -17,6 +17,7 @@ import { PrismaService } from "../prisma/prisma.service.js";
 import { CreateWorkflowExecutionDto } from "./dto/create-workflow-execution.dto.js";
 import { CreateWorkflowDto } from "./dto/create-workflow.dto.js";
 import { CreateWorkflowVersionDto } from "./dto/create-workflow-version.dto.js";
+import { UpdateWorkflowDto } from "./dto/update-workflow.dto.js";
 
 @Injectable()
 export class WorkflowsService {
@@ -105,6 +106,33 @@ export class WorkflowsService {
     });
 
     return versions.map(toWorkflowVersionResponse);
+  }
+
+  async updateMetadata(workspaceId: string, workflowId: string, dto: UpdateWorkflowDto) {
+    await this.ensureWorkflowExists(workspaceId, workflowId);
+
+    try {
+      const workflow = await this.prisma.workflow.update({
+        where: {
+          id: workflowId
+        },
+        data: {
+          ...(dto.name !== undefined ? { name: dto.name } : {}),
+          ...(dto.slug !== undefined ? { slug: dto.slug } : {}),
+          ...(dto.description !== undefined ? { description: dto.description } : {}),
+          ...(dto.status !== undefined ? { status: dto.status } : {})
+        },
+        include: workflowWithCurrentVersion
+      });
+
+      return toWorkflowResponse(workflow);
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+        throw new ConflictException("Workflow slug already exists in this workspace");
+      }
+
+      throw error;
+    }
   }
 
   async createVersion(workspaceId: string, workflowId: string, dto: CreateWorkflowVersionDto) {

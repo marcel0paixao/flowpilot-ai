@@ -6,6 +6,7 @@ import { useForm } from "react-hook-form";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { z } from "zod";
 
+import { useAuth } from "@/features/auth/auth-provider";
 import { RunWorkflowButton } from "@/features/workflows/run-workflow-button";
 import { ApiError } from "@/shared/api/http";
 import { queryKeys } from "@/shared/api/query-keys";
@@ -46,6 +47,7 @@ type CreateWorkflowForm = z.infer<typeof createWorkflowSchema>;
 
 export function WorkflowsPage() {
   const { workspaceId = "" } = useParams();
+  const { user } = useAuth();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
@@ -54,6 +56,8 @@ export function WorkflowsPage() {
     queryFn: () => listWorkflows(workspaceId),
     enabled: Boolean(workspaceId)
   });
+  const currentMembership = user?.memberships.find((membership) => membership.workspace.id === workspaceId);
+  const canEditWorkflows = currentMembership ? canWriteWorkflows(currentMembership.role) : false;
   const form = useForm<CreateWorkflowForm>({
     resolver: zodResolver(createWorkflowSchema),
     defaultValues: {
@@ -97,7 +101,7 @@ export function WorkflowsPage() {
         </div>
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
-            <Button>
+            <Button disabled={!canEditWorkflows}>
               <Plus />
               New workflow
             </Button>
@@ -219,6 +223,7 @@ export function WorkflowsPage() {
                       <RunWorkflowButton
                         workspaceId={workspaceId}
                         workflowId={workflow.id}
+                        disabled={!canEditWorkflows}
                         size="icon"
                         variant="ghost"
                         aria-label={`Run ${workflow.name}`}
@@ -238,6 +243,10 @@ export function WorkflowsPage() {
       ) : null}
     </section>
   );
+}
+
+function canWriteWorkflows(role: string) {
+  return role === "OWNER" || role === "ADMIN" || role === "MEMBER";
 }
 
 function LastExecution({ workspaceId, workflow }: { workspaceId: string; workflow: Workflow }) {

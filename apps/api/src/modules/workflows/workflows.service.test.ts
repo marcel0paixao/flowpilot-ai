@@ -213,6 +213,61 @@ test("WorkflowsService rejects saving a new version for missing workflows", asyn
   );
 });
 
+test("WorkflowsService updates workflow metadata without creating a new version", async () => {
+  const updatedWorkflow = {
+    ...workflowFixture(),
+    name: "Lead Routing",
+    slug: "lead-routing",
+    description: "Routes inbound leads.",
+    status: "ACTIVE"
+  };
+  const prisma = {
+    workflow: {
+      findFirst: mockAsync({ id: "workflow-1" }),
+      update: mockAsync(updatedWorkflow)
+    }
+  };
+  const service = new WorkflowsService(prisma as never, fakeMessagingService());
+
+  const result = await service.updateMetadata("workspace-1", "workflow-1", {
+    name: "Lead Routing",
+    slug: "lead-routing",
+    description: "Routes inbound leads.",
+    status: "ACTIVE"
+  });
+
+  assert.equal(result.name, "Lead Routing");
+  assert.equal(result.slug, "lead-routing");
+  assert.equal(result.description, "Routes inbound leads.");
+  assert.equal(result.status, "ACTIVE");
+  assert.equal(result.currentVersion.version, 1);
+
+  const updateArgs = prisma.workflow.update.calls[0]?.[0] as {
+    where: { id: string };
+    data: { name: string; slug: string; description: string; status: string };
+  };
+
+  assert.equal(updateArgs.where.id, "workflow-1");
+  assert.equal(updateArgs.data.name, "Lead Routing");
+  assert.equal(updateArgs.data.slug, "lead-routing");
+  assert.equal(updateArgs.data.description, "Routes inbound leads.");
+  assert.equal(updateArgs.data.status, "ACTIVE");
+});
+
+test("WorkflowsService rejects metadata updates for missing workflows", async () => {
+  const prisma = {
+    workflow: {
+      findFirst: mockAsync(null)
+    }
+  };
+  const service = new WorkflowsService(prisma as never, fakeMessagingService());
+
+  await assert.rejects(
+    () => service.updateMetadata("workspace-1", "missing-workflow", { name: "Missing" }),
+    NotFoundException
+  );
+});
+
 test("WorkflowsService restores an old version by creating a new immutable version", async () => {
   const workflow = workflowFixture({ currentVersion: 3, currentVersionId: "version-3" });
   const sourceVersion = workflowVersionFixture({

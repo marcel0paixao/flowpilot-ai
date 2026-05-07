@@ -287,3 +287,15 @@ Reason: Canvas layout is user-authored workflow state, not a purely derived view
 Decision: Move builder validation messages for save and edge edits into a small workflow validation helper that wraps the shared contract schema and adds UX-specific edge checks.
 
 Reason: The API remains the source of truth, but the builder needs immediate, readable feedback for duplicate edges, invalid trigger inputs, unreachable nodes, and invalid graph edits. A helper keeps this logic covered by focused frontend tests instead of hiding it inside page event handlers.
+
+## 2026-05-07: Workflow Metadata Updates Do Not Create Versions
+
+Decision: Add a dedicated workflow metadata update endpoint for name, slug, description, and status instead of overloading immutable workflow version saves.
+
+Reason: Metadata changes do not affect execution replay semantics. Keeping them separate from `WorkflowVersion` creation preserves the meaning of versions as definition snapshots while still letting the product edit normal workflow attributes.
+
+## 2026-05-07: Front-End Write Controls Follow Workspace Role
+
+Decision: Disable workflow creation, editing, and run controls for users whose workspace role is not `OWNER`, `ADMIN`, or `MEMBER`.
+
+Reason: The API already enforces write permissions. Mirroring the policy in the UI avoids presenting actions that `VIEWER` users cannot complete and makes role behavior visible in the product shell.

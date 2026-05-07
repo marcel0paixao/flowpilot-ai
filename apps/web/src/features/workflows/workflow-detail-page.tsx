@@ -24,17 +24,24 @@ import {
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 
+import { useAuth } from "@/features/auth/auth-provider";
 import { WorkflowCanvas } from "@/features/workflow-canvas/workflow-canvas";
 import { RunWorkflowButton } from "@/features/workflows/run-workflow-button";
-import { validateEdgeDraft, validateWorkflowDefinition } from "@/features/workflows/workflow-definition-validation";
+import {
+  getNodeDefinitionIssueMessages,
+  validateEdgeDraft,
+  validateWorkflowDefinition
+} from "@/features/workflows/workflow-definition-validation";
 import { ApiError } from "@/shared/api/http";
 import { queryKeys } from "@/shared/api/query-keys";
+import type { WorkflowStatus } from "@/shared/api/types";
 import {
   createWorkflowVersion,
   getWorkflow,
   listWorkflowExecutions,
   listWorkflowVersions,
-  restoreWorkflowVersion
+  restoreWorkflowVersion,
+  updateWorkflow
 } from "@/shared/api/workflows";
 import { cn, formatDateTime, formatDuration, humanizeIdentifier, slugify } from "@/shared/lib/utils";
 import { Badge } from "@/shared/ui/badge";
@@ -57,8 +64,12 @@ import { StatusBadge } from "@/shared/ui/status-badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/shared/ui/table";
 import { Textarea } from "@/shared/ui/textarea";
 
+const WORKFLOW_STATUSES = ["DRAFT", "ACTIVE", "ARCHIVED"] as const satisfies readonly WorkflowStatus[];
+type WorkflowStatusValue = (typeof WORKFLOW_STATUSES)[number];
+
 export function WorkflowDetailPage() {
   const { workspaceId = "", workflowId = "" } = useParams();
+  const { user } = useAuth();
   const queryClient = useQueryClient();
   const [selectedNodeId, setSelectedNodeId] = useState<string>();
   const [selectedEdgeId, setSelectedEdgeId] = useState<string>();
@@ -68,6 +79,13 @@ export function WorkflowDetailPage() {
   const [newEdgeSourceId, setNewEdgeSourceId] = useState("");
   const [newEdgeTargetId, setNewEdgeTargetId] = useState("");
   const [previewVersionId, setPreviewVersionId] = useState<string>();
+  const [metadataDraft, setMetadataDraft] = useState({
+    name: "",
+    slug: "",
+    description: "",
+    status: "DRAFT" as WorkflowStatusValue
+  });
+  const [metadataError, setMetadataError] = useState<string>();
   const workflowQuery = useQuery({
     queryKey: queryKeys.workflow(workspaceId, workflowId),
     queryFn: () => getWorkflow(workspaceId, workflowId),
@@ -86,8 +104,17 @@ export function WorkflowDetailPage() {
   const definition = workflowQuery.data?.currentVersion.definition;
   const activeDefinition = isEditing && draftDefinition ? draftDefinition : definition;
   const previewVersion = versionsQuery.data?.find((version) => version.id === previewVersionId);
+  const currentMembership = user?.memberships.find((membership) => membership.workspace.id === workspaceId);
+  const canEditWorkflow = currentMembership ? canWriteWorkflows(currentMembership.role) : false;
   const hasDraftChanges = Boolean(
     isEditing && definition && draftDefinition && !areDefinitionsEqual(definition, draftDefinition)
+  );
+  const hasMetadataChanges = Boolean(
+    workflowQuery.data &&
+      (metadataDraft.name !== workflowQuery.data.name ||
+        metadataDraft.slug !== workflowQuery.data.slug ||
+        metadataDraft.description !== (workflowQuery.data.description ?? "") ||
+        metadataDraft.status !== workflowQuery.data.status)
   );
 
   useEffect(() => {
@@ -96,6 +123,18 @@ export function WorkflowDetailPage() {
       setPreviewVersionId(undefined);
     }
   }, [definition, workflowQuery.data?.currentVersion.id]);
+
+  useEffect(() => {
+    if (workflowQuery.data) {
+      setMetadataDraft({
+        name: workflowQuery.data.name,
+        slug: workflowQuery.data.slug,
+        description: workflowQuery.data.description ?? "",
+        status: workflowQuery.data.status
+      });
+      setMetadataError(undefined);
+    }
+  }, [workflowQuery.data]);
 
   useEffect(() => {
     function warnBeforeUnload(event: BeforeUnloadEvent) {
@@ -131,6 +170,10 @@ export function WorkflowDetailPage() {
     () => activeDefinition?.edges.find((edge) => edge.id === selectedEdgeId),
     [activeDefinition?.edges, selectedEdgeId]
   );
+  const selectedNodeIssues = useMemo(
+    () => (activeDefinition && selectedNode ? getNodeDefinitionIssueMessages(activeDefinition, selectedNode.id) : []),
+    [activeDefinition, selectedNode]
+  );
   const definitionStats = useMemo(() => {
     if (!activeDefinition) {
       return null;
@@ -156,6 +199,28 @@ export function WorkflowDetailPage() {
       setIsEditing(false);
       setFormError(undefined);
       setPreviewVersionId(undefined);
+    }
+  });
+  const metadataMutation = useMutation({
+    mutationFn: () =>
+      updateWorkflow(workspaceId, workflowId, {
+        name: metadataDraft.name,
+        slug: metadataDraft.slug,
+        description: metadataDraft.description.trim() ? metadataDraft.description : null,
+        status: metadataDraft.status
+      }),
+    onSuccess: async (workflow) => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.workflow(workspaceId, workflowId) }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.workflows(workspaceId) })
+      ]);
+      setMetadataDraft({
+        name: workflow.name,
+        slug: workflow.slug,
+        description: workflow.description ?? "",
+        status: workflow.status
+      });
+      setMetadataError(undefined);
     }
   });
   const restoreMutation = useMutation({
@@ -332,6 +397,26 @@ export function WorkflowDetailPage() {
     }
   }
 
+  async function saveMetadata() {
+    setMetadataError(undefined);
+
+    if (!metadataDraft.name.trim()) {
+      setMetadataError("Workflow name is required.");
+      return;
+    }
+
+    if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(metadataDraft.slug)) {
+      setMetadataError("Slug must use lowercase letters, numbers, and single hyphens.");
+      return;
+    }
+
+    try {
+      await metadataMutation.mutateAsync();
+    } catch (error) {
+      setMetadataError(error instanceof ApiError ? error.message : "Workflow metadata save failed");
+    }
+  }
+
   function discardDraft() {
     if (definition) {
       setDraftDefinition(cloneDefinition(definition));
@@ -450,13 +535,79 @@ export function WorkflowDetailPage() {
               </Button>
             </>
           ) : (
-            <Button variant="outline" onClick={() => setIsEditing(true)}>
+            <Button variant="outline" disabled={!canEditWorkflow} onClick={() => setIsEditing(true)}>
               Edit workflow
             </Button>
           )}
-          <RunWorkflowButton workspaceId={workspaceId} workflowId={workflowId} />
+          <RunWorkflowButton disabled={!canEditWorkflow} workspaceId={workspaceId} workflowId={workflowId} />
         </div>
       </div>
+
+      {isEditing ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Workflow metadata</CardTitle>
+            <CardDescription>Name, slug, description, and lifecycle status.</CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.8fr)_12rem_auto]">
+            <div className="space-y-2">
+              <Label htmlFor="workflow-metadata-name">Name</Label>
+              <Input
+                id="workflow-metadata-name"
+                value={metadataDraft.name}
+                onChange={(event) => setMetadataDraft((current) => ({ ...current, name: event.target.value }))}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="workflow-metadata-slug">Slug</Label>
+              <Input
+                id="workflow-metadata-slug"
+                value={metadataDraft.slug}
+                onChange={(event) => setMetadataDraft((current) => ({ ...current, slug: event.target.value }))}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="workflow-metadata-status">Status</Label>
+              <select
+                id="workflow-metadata-status"
+                className="liquid-field h-9 w-full rounded-md border border-input bg-card px-3 text-sm"
+                value={metadataDraft.status}
+                onChange={(event) =>
+                  setMetadataDraft((current) => ({ ...current, status: event.target.value as WorkflowStatusValue }))
+                }
+              >
+                {WORKFLOW_STATUSES.map((status) => (
+                  <option key={status} value={status}>
+                    {humanizeIdentifier(status)}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="flex items-end">
+              <Button
+                className="w-full justify-center"
+                disabled={!hasMetadataChanges || metadataMutation.isPending}
+                variant="outline"
+                onClick={saveMetadata}
+              >
+                <Save />
+                {metadataMutation.isPending ? "Saving" : "Save metadata"}
+              </Button>
+            </div>
+            <div className="space-y-2 lg:col-span-4">
+              <Label htmlFor="workflow-metadata-description">Description</Label>
+              <Textarea
+                id="workflow-metadata-description"
+                value={metadataDraft.description}
+                onChange={(event) =>
+                  setMetadataDraft((current) => ({ ...current, description: event.target.value }))
+                }
+              />
+            </div>
+            {metadataError ? <p className="text-sm text-destructive lg:col-span-4">{metadataError}</p> : null}
+          </CardContent>
+        </Card>
+      ) : null}
 
       {isEditing ? (
         <Card>
@@ -573,6 +724,7 @@ export function WorkflowDetailPage() {
               <NodeInspector
                 editable={isEditing}
                 node={selectedNode}
+                validationMessages={selectedNodeIssues}
                 onChange={updateSelectedNode}
                 onDelete={deleteSelectedNode}
               />
@@ -646,11 +798,13 @@ export function WorkflowDetailPage() {
 function NodeInspector({
   editable,
   node,
+  validationMessages,
   onChange,
   onDelete
 }: {
   editable: boolean;
   node: WorkflowNode;
+  validationMessages: string[];
   onChange: (node: WorkflowNode) => void;
   onDelete: () => void;
 }) {
@@ -679,6 +833,13 @@ function NodeInspector({
         <p className="mt-1 text-sm">{getNodeRuntimeDescription(node.type)}</p>
       </div>
       {editable ? <NodeConfigEditor node={node} onChange={onChange} /> : <JsonBlock value={node.config} />}
+      {validationMessages.length > 0 ? (
+        <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+          {validationMessages.map((message) => (
+            <p key={message}>{message}</p>
+          ))}
+        </div>
+      ) : null}
       {editable ? (
         <Button variant="outline" className="w-full justify-center" onClick={onDelete}>
           <Trash2 />
@@ -889,30 +1050,58 @@ function NodeConfigEditor({
             }
           />
         </div>
-        <div className="space-y-2">
-          <Label htmlFor="http-body">Body JSON</Label>
-          <Textarea
-            id="http-body"
-            value={JSON.stringify(node.config.body ?? {}, null, 2)}
-            onChange={(event) => {
-              const parsedBody = parseJsonObject(event.target.value);
-              if (parsedBody) {
-                onChange({
-                  ...node,
-                  config: {
-                    ...node.config,
-                    body: parsedBody
-                  }
-                });
-              }
-            }}
-          />
-        </div>
+        <HttpBodyJsonEditor node={node} onChange={onChange} />
       </div>
     );
   }
 
   return null;
+}
+
+function HttpBodyJsonEditor({
+  node,
+  onChange
+}: {
+  node: Extract<WorkflowNode, { type: typeof WORKFLOW_NODE_TYPES.httpRequestAction }>;
+  onChange: (node: WorkflowNode) => void;
+}) {
+  const [bodyJson, setBodyJson] = useState(() => JSON.stringify(node.config.body ?? {}, null, 2));
+  const [jsonError, setJsonError] = useState<string>();
+
+  useEffect(() => {
+    setBodyJson(JSON.stringify(node.config.body ?? {}, null, 2));
+    setJsonError(undefined);
+  }, [node.id, node.config.body]);
+
+  return (
+    <div className="space-y-2">
+      <Label htmlFor="http-body">Body JSON</Label>
+      <Textarea
+        id="http-body"
+        value={bodyJson}
+        onChange={(event) => {
+          const nextValue = event.target.value;
+          setBodyJson(nextValue);
+
+          const parsedBody = parseJsonObject(nextValue);
+          if (!parsedBody) {
+            setJsonError("Body must be a valid JSON object.");
+            return;
+          }
+
+          setJsonError(undefined);
+          onChange({
+            ...node,
+            config: {
+              ...node.config,
+              body: parsedBody
+            }
+          });
+        }}
+      />
+      {jsonError ? <p className="text-xs text-destructive">{jsonError}</p> : null}
+    </div>
+  );
 }
 
 function WorkflowMetric({
@@ -1042,4 +1231,8 @@ function parseJsonObject(value: string) {
   } catch {
     return undefined;
   }
+}
+
+function canWriteWorkflows(role: string) {
+  return role === "OWNER" || role === "ADMIN" || role === "MEMBER";
 }

@@ -4,6 +4,7 @@ import type {
   Workflow,
   WorkflowExecution,
   WorkflowExecutionSummary,
+  WorkflowStatus,
   WorkflowVersion
 } from "@/shared/api/types";
 
@@ -21,6 +22,13 @@ export interface CreateWorkflowVersionRequest {
   definition: WorkflowDefinition;
 }
 
+export interface UpdateWorkflowRequest {
+  name?: string;
+  slug?: string;
+  description?: string | null;
+  status?: WorkflowStatus;
+}
+
 export function listWorkflows(workspaceId: string) {
   return apiRequest<Workflow[]>(`/workspaces/${workspaceId}/workflows`);
 }
@@ -32,6 +40,13 @@ export function getWorkflow(workspaceId: string, workflowId: string) {
 export function createWorkflow(workspaceId: string, request: CreateWorkflowRequest) {
   return apiRequest<Workflow>(`/workspaces/${workspaceId}/workflows`, {
     method: "POST",
+    body: request
+  });
+}
+
+export function updateWorkflow(workspaceId: string, workflowId: string, request: UpdateWorkflowRequest) {
+  return apiRequest<Workflow>(`/workspaces/${workspaceId}/workflows/${workflowId}`, {
+    method: "PATCH",
     body: request
   });
 }

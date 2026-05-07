@@ -366,6 +366,21 @@ Editable workflow builder MVP.
 - `pnpm --filter @flowpilot/web typecheck` passed after the builder position/validation polish.
 - `pnpm --filter @flowpilot/web test` passed with 8 tests after adding workflow validation helper coverage.
 - Browser smoke-test against `http://localhost:5173` confirmed workflow detail renders, Fit View/Reset Zoom controls are present, and edit mode exposes the updated builder controls.
+- Added `PATCH /api/workspaces/:workspaceId/workflows/:workflowId` for workflow metadata updates: name, slug, description, and status.
+- Added API unit coverage for metadata updates and missing-workflow metadata update errors.
+- Added workflow detail metadata editing in the web app without creating a new immutable workflow version.
+- Added role-aware frontend write controls for workflow creation, editing, and running.
+- Added inline builder validation for node-specific contract issues and invalid HTTP body JSON.
+- Added web helper coverage for node-specific config validation messages.
+- Added table overflow/error-state polish across workflow and execution pages.
+- `pnpm --filter @flowpilot/api typecheck` passed after workflow metadata updates.
+- `pnpm --filter @flowpilot/api test` passed with 49 tests after workflow metadata updates.
+- `pnpm --filter @flowpilot/web typecheck` passed after metadata/RBAC/inline validation UI.
+- `pnpm --filter @flowpilot/web test` passed with 9 tests after node-specific validation coverage.
+- `pnpm --filter @flowpilot/web build` passed after metadata/RBAC/inline validation UI.
+- `pnpm -r typecheck` passed after the workflow metadata and frontend polish package.
+- `docker compose up -d --build api` rebuilt/restarted the local API with the metadata endpoint and optional node positions.
+- Browser smoke-test against `http://localhost:5173` confirmed workflow detail, edit mode, metadata controls, canvas controls, and inline slug validation.
 
 ## Notes
 
@@ -377,7 +392,7 @@ Editable workflow builder MVP.
 
 ## Recommended Next Step
 
-Polish the editable workflow builder: preserve manual node positions, add clearer drag/connect affordances, support edge/node keyboard deletion consistently, and broaden frontend coverage around version restore and invalid definitions.
+Move from the frontend MVP into the next backend/platform slice: expose execution retry/DLQ visibility, tighten worker observability, and start the AI/RAG service boundary only after defining the first AI-backed workflow action.
 
 ## Notes For Next Chat
 
