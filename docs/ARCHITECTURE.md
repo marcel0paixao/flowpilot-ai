@@ -27,7 +27,7 @@ flowchart LR
 
 ### Web App
 
-Next.js frontend for workspaces, workflows, executions, and AI traces.
+React + Vite SPA for workspaces, workflows, workflow builder, executions, and future AI traces.
 
 ### Auth/API Service
 
@@ -90,7 +90,7 @@ The repository starts as a TypeScript-first pnpm workspace.
 
 ```txt
 apps/
-  web/                    Next.js dashboard, to be expanded after backend foundations
+  web/                    React + Vite dashboard and workflow builder
   api/                    auth, users, workspaces, roles, permissions, JWT
   workflow-service/       workflow definitions, triggers, executions, node metadata
   execution-worker/       RabbitMQ consumer and node execution runtime
@@ -111,7 +111,7 @@ packages/
 - Redis
 - Qdrant
 
-Application services are not containerized yet. Dockerfiles should be added after the first service APIs and worker process are implemented.
+Docker Compose also runs the API, web app, execution worker, and workflow-service for local development. Dedicated production Dockerfiles can still be refined later when deployment shape becomes clearer.
 
 ## Security Strategy
 

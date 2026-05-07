@@ -139,6 +139,51 @@ test("WorkflowsService throws NotFoundException when workflow is missing", async
   await assert.rejects(() => service.findOne("workspace-1", "missing-workflow"), NotFoundException);
 });
 
+test("WorkflowsService saves workflow definitions as a new immutable version", async () => {
+  const workflow = workflowFixture();
+  const nextWorkflow = workflowFixture({
+    currentVersion: 2,
+    currentVersionId: "version-2",
+    definition: workflowDefinitionFixture()
+  });
+  const prisma = {
+    workflow: {
+      findFirst: mockAsync(workflow),
+      update: mockAsync(nextWorkflow)
+    }
+  };
+  const service = new WorkflowsService(prisma as never, fakeMessagingService());
+  const definition = workflowDefinitionFixture();
+
+  const result = await service.createVersion("workspace-1", "workflow-1", { definition });
+
+  assert.equal(result.currentVersion.version, 2);
+  assert.deepEqual(result.currentVersion.definition, definition);
+
+  const updateArgs = prisma.workflow.update.calls[0]?.[0] as {
+    where: { id: string };
+    data: { versions: { create: { version: number; definition: unknown } } };
+  };
+
+  assert.equal(updateArgs.where.id, "workflow-1");
+  assert.equal(updateArgs.data.versions.create.version, 2);
+  assert.deepEqual(updateArgs.data.versions.create.definition, definition);
+});
+
+test("WorkflowsService rejects saving a new version for missing workflows", async () => {
+  const prisma = {
+    workflow: {
+      findFirst: mockAsync(null)
+    }
+  };
+  const service = new WorkflowsService(prisma as never, fakeMessagingService());
+
+  await assert.rejects(
+    () => service.createVersion("workspace-1", "missing-workflow", { definition: workflowDefinitionFixture() }),
+    NotFoundException
+  );
+});
+
 test("WorkflowsService requests a workflow execution and publishes an event", async () => {
   const workflow = workflowFixture();
   const execution = workflowExecutionFixture();
@@ -433,7 +478,15 @@ test("WorkflowsService rejects execution summary for missing executions", async 
   );
 });
 
-function workflowFixture() {
+function workflowFixture({
+  currentVersion = 1,
+  currentVersionId = "version-1",
+  definition = DEFAULT_WORKFLOW_DEFINITION
+}: {
+  currentVersion?: number;
+  currentVersionId?: string;
+  definition?: WorkflowDefinition;
+} = {}) {
   const now = new Date("2026-05-01T12:00:00.000Z");
 
   return {
@@ -447,10 +500,10 @@ function workflowFixture() {
     updatedAt: now,
     versions: [
       {
-        id: "version-1",
+        id: currentVersionId,
         workflowId: "workflow-1",
-        version: 1,
-        definition: DEFAULT_WORKFLOW_DEFINITION,
+        version: currentVersion,
+        definition,
         createdAt: now,
         updatedAt: now
       }

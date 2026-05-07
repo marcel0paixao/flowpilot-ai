@@ -2,7 +2,7 @@
 
 ## Current Phase
 
-Frontend MVP foundation.
+Editable workflow builder MVP.
 
 ## Completed
 
@@ -142,15 +142,26 @@ Frontend MVP foundation.
 - Improved the read-only React Flow canvas with richer node cards, trigger/action badges, config summaries, directional handles, arrowed edges, and theme-aware styling.
 - Improved workflow list/detail with node and edge counts, workflow metrics, a clearer node inspector, execution duration, and empty recent-execution states.
 - Improved execution detail with duration metrics, polling visibility for live executions, sorted timeline events, empty timeline/node states, and inline node error payloads.
+- Added `POST /api/workspaces/:workspaceId/workflows/:workflowId/versions` to save workflow definition edits as a new immutable `WorkflowVersion`.
+- Added API unit coverage for workflow version saves and missing-workflow handling.
+- Added editable workflow builder controls in the web app:
+  - Edit/discard/save mode.
+  - Add `trigger.manual`, `action.transform`, and `action.httpRequest` nodes.
+  - Drag nodes on the React Flow canvas.
+  - Connect nodes with React Flow edges.
+  - Select and delete nodes or edges.
+  - Edit node names and supported node config fields in the inspector.
+  - Validate draft definitions with the shared `workflowDefinitionSchema` before saving.
+- Added frontend integration coverage for saving an edited workflow definition and requesting a run.
+- Browser smoke-tested the builder against the local Docker/API stack: saved a new version, ran the workflow, and confirmed the execution summary reached `SUCCEEDED` with 4/4 nodes.
 - Re-seeded the local demo data after adding the frontend.
 
 ## In Progress
 
-- Editable workflow builder planning
+- Editable workflow builder polish
 
 ## Not Started
 
-- Editable workflow builder with drag-and-drop, connect, inspector editing, and save definition
 - LangChain integration
 - RAG document ingestion
 - Observability persistence and trace UI
@@ -316,6 +327,14 @@ Frontend MVP foundation.
 - `pnpm --filter @flowpilot/web test` passed with 3 integration tests after adding Vitest/RTL/MSW coverage. Vitest still emits a non-failing `--localstorage-file` warning in this environment.
 - `pnpm --filter @flowpilot/web typecheck` passed after the workflow canvas, workflow detail, and execution detail polish.
 - `pnpm --filter @flowpilot/web build` passed after the workflow canvas, workflow detail, and execution detail polish. Vite still emits the expected React Flow chunk-size warning.
+- `pnpm --filter @flowpilot/api test` passed with 44 tests after adding workflow version saves.
+- `pnpm --filter @flowpilot/api typecheck` passed after adding workflow version saves.
+- `pnpm --filter @flowpilot/web test` passed with 4 integration tests after adding builder save/run coverage.
+- `pnpm --filter @flowpilot/web typecheck` passed after adding the editable builder.
+- `pnpm --filter @flowpilot/web build` passed after adding the editable builder. Vite still emits the expected React Flow chunk-size warning.
+- `docker compose restart api web` restarted the local API and Vite services.
+- `pnpm --filter @flowpilot/api seed:demo` refreshed the local demo workspace and workflow.
+- Browser smoke-test against `http://localhost:5173` saved workflow version `v2`, requested execution `2f6d42fa-4bf8-4f50-bb3c-07ee701d3019`, and confirmed the execution detail showed `SUCCEEDED`, `4/4` nodes, and persisted timeline events.
 
 ## Notes
 
@@ -327,7 +346,7 @@ Frontend MVP foundation.
 
 ## Recommended Next Step
 
-Start the editable workflow builder slice: drag nodes onto the canvas, connect edges, edit node config in the inspector, validate with the shared workflow definition contract, and save a new workflow version through an API endpoint.
+Polish the editable workflow builder: preserve manual node positions, add clearer validation affordances, support edge/node keyboard deletion consistently, and broaden frontend coverage around invalid definitions.
 
 ## Notes For Next Chat
 
@@ -340,4 +359,4 @@ Start by reading:
 - `docs/DECISIONS.md`
 - `docs/NEXT_STEPS.md`
 
-Then continue from the polished read-only frontend now present in `apps/web`: define the API contract for saving workflow definitions/versions, add editable React Flow interactions, and keep the execution summary UX aligned with node progress from the worker.
+Then continue from the editable workflow builder now present in `apps/web`: polish canvas interactions, expand validation feedback, add richer tests around invalid workflow definitions, and start the next product slice only after the builder feels stable in browser smoke tests.

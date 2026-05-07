@@ -1,4 +1,5 @@
 import { apiRequest } from "@/shared/api/http";
+import type { WorkflowDefinition } from "@flowpilot/contracts";
 import type {
   Workflow,
   WorkflowExecution,
@@ -15,6 +16,10 @@ export interface RequestWorkflowExecutionRequest {
   input?: Record<string, unknown>;
 }
 
+export interface CreateWorkflowVersionRequest {
+  definition: WorkflowDefinition;
+}
+
 export function listWorkflows(workspaceId: string) {
   return apiRequest<Workflow[]>(`/workspaces/${workspaceId}/workflows`);
 }
@@ -25,6 +30,17 @@ export function getWorkflow(workspaceId: string, workflowId: string) {
 
 export function createWorkflow(workspaceId: string, request: CreateWorkflowRequest) {
   return apiRequest<Workflow>(`/workspaces/${workspaceId}/workflows`, {
+    method: "POST",
+    body: request
+  });
+}
+
+export function createWorkflowVersion(
+  workspaceId: string,
+  workflowId: string,
+  request: CreateWorkflowVersionRequest
+) {
+  return apiRequest<Workflow>(`/workspaces/${workspaceId}/workflows/${workflowId}/versions`, {
     method: "POST",
     body: request
   });

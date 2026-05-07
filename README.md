@@ -103,6 +103,7 @@ Initial workflow endpoints:
 - `POST /api/workspaces/:workspaceId/workflows` - requires `OWNER`, `ADMIN`, or `MEMBER`.
 - `GET /api/workspaces/:workspaceId/workflows` - requires a workspace role.
 - `GET /api/workspaces/:workspaceId/workflows/:workflowId` - requires a workspace role.
+- `POST /api/workspaces/:workspaceId/workflows/:workflowId/versions` - requires `OWNER`, `ADMIN`, or `MEMBER` and saves a new immutable workflow definition version.
 
 Initial auth endpoints:
 

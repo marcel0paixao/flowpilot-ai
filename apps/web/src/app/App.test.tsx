@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 
 import { App } from "@/app/App";
-import { demoUser, demoWorkspace } from "@/test/fixtures";
+import { demoExecution, demoUser, demoWorkflow, demoWorkspace } from "@/test/fixtures";
 import { server } from "@/test/server";
 
 const API_BASE_URL = "http://localhost:3000/api";
@@ -99,5 +99,83 @@ describe("Workspaces route", () => {
     expect(await screen.findByText("Acme Operations")).toBeInTheDocument();
     expect(screen.getByText("acme-operations")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "New workspace" })).toBeInTheDocument();
+  });
+});
+
+describe("Workflow builder route", () => {
+  it("saves an edited workflow definition as a new version and can request a run", async () => {
+    const user = userEvent.setup();
+    const savedDefinitions: unknown[] = [];
+
+    server.use(
+      http.get(`${API_BASE_URL}/auth/me`, () => HttpResponse.json({ user: demoUser })),
+      http.get(`${API_BASE_URL}/workspaces`, () => HttpResponse.json([demoWorkspace])),
+      http.get(`${API_BASE_URL}/workspaces/${demoWorkspace.id}/workflows/${demoWorkflow.id}`, () =>
+        HttpResponse.json(demoWorkflow)
+      ),
+      http.get(`${API_BASE_URL}/workspaces/${demoWorkspace.id}/workflows/${demoWorkflow.id}/executions`, () =>
+        HttpResponse.json([])
+      ),
+      http.post(
+        `${API_BASE_URL}/workspaces/${demoWorkspace.id}/workflows/${demoWorkflow.id}/versions`,
+        async ({ request }) => {
+          const body = (await request.json()) as { definition: typeof demoWorkflow.currentVersion.definition };
+          savedDefinitions.push(body.definition);
+
+          return HttpResponse.json(
+            {
+              ...demoWorkflow,
+              currentVersion: {
+                ...demoWorkflow.currentVersion,
+                id: "workflow-version-2",
+                version: 2,
+                definition: body.definition
+              }
+            },
+            { status: 201 }
+          );
+        }
+      ),
+      http.post(
+        `${API_BASE_URL}/workspaces/${demoWorkspace.id}/workflows/${demoWorkflow.id}/executions`,
+        () => HttpResponse.json(demoExecution, { status: 201 })
+      ),
+      http.get(
+        `${API_BASE_URL}/workspaces/${demoWorkspace.id}/workflows/${demoWorkflow.id}/executions/${demoExecution.id}/summary`,
+        () =>
+          HttpResponse.json({
+            execution: demoExecution,
+            nodes: [],
+            events: []
+          })
+      )
+    );
+
+    window.localStorage.setItem("flowpilot.accessToken", "existing-token");
+    window.history.replaceState({}, "", `/app/workspaces/${demoWorkspace.id}/workflows/${demoWorkflow.id}`);
+
+    render(<App />);
+
+    expect(await screen.findByRole("heading", { name: "Lead Enrichment" })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Edit workflow" }));
+    await user.click(screen.getByRole("button", { name: "HTTP request" }));
+    await user.click(screen.getByRole("button", { name: "Save version" }));
+
+    await waitFor(() => {
+      expect(savedDefinitions).toHaveLength(1);
+    });
+
+    expect(savedDefinitions[0]).toMatchObject({
+      nodes: expect.arrayContaining([
+        expect.objectContaining({
+          type: "action.httpRequest"
+        })
+      ])
+    });
+
+    await user.click(await screen.findByRole("button", { name: "Run" }));
+
+    expect(await screen.findByRole("heading", { name: "Execution Detail" })).toBeInTheDocument();
   });
 });

@@ -13,6 +13,10 @@ import {
   createWorkflowExecutionSchema
 } from "./dto/create-workflow-execution.dto.js";
 import { CreateWorkflowDto, createWorkflowSchema } from "./dto/create-workflow.dto.js";
+import {
+  CreateWorkflowVersionDto,
+  createWorkflowVersionSchema
+} from "./dto/create-workflow-version.dto.js";
 import { WorkflowExecutionEventResponseDto } from "./dto/workflow-execution-event-response.dto.js";
 import { WorkflowExecutionResponseDto } from "./dto/workflow-execution-response.dto.js";
 import { WorkflowExecutionSummaryResponseDto } from "./dto/workflow-execution-summary-response.dto.js";
@@ -70,6 +74,20 @@ export class WorkflowsController {
   })
   findOne(@Param("workspaceId") workspaceId: string, @Param("workflowId") workflowId: string) {
     return this.workflowsService.findOne(workspaceId, workflowId);
+  }
+
+  @Post(":workflowId/versions")
+  @WorkspaceRoles(WorkspaceRole.OWNER, WorkspaceRole.ADMIN, WorkspaceRole.MEMBER)
+  @ApiCreatedResponse({
+    description: "Workflow definition saved as a new immutable version.",
+    type: WorkflowResponseDto
+  })
+  createVersion(
+    @Param("workspaceId") workspaceId: string,
+    @Param("workflowId") workflowId: string,
+    @Body(new ZodValidationPipe(createWorkflowVersionSchema)) dto: CreateWorkflowVersionDto
+  ) {
+    return this.workflowsService.createVersion(workspaceId, workflowId, dto);
   }
 
   @Get(":workflowId/executions")

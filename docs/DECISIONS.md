@@ -239,3 +239,15 @@ Reason: The highest early frontend risk is route/auth/API wiring rather than iso
 Decision: Keep execution detail polling the summary endpoint every 2 seconds while executions are non-terminal.
 
 Reason: The summary endpoint already provides execution, node progress, and timeline state in one read model. Polling is simple, observable, and sufficient for the MVP; SSE or WebSocket updates can be revisited after the workflow builder and execution UX stabilize.
+
+## 2026-05-07: Workflow Builder Saves Immutable Versions
+
+Decision: Editable workflow definition saves create a new `WorkflowVersion` row instead of mutating the current version in place.
+
+Reason: Workflow executions already point at a specific `WorkflowVersion`, so immutable versions preserve replayability, auditability, and historical execution semantics. Draft/publish semantics can be introduced later, but the MVP builder should not rewrite definitions that previous or running executions depend on.
+
+## 2026-05-07: MVP Builder Uses Shared Contract Validation Client And Server Side
+
+Decision: The web builder validates draft definitions with `workflowDefinitionSchema` before save, and the API validates the same payload again before creating a new version.
+
+Reason: Client-side validation gives immediate feedback while server-side validation remains the source of truth. Sharing the contract keeps supported node types, edge rules, reachability, and acyclic graph requirements aligned across the canvas, API, and execution worker.

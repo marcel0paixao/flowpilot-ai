@@ -16,6 +16,7 @@ import { MESSAGE_PUBLISHER } from "../messaging/messaging.tokens.js";
 import { PrismaService } from "../prisma/prisma.service.js";
 import { CreateWorkflowExecutionDto } from "./dto/create-workflow-execution.dto.js";
 import { CreateWorkflowDto } from "./dto/create-workflow.dto.js";
+import { CreateWorkflowVersionDto } from "./dto/create-workflow-version.dto.js";
 
 @Injectable()
 export class WorkflowsService {
@@ -89,6 +90,45 @@ export class WorkflowsService {
     }
 
     return toWorkflowResponse(workflow);
+  }
+
+  async createVersion(workspaceId: string, workflowId: string, dto: CreateWorkflowVersionDto) {
+    const workflow = await this.prisma.workflow.findFirst({
+      where: {
+        id: workflowId,
+        workspaceId
+      },
+      include: workflowWithCurrentVersion
+    });
+
+    if (!workflow) {
+      throw new NotFoundException("Workflow not found");
+    }
+
+    const currentVersion = workflow.versions[0];
+
+    if (!currentVersion) {
+      throw new NotFoundException("Workflow version not found");
+    }
+
+    const nextVersion = currentVersion.version + 1;
+
+    const updatedWorkflow = await this.prisma.workflow.update({
+      where: {
+        id: workflow.id
+      },
+      data: {
+        versions: {
+          create: {
+            version: nextVersion,
+            definition: dto.definition as Prisma.InputJsonObject
+          }
+        }
+      },
+      include: workflowWithCurrentVersion
+    });
+
+    return toWorkflowResponse(updatedWorkflow);
   }
 
   async requestExecution(

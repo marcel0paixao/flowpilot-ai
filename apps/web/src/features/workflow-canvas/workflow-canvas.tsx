@@ -1,18 +1,24 @@
 import type { WorkflowDefinition, WorkflowNode } from "@flowpilot/contracts";
 import {
+  addEdge,
   Background,
+  applyEdgeChanges,
+  applyNodeChanges,
   Controls,
   Handle,
   MiniMap,
   Position,
   ReactFlow,
   MarkerType,
+  type Connection,
   type Edge,
+  type EdgeChange,
   type Node,
+  type NodeChange,
   type NodeProps
 } from "@xyflow/react";
 import { Braces, Globe2, Play, Workflow as WorkflowIcon } from "lucide-react";
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { humanizeIdentifier, cn } from "@/shared/lib/utils";
 import { useTheme } from "@/features/theme/theme-provider";
@@ -31,18 +37,92 @@ const nodeTypes = {
 export function WorkflowCanvas({
   definition,
   selectedNodeId,
+  selectedEdgeId,
+  editable = false,
+  onDefinitionChange,
+  onSelectEdge,
   onSelectNode
 }: {
   definition: WorkflowDefinition;
   selectedNodeId?: string;
+  selectedEdgeId?: string;
+  editable?: boolean;
+  onDefinitionChange?: (definition: WorkflowDefinition) => void;
+  onSelectEdge?: (edgeId: string | undefined) => void;
   onSelectNode?: (nodeId: string) => void;
 }) {
   const theme = useTheme();
-  const { nodes, edges } = useMemo(() => toReactFlowElements(definition, selectedNodeId, theme.theme), [
+  const initialElements = useMemo(() => toReactFlowElements(definition, selectedNodeId, selectedEdgeId, theme.theme), [
     definition,
+    selectedEdgeId,
     selectedNodeId,
     theme.theme
   ]);
+  const [nodes, setNodes] = useState(initialElements.nodes);
+  const [edges, setEdges] = useState(initialElements.edges);
+
+  useEffect(() => {
+    const nextElements = toReactFlowElements(definition, selectedNodeId, selectedEdgeId, theme.theme);
+    setNodes(nextElements.nodes);
+    setEdges(nextElements.edges);
+  }, [definition, selectedEdgeId, selectedNodeId, theme.theme]);
+
+  function updateDefinitionFromEdges(nextEdges: Edge[]) {
+    onDefinitionChange?.({
+      ...definition,
+      edges: nextEdges.map((edge) => ({
+        id: edge.id,
+        sourceNodeId: edge.source,
+        targetNodeId: edge.target
+      }))
+    });
+  }
+
+  function handleNodesChange(changes: NodeChange<Node<FlowPilotNodeData>>[]) {
+    setNodes((currentNodes) => applyNodeChanges(changes, currentNodes));
+
+    const removedNodeIds = changes
+      .filter((change) => change.type === "remove")
+      .map((change) => change.id);
+
+    if (removedNodeIds.length > 0) {
+      onDefinitionChange?.({
+        nodes: definition.nodes.filter((node) => !removedNodeIds.includes(node.id)),
+        edges: definition.edges.filter(
+          (edge) => !removedNodeIds.includes(edge.sourceNodeId) && !removedNodeIds.includes(edge.targetNodeId)
+        )
+      });
+    }
+  }
+
+  function handleEdgesChange(changes: EdgeChange<Edge>[]) {
+    setEdges((currentEdges) => {
+      const nextEdges = applyEdgeChanges(changes, currentEdges);
+      if (changes.some((change) => change.type === "remove")) {
+        updateDefinitionFromEdges(nextEdges);
+      }
+      return nextEdges;
+    });
+  }
+
+  function handleConnect(connection: Connection) {
+    if (!connection.source || !connection.target || connection.source === connection.target) {
+      return;
+    }
+
+    const edgeId = `${connection.source}-to-${connection.target}`;
+    const nextEdges = addEdge(
+      {
+        ...connection,
+        id: edgeId
+      },
+      edges
+    );
+
+    setEdges(nextEdges);
+    updateDefinitionFromEdges(nextEdges);
+    onSelectEdge?.(edgeId);
+  }
 
   return (
     <ReactFlow
@@ -53,12 +133,21 @@ export function WorkflowCanvas({
       fitViewOptions={{ padding: 0.25 }}
       minZoom={0.45}
       nodes={nodes}
-      nodesConnectable={false}
-      nodesDraggable={false}
+      nodesConnectable={editable}
+      nodesDraggable={editable}
       nodesFocusable
       nodeTypes={nodeTypes}
+      onConnect={editable ? handleConnect : undefined}
+      onEdgesChange={editable ? handleEdgesChange : undefined}
+      onEdgeClick={(_, edge) => {
+        onSelectEdge?.(edge.id);
+      }}
+      onNodesChange={editable ? handleNodesChange : undefined}
       panOnScroll
-      onNodeClick={(_, node) => onSelectNode?.(node.id)}
+      onNodeClick={(_, node) => {
+        onSelectEdge?.(undefined);
+        onSelectNode?.(node.id);
+      }}
       proOptions={{ hideAttribution: true }}
     >
       <Background color={theme.theme === "dark" ? "#6d4c93" : "#d4cee8"} gap={20} />
@@ -106,7 +195,12 @@ function FlowPilotNode({ data, selected }: NodeProps<Node<FlowPilotNodeData>>) {
   );
 }
 
-function toReactFlowElements(definition: WorkflowDefinition, selectedNodeId: string | undefined, theme: "light" | "dark") {
+function toReactFlowElements(
+  definition: WorkflowDefinition,
+  selectedNodeId: string | undefined,
+  selectedEdgeId: string | undefined,
+  theme: "light" | "dark"
+) {
   const levels = getNodeLevels(definition);
   const lanes = new Map<number, number>();
   const degrees = getNodeDegrees(definition);
@@ -135,9 +229,10 @@ function toReactFlowElements(definition: WorkflowDefinition, selectedNodeId: str
     source: edge.sourceNodeId,
     target: edge.targetNodeId,
     animated: true,
+    selected: edge.id === selectedEdgeId,
     style: {
-      stroke: theme === "dark" ? "#c084fc" : "#7c3aed",
-      strokeWidth: 2
+      stroke: edge.id === selectedEdgeId ? "#f59e0b" : theme === "dark" ? "#c084fc" : "#7c3aed",
+      strokeWidth: edge.id === selectedEdgeId ? 3 : 2
     },
     markerEnd: {
       type: MarkerType.ArrowClosed,
