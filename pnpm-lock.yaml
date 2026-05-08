@@ -26,6 +26,10 @@ importers:
       '@flowpilot/logger':
         specifier: workspace:*
         version: link:../../packages/logger
+    devDependencies:
+      tsx:
+        specifier: ^4.21.0
+        version: 4.21.0
 
   apps/api:
     dependencies:
@@ -114,6 +118,9 @@ importers:
 
   apps/execution-worker:
     dependencies:
+      '@flowpilot/ai-orchestrator':
+        specifier: workspace:*
+        version: link:../ai-orchestrator
       '@flowpilot/config':
         specifier: workspace:*
         version: link:../../packages/config

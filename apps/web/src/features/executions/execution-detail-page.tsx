@@ -1,10 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
-import { Activity, Clock3, GitBranch, ListChecks } from "lucide-react";
+import { Activity, AlertTriangle, Clock3, GitBranch, ListChecks, RadioTower } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
 
 import { queryKeys } from "@/shared/api/query-keys";
 import type { WorkflowExecutionSummary } from "@/shared/api/types";
-import { getExecutionSummary } from "@/shared/api/workflows";
+import { getExecutionDiagnostics, getExecutionSummary } from "@/shared/api/workflows";
 import { formatDateTime, formatDuration, humanizeIdentifier, isTerminalExecutionStatus } from "@/shared/lib/utils";
 import { Badge } from "@/shared/ui/badge";
 import { Button } from "@/shared/ui/button";
@@ -26,6 +26,11 @@ export function ExecutionDetailPage() {
 
       return data && !isTerminalExecutionStatus(data.execution.status) ? 2_000 : false;
     }
+  });
+  const diagnosticsQuery = useQuery({
+    queryKey: queryKeys.executionDiagnostics(workspaceId, workflowId, executionId),
+    queryFn: () => getExecutionDiagnostics(workspaceId, workflowId, executionId),
+    enabled: Boolean(workspaceId && workflowId && executionId)
   });
 
   if (summaryQuery.isError) {
@@ -81,6 +86,101 @@ export function ExecutionDetailPage() {
           label="Duration"
           value={formatDuration(summary.execution.startedAt, summary.execution.completedAt)}
         />
+      </div>
+
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,22rem)_minmax(0,1fr)]">
+        <Card>
+          <CardHeader>
+            <CardTitle>Retry & DLQ</CardTitle>
+            <CardDescription>Operational failure state derived from persisted execution data.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {diagnosticsQuery.isLoading ? (
+              <>
+                <Skeleton className="h-8 w-full" />
+                <Skeleton className="h-8 w-3/4" />
+              </>
+            ) : diagnosticsQuery.data ? (
+              <>
+                <div className="flex items-center justify-between gap-3 rounded-lg border border-border p-3">
+                  <div className="flex items-center gap-2">
+                    <RadioTower className="size-4 text-muted-foreground" />
+                    <span className="text-sm font-medium">Retry attempts</span>
+                  </div>
+                  <Badge variant={diagnosticsQuery.data.retry.attempts > 0 ? "warning" : "outline"}>
+                    {diagnosticsQuery.data.retry.attempts}
+                  </Badge>
+                </div>
+                <div className="flex items-center justify-between gap-3 rounded-lg border border-border p-3">
+                  <div className="flex items-center gap-2">
+                    <AlertTriangle className="size-4 text-muted-foreground" />
+                    <span className="text-sm font-medium">Dead-lettered</span>
+                  </div>
+                  <Badge variant={diagnosticsQuery.data.retry.deadLettered ? "danger" : "success"}>
+                    {diagnosticsQuery.data.retry.deadLettered ? "Yes" : "No"}
+                  </Badge>
+                </div>
+                {diagnosticsQuery.data.retry.lastFailureMessage ? (
+                  <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm">
+                    <p className="font-medium text-destructive">
+                      {diagnosticsQuery.data.retry.lastFailureCode ?? "Last failure"}
+                    </p>
+                    <p className="mt-1 text-muted-foreground">{diagnosticsQuery.data.retry.lastFailureMessage}</p>
+                  </div>
+                ) : null}
+              </>
+            ) : (
+              <p className="text-sm text-muted-foreground">Diagnostics are not available.</p>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="overflow-x-auto">
+          <CardHeader>
+            <CardTitle>Outbox dispatch</CardTitle>
+            <CardDescription>Lifecycle events persisted before RabbitMQ publish.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {diagnosticsQuery.isLoading ? (
+              <div className="space-y-3">
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-10 w-full" />
+              </div>
+            ) : diagnosticsQuery.data && diagnosticsQuery.data.outbox.length > 0 ? (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Event</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Attempts</TableHead>
+                    <TableHead>Published</TableHead>
+                    <TableHead>Last error</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {diagnosticsQuery.data.outbox.map((message) => (
+                    <TableRow key={message.id}>
+                      <TableCell>
+                        <div className="font-medium">{humanizeIdentifier(message.eventName)}</div>
+                        <div className="mt-1 text-xs text-muted-foreground">{message.routingKey}</div>
+                      </TableCell>
+                      <TableCell>
+                        <StatusBadge status={message.status} />
+                      </TableCell>
+                      <TableCell>{message.attempts}</TableCell>
+                      <TableCell>{formatDateTime(message.publishedAt)}</TableCell>
+                      <TableCell>{message.lastError ?? "-"}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            ) : (
+              <div className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
+                No outbox messages are associated with this execution yet.
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
 
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_24rem]">

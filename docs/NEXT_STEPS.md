@@ -156,14 +156,16 @@ Create the project foundation.
 ## Immediate Tasks
 
 - Add end-to-end browser coverage for React Flow drag interactions once a stable browser automation harness is available.
-- Add API/frontend support for exposing retry attempts and DLQ entries for failed workflow executions.
-- Add structured worker logs/metrics around node execution duration, retry scheduling, terminal failures, and outbox dispatch.
+- Add live RabbitMQ queue-depth reads or an operator-only queue snapshot endpoint when operational requirements justify RabbitMQ Management API access.
+- Add metrics export for worker node duration, retry scheduling, terminal failures, and outbox dispatch.
+- Add real provider configuration for `action.aiPrompt` behind the deterministic mock boundary.
 - Add explicit ownership-transfer policy only when product requirements need it.
 
 ## Next Architecture Tasks
 
 - Define role permissions for `OWNER`, `ADMIN`, `MEMBER`, and `VIEWER`.
-- Define the first AI-backed workflow action and the service boundary between `execution-worker` and `ai-orchestrator`.
+- Add LangChain/provider abstraction inside `ai-orchestrator` after `action.aiPrompt` has credential and retry semantics.
+- Design the first RAG-backed workflow action and the Qdrant collection/index lifecycle.
 - Add local service Dockerfiles for any service that still relies on placeholder process setup.
 
 ## Open Questions

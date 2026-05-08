@@ -19,6 +19,7 @@ import {
 } from "./dto/create-workflow-version.dto.js";
 import { UpdateWorkflowDto, updateWorkflowSchema } from "./dto/update-workflow.dto.js";
 import { WorkflowExecutionEventResponseDto } from "./dto/workflow-execution-event-response.dto.js";
+import { WorkflowExecutionDiagnosticsResponseDto } from "./dto/workflow-execution-diagnostics-response.dto.js";
 import { WorkflowExecutionResponseDto } from "./dto/workflow-execution-response.dto.js";
 import { WorkflowExecutionSummaryResponseDto } from "./dto/workflow-execution-summary-response.dto.js";
 import { WorkflowNodeExecutionResponseDto } from "./dto/workflow-node-execution-response.dto.js";
@@ -209,6 +210,25 @@ export class WorkflowsController {
     @Param("executionId") executionId: string
   ) {
     return this.workflowsService.findExecutionSummary(workspaceId, workflowId, executionId);
+  }
+
+  @Get(":workflowId/executions/:executionId/diagnostics")
+  @WorkspaceRoles(
+    WorkspaceRole.OWNER,
+    WorkspaceRole.ADMIN,
+    WorkspaceRole.MEMBER,
+    WorkspaceRole.VIEWER
+  )
+  @ApiOkResponse({
+    description: "Workflow execution retry and outbox diagnostics.",
+    type: WorkflowExecutionDiagnosticsResponseDto
+  })
+  findExecutionDiagnostics(
+    @Param("workspaceId") workspaceId: string,
+    @Param("workflowId") workflowId: string,
+    @Param("executionId") executionId: string
+  ) {
+    return this.workflowsService.findExecutionDiagnostics(workspaceId, workflowId, executionId);
   }
 
   @Get(":workflowId/executions/:executionId")

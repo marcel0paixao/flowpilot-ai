@@ -4,6 +4,7 @@ export type WorkspaceRole = "OWNER" | "ADMIN" | "MEMBER" | "VIEWER";
 export type WorkflowStatus = "DRAFT" | "ACTIVE" | "ARCHIVED";
 export type WorkflowExecutionStatus = "PENDING" | "RUNNING" | "SUCCEEDED" | "FAILED" | "CANCELLED";
 export type WorkflowNodeExecutionStatus = "PENDING" | "RUNNING" | "SUCCEEDED" | "FAILED" | "SKIPPED";
+export type OutboxMessageStatus = "PENDING" | "PUBLISHED" | "FAILED";
 
 export interface User {
   id: string;
@@ -125,4 +126,25 @@ export interface WorkflowExecutionSummary {
   execution: WorkflowExecution;
   nodes: WorkflowNodeExecution[];
   events: WorkflowExecutionEvent[];
+}
+
+export interface WorkflowExecutionDiagnostics {
+  retry: {
+    attempts: number;
+    deadLettered: boolean;
+    lastFailureCode: string | null;
+    lastFailureMessage: string | null;
+    retryable: boolean | null;
+  };
+  outbox: Array<{
+    id: string;
+    eventName: string;
+    status: OutboxMessageStatus;
+    attempts: number;
+    exchange: string;
+    routingKey: string;
+    lastError: string | null;
+    publishedAt: string | null;
+    createdAt: string;
+  }>;
 }

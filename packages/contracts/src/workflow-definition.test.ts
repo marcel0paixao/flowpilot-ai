@@ -45,6 +45,14 @@ test("workflow definition accepts the initial demo node types", () => {
             source: "flowpilot-demo"
           }
         }
+      },
+      {
+        id: "ai-summary",
+        type: WORKFLOW_NODE_TYPES.aiPromptAction,
+        name: "Summarize Lead",
+        config: {
+          prompt: "Summarize this lead for an operator."
+        }
       }
     ],
     edges: [
@@ -57,6 +65,11 @@ test("workflow definition accepts the initial demo node types", () => {
         id: "edge-normalize-to-enrichment",
         sourceNodeId: "normalize-lead",
         targetNodeId: "enrichment-request"
+      },
+      {
+        id: "edge-enrichment-to-summary",
+        sourceNodeId: "enrichment-request",
+        targetNodeId: "ai-summary"
       }
     ]
   });

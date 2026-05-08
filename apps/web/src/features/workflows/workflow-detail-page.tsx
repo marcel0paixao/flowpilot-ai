@@ -8,11 +8,14 @@ import {
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowRight,
+  Bot,
+  Braces,
   Clock3,
   Eye,
   GitBranch,
+  Globe2,
   History,
-  Link2,
+  MousePointerClick,
   Network,
   Plus,
   PlayCircle,
@@ -67,6 +70,38 @@ import { Textarea } from "@/shared/ui/textarea";
 const WORKFLOW_STATUSES = ["DRAFT", "ACTIVE", "ARCHIVED"] as const satisfies readonly WorkflowStatus[];
 type WorkflowStatusValue = (typeof WORKFLOW_STATUSES)[number];
 
+const NODE_LIBRARY = [
+  {
+    type: WORKFLOW_NODE_TYPES.manualTrigger,
+    title: "Manual trigger",
+    description: "Starts a workflow run from user-provided input.",
+    icon: MousePointerClick
+  },
+  {
+    type: WORKFLOW_NODE_TYPES.transformAction,
+    title: "Transform",
+    description: "Passes data through or picks fields from the payload.",
+    icon: Braces
+  },
+  {
+    type: WORKFLOW_NODE_TYPES.httpRequestAction,
+    title: "HTTP request",
+    description: "Runs a deterministic HTTP request action in the worker.",
+    icon: Globe2
+  },
+  {
+    type: WORKFLOW_NODE_TYPES.aiPromptAction,
+    title: "AI prompt",
+    description: "Calls the AI orchestration boundary with a prompt.",
+    icon: Bot
+  }
+] as const satisfies readonly {
+  type: WorkflowNodeType;
+  title: string;
+  description: string;
+  icon: typeof Plus;
+}[];
+
 export function WorkflowDetailPage() {
   const { workspaceId = "", workflowId = "" } = useParams();
   const { user } = useAuth();
@@ -76,8 +111,6 @@ export function WorkflowDetailPage() {
   const [isEditing, setIsEditing] = useState(false);
   const [draftDefinition, setDraftDefinition] = useState<WorkflowDefinition>();
   const [formError, setFormError] = useState<string>();
-  const [newEdgeSourceId, setNewEdgeSourceId] = useState("");
-  const [newEdgeTargetId, setNewEdgeTargetId] = useState("");
   const [previewVersionId, setPreviewVersionId] = useState<string>();
   const [metadataDraft, setMetadataDraft] = useState({
     name: "",
@@ -304,38 +337,6 @@ export function WorkflowDetailPage() {
       edges: currentDefinition.edges.filter((edge) => edge.id !== edgeId)
     }));
     setSelectedEdgeId(undefined);
-  }
-
-  function createManualEdge() {
-    updateDraftDefinition((currentDefinition) => {
-      const edgeValidationError = validateEdgeDraft({
-        definition: currentDefinition,
-        sourceNodeId: newEdgeSourceId,
-        targetNodeId: newEdgeTargetId
-      });
-
-      if (edgeValidationError) {
-        setFormError(edgeValidationError);
-        return currentDefinition;
-      }
-
-      const edgeId = getUniqueEdgeId(`${newEdgeSourceId}-to-${newEdgeTargetId}`, currentDefinition);
-
-      setSelectedNodeId(undefined);
-      setSelectedEdgeId(edgeId);
-
-      return {
-        ...currentDefinition,
-        edges: [
-          ...currentDefinition.edges,
-          {
-            id: edgeId,
-            sourceNodeId: newEdgeSourceId,
-            targetNodeId: newEdgeTargetId
-          }
-        ]
-      };
-    });
   }
 
   function updateSelectedEdge(sourceNodeId: string, targetNodeId: string) {
@@ -609,49 +610,6 @@ export function WorkflowDetailPage() {
         </Card>
       ) : null}
 
-      {isEditing ? (
-        <Card>
-          <CardContent className="flex flex-wrap items-center gap-2 p-4">
-            <span className="mr-2 text-sm font-medium">Add node</span>
-            <Button size="sm" variant="outline" onClick={() => addNode(WORKFLOW_NODE_TYPES.manualTrigger)}>
-              <Plus />
-              Manual trigger
-            </Button>
-            <Button size="sm" variant="outline" onClick={() => addNode(WORKFLOW_NODE_TYPES.transformAction)}>
-              <Plus />
-              Transform
-            </Button>
-            <Button size="sm" variant="outline" onClick={() => addNode(WORKFLOW_NODE_TYPES.httpRequestAction)}>
-              <Plus />
-              HTTP request
-            </Button>
-            <span className="mx-2 hidden h-6 w-px bg-border md:block" />
-            <span className="mr-2 text-sm font-medium">Add edge</span>
-            <NodeSelect
-              ariaLabel="Edge source"
-              className="w-48"
-              nodes={activeDefinition.nodes}
-              placeholder="Source node"
-              value={newEdgeSourceId}
-              onChange={setNewEdgeSourceId}
-            />
-            <NodeSelect
-              ariaLabel="Edge target"
-              className="w-48"
-              nodes={activeDefinition.nodes}
-              placeholder="Target node"
-              value={newEdgeTargetId}
-              onChange={setNewEdgeTargetId}
-            />
-            <Button size="sm" variant="outline" onClick={createManualEdge}>
-              <Link2 />
-              Connect
-            </Button>
-            {formError ? <p className="w-full text-sm text-destructive">{formError}</p> : null}
-          </CardContent>
-        </Card>
-      ) : null}
-
       {previewVersion ? (
         <Card>
           <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
@@ -689,6 +647,7 @@ export function WorkflowDetailPage() {
 
       <div className="flex flex-col gap-4">
         <WorkflowCanvas
+          canvasToolbar={isEditing ? <AddNodeMenu onAddNode={addNode} /> : undefined}
           definition={activeDefinition}
           editable={isEditing}
           selectedEdgeId={selectedEdgeId}
@@ -697,6 +656,11 @@ export function WorkflowDetailPage() {
           onSelectEdge={setSelectedEdgeId}
           onSelectNode={setSelectedNodeId}
         />
+        {formError ? (
+          <p className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+            {formError}
+          </p>
+        ) : null}
         {definitionStats ? (
           <div className="liquid-glass grid gap-0 overflow-hidden rounded-lg border border-border bg-card/70 md:grid-cols-3">
             <WorkflowMetric icon={PlayCircle} label="Triggers" value={String(definitionStats.triggers)} />
@@ -792,6 +756,48 @@ export function WorkflowDetailPage() {
         </CardContent>
       </Card>
     </section>
+  );
+}
+
+function AddNodeMenu({ onAddNode }: { onAddNode: (type: WorkflowNodeType) => void }) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button aria-label="Add node" className="liquid-glass shadow-md" size="icon" variant="outline">
+          <Plus />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="w-80">
+        <DropdownMenuLabel>
+          <span className="block">Add node</span>
+          <span className="block text-xs font-normal text-muted-foreground">
+            Choose a node type to place on the canvas.
+          </span>
+        </DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        {NODE_LIBRARY.map((nodeOption) => {
+          const Icon = nodeOption.icon;
+
+          return (
+            <DropdownMenuItem
+              key={nodeOption.type}
+              className="cursor-pointer items-start gap-3 p-3"
+              onSelect={() => onAddNode(nodeOption.type)}
+            >
+              <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-accent text-accent-foreground">
+                <Icon className="size-4" />
+              </span>
+              <span className="min-w-0">
+                <span className="block text-sm font-medium">{nodeOption.title}</span>
+                <span className="mt-0.5 block text-xs leading-5 text-muted-foreground">
+                  {nodeOption.description}
+                </span>
+              </span>
+            </DropdownMenuItem>
+          );
+        })}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
@@ -1055,6 +1061,65 @@ function NodeConfigEditor({
     );
   }
 
+  if (node.type === WORKFLOW_NODE_TYPES.aiPromptAction) {
+    return (
+      <div className="space-y-3">
+        <div className="space-y-2">
+          <Label htmlFor="ai-prompt-model">Model</Label>
+          <Input
+            id="ai-prompt-model"
+            value={node.config.model}
+            onChange={(event) =>
+              onChange({
+                ...node,
+                config: {
+                  ...node.config,
+                  model: event.target.value
+                }
+              })
+            }
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="ai-prompt-temperature">Temperature</Label>
+          <Input
+            id="ai-prompt-temperature"
+            type="number"
+            min="0"
+            max="2"
+            step="0.1"
+            value={node.config.temperature}
+            onChange={(event) =>
+              onChange({
+                ...node,
+                config: {
+                  ...node.config,
+                  temperature: Number(event.target.value)
+                }
+              })
+            }
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="ai-prompt">Prompt</Label>
+          <Textarea
+            id="ai-prompt"
+            value={node.config.prompt}
+            onChange={(event) =>
+              onChange({
+                ...node,
+                config: {
+                  ...node.config,
+                  prompt: event.target.value
+                }
+              })
+            }
+          />
+        </div>
+      </div>
+    );
+  }
+
   return null;
 }
 
@@ -1139,6 +1204,10 @@ function getNodeRuntimeDescription(type: string) {
     return "Runs the deterministic HTTP request action used by the MVP worker.";
   }
 
+  if (type === "action.aiPrompt") {
+    return "Runs a deterministic mock AI prompt through the AI orchestration boundary.";
+  }
+
   return "Runs as part of the workflow execution graph.";
 }
 
@@ -1180,14 +1249,27 @@ function createNode(type: WorkflowNodeType, nodeNumber: number, definition: Work
     };
   }
 
+  if (type === WORKFLOW_NODE_TYPES.httpRequestAction) {
+    return {
+      id,
+      type,
+      name: `HTTP Request ${nodeNumber}`,
+      config: {
+        method: "GET",
+        url: "https://example.test/webhook",
+        body: {}
+      }
+    };
+  }
+
   return {
     id,
-    type: WORKFLOW_NODE_TYPES.httpRequestAction,
-    name: `HTTP Request ${nodeNumber}`,
+    type: WORKFLOW_NODE_TYPES.aiPromptAction,
+    name: `AI Prompt ${nodeNumber}`,
     config: {
-      method: "GET",
-      url: "https://example.test/webhook",
-      body: {}
+      model: "mock-flowpilot-llm",
+      prompt: "Summarize the current workflow payload for an operator.",
+      temperature: 0.2
     }
   };
 }

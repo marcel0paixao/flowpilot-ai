@@ -62,7 +62,7 @@ services:
     command:
       - sh
       - -c
-      - corepack enable && pnpm install --frozen-lockfile && pnpm --filter @flowpilot/contracts build && pnpm --filter @flowpilot/api prisma:generate && pnpm --filter @flowpilot/execution-worker dev
+      - corepack enable && pnpm install --frozen-lockfile && pnpm --filter @flowpilot/contracts build && pnpm --filter @flowpilot/ai-orchestrator build && pnpm --filter @flowpilot/api prisma:generate && pnpm --filter @flowpilot/execution-worker dev
     environment:
       NODE_ENV: development
       LOG_LEVEL: debug

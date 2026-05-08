@@ -145,14 +145,16 @@ test("executes workflow nodes sequentially and publishes node lifecycle events",
 
   await processWorkflowExecution(validMessage(), channel, prisma);
 
-  assert.equal(nodeUpserts.length, 3);
-  assert.equal(nodeUpdates.length, 3);
+  assert.equal(nodeUpserts.length, 4);
+  assert.equal(nodeUpdates.length, 4);
   assert.equal(workflowUpdates.length, 2);
-  assert.equal(channel.published.length, 8);
+  assert.equal(channel.published.length, 10);
   assert.deepEqual(
     channel.published.map((published) => published.routingKey),
     [
       FLOWPILOT_ROUTING_KEYS.workflowExecutionStarted,
+      FLOWPILOT_ROUTING_KEYS.nodeExecutionStarted,
+      FLOWPILOT_ROUTING_KEYS.nodeExecutionCompleted,
       FLOWPILOT_ROUTING_KEYS.nodeExecutionStarted,
       FLOWPILOT_ROUTING_KEYS.nodeExecutionCompleted,
       FLOWPILOT_ROUTING_KEYS.nodeExecutionStarted,
@@ -164,11 +166,14 @@ test("executes workflow nodes sequentially and publishes node lifecycle events",
   );
 
   const workflowCompletion = workflowUpdates[1] as {
-    data?: { output?: { finalOutput?: { response?: { body?: { echoedInput?: unknown } } } } };
+    data?: { output?: { finalOutput?: { provider?: string; trace?: { inputKeys?: string[] } } } };
   };
-  assert.deepEqual(workflowCompletion.data?.output?.finalOutput?.response?.body?.echoedInput, {
-    leadId: "lead-1"
-  });
+  assert.equal(workflowCompletion.data?.output?.finalOutput?.provider, "flowpilot-mock-ai");
+  assert.deepEqual(workflowCompletion.data?.output?.finalOutput?.trace?.inputKeys, [
+    "request",
+    "response",
+    "status"
+  ]);
 });
 
 test("schedules retry and acknowledges retryable failures before max attempts", async () => {
@@ -389,6 +394,16 @@ function workflowDefinition(): WorkflowDefinition {
           method: "POST",
           url: "https://example.com/api/enrich-lead"
         }
+      },
+      {
+        id: "ai-summary",
+        type: WORKFLOW_NODE_TYPES.aiPromptAction,
+        name: "AI Summary",
+        config: {
+          model: "mock-flowpilot-llm",
+          prompt: "Summarize this lead.",
+          temperature: 0.2
+        }
       }
     ],
     edges: [
@@ -401,6 +416,11 @@ function workflowDefinition(): WorkflowDefinition {
         id: "edge-normalize-to-enrichment",
         sourceNodeId: "normalize-lead",
         targetNodeId: "enrichment-request"
+      },
+      {
+        id: "edge-enrichment-to-ai-summary",
+        sourceNodeId: "enrichment-request",
+        targetNodeId: "ai-summary"
       }
     ]
   };

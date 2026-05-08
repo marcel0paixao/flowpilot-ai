@@ -299,3 +299,15 @@ Reason: Metadata changes do not affect execution replay semantics. Keeping them 
 Decision: Disable workflow creation, editing, and run controls for users whose workspace role is not `OWNER`, `ADMIN`, or `MEMBER`.
 
 Reason: The API already enforces write permissions. Mirroring the policy in the UI avoids presenting actions that `VIEWER` users cannot complete and makes role behavior visible in the product shell.
+
+## 2026-05-07: Execution Diagnostics Use Persisted Read Models First
+
+Decision: Expose execution diagnostics from PostgreSQL data already owned by the platform: `WorkflowExecution`, `WorkflowExecutionEvent`, `WorkflowNodeExecution`, and `OutboxMessage`.
+
+Reason: RabbitMQ queue depth and live DLQ reads are useful later, but persisted execution state is stable, tenant-scoped, testable, and available through the existing RBAC model. This gives the UI retry/outbox visibility without introducing RabbitMQ Management API coupling into the product API.
+
+## 2026-05-07: First AI Node Is Deterministic
+
+Decision: Add `action.aiPrompt` to the shared workflow definition contract and execute it through an `ai-orchestrator` boundary with a deterministic mock response.
+
+Reason: The workflow engine needs to prove the AI service boundary before adding external model providers, LangChain, RAG, credentials, rate limits, and token accounting. A deterministic AI node keeps tests repeatable while establishing the product shape for future AI-backed workflow actions.

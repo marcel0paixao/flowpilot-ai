@@ -3,7 +3,8 @@ import { z } from "zod";
 export const WORKFLOW_NODE_TYPES = {
   manualTrigger: "trigger.manual",
   transformAction: "action.transform",
-  httpRequestAction: "action.httpRequest"
+  httpRequestAction: "action.httpRequest",
+  aiPromptAction: "action.aiPrompt"
 } as const;
 
 export const WORKFLOW_HTTP_METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE"] as const;
@@ -72,10 +73,24 @@ export const httpRequestActionNodeSchema = workflowNodeBaseSchema
   })
   .strict();
 
+export const aiPromptActionNodeSchema = workflowNodeBaseSchema
+  .extend({
+    type: z.literal(WORKFLOW_NODE_TYPES.aiPromptAction),
+    config: z
+      .object({
+        prompt: z.string().min(1).max(2_000),
+        model: z.string().min(1).max(120).default("mock-flowpilot-llm"),
+        temperature: z.number().min(0).max(2).default(0.2)
+      })
+      .strict()
+  })
+  .strict();
+
 export const workflowNodeSchema = z.discriminatedUnion("type", [
   manualTriggerNodeSchema,
   transformActionNodeSchema,
-  httpRequestActionNodeSchema
+  httpRequestActionNodeSchema,
+  aiPromptActionNodeSchema
 ]);
 
 export const workflowEdgeSchema = z
@@ -196,6 +211,7 @@ export type WorkflowHttpMethod = (typeof WORKFLOW_HTTP_METHODS)[number];
 export type ManualTriggerNode = z.infer<typeof manualTriggerNodeSchema>;
 export type TransformActionNode = z.infer<typeof transformActionNodeSchema>;
 export type HttpRequestActionNode = z.infer<typeof httpRequestActionNodeSchema>;
+export type AiPromptActionNode = z.infer<typeof aiPromptActionNodeSchema>;
 export type WorkflowNode = z.infer<typeof workflowNodeSchema>;
 export type WorkflowEdge = z.infer<typeof workflowEdgeSchema>;
 export type WorkflowDefinition = z.infer<typeof workflowDefinitionSchema>;

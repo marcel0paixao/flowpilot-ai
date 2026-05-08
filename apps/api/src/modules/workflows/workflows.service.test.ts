@@ -601,6 +601,51 @@ test("WorkflowsService returns execution summary with nodes and events", async (
   assert.equal(eventFindManyArgs.orderBy.occurredAt, "asc");
 });
 
+test("WorkflowsService returns execution diagnostics with retry and outbox state", async () => {
+  const execution = workflowExecutionFixture({
+    status: "FAILED",
+    error: {
+      code: "workflow_execution_worker_error",
+      message: "Connector timeout",
+      retryable: true
+    }
+  });
+  const outboxMessages = [
+    outboxMessageFixture({
+      eventName: FLOWPILOT_ROUTING_KEYS.workflowExecutionFailed,
+      attempts: 2,
+      status: "PUBLISHED"
+    })
+  ];
+  const prisma = {
+    workflowExecution: {
+      findFirst: mockAsync(execution)
+    },
+    workflowExecutionEvent: {
+      findMany: mockAsync([])
+    },
+    outboxMessage: {
+      findMany: mockAsync(outboxMessages)
+    }
+  };
+  const service = new WorkflowsService(prisma as never, fakeMessagingService());
+
+  const result = await service.findExecutionDiagnostics("workspace-1", "workflow-1", "execution-1");
+
+  assert.equal(result.retry.attempts, 2);
+  assert.equal(result.retry.deadLettered, true);
+  assert.equal(result.retry.lastFailureCode, "workflow_execution_worker_error");
+  assert.equal(result.retry.lastFailureMessage, "Connector timeout");
+  assert.equal(result.retry.retryable, true);
+  assert.equal(result.outbox.length, 1);
+  assert.equal(result.outbox[0]?.eventName, FLOWPILOT_ROUTING_KEYS.workflowExecutionFailed);
+
+  const outboxFindManyArgs = prisma.outboxMessage.findMany.calls[0]?.[0] as {
+    where: { idempotencyKey: { contains: string } };
+  };
+  assert.equal(outboxFindManyArgs.where.idempotencyKey.contains, "execution-1");
+});
+
 test("WorkflowsService rejects execution summary for missing executions", async () => {
   const prisma = {
     workflowExecution: {
@@ -611,6 +656,20 @@ test("WorkflowsService rejects execution summary for missing executions", async 
 
   await assert.rejects(
     () => service.findExecutionSummary("workspace-1", "workflow-1", "missing-execution"),
+    NotFoundException
+  );
+});
+
+test("WorkflowsService rejects execution diagnostics for missing executions", async () => {
+  const prisma = {
+    workflowExecution: {
+      findFirst: mockAsync(null)
+    }
+  };
+  const service = new WorkflowsService(prisma as never, fakeMessagingService());
+
+  await assert.rejects(
+    () => service.findExecutionDiagnostics("workspace-1", "workflow-1", "missing-execution"),
     NotFoundException
   );
 });
@@ -648,7 +707,13 @@ function workflowFixture({
   };
 }
 
-function workflowExecutionFixture() {
+function workflowExecutionFixture({
+  error = null,
+  status = WORKFLOW_EXECUTION_STATUS_PENDING
+}: {
+  error?: unknown;
+  status?: string;
+} = {}) {
   const now = new Date("2026-05-01T12:05:00.000Z");
 
   return {
@@ -657,14 +722,43 @@ function workflowExecutionFixture() {
     workflowId: "workflow-1",
     workflowVersionId: "version-1",
     requestedByUserId: "user-1",
-    status: WORKFLOW_EXECUTION_STATUS_PENDING,
+    status,
     input: {
       leadId: "lead-1"
     },
     output: null,
-    error: null,
+    error,
     startedAt: null,
     completedAt: null,
+    createdAt: now,
+    updatedAt: now
+  };
+}
+
+function outboxMessageFixture({
+  attempts = 1,
+  eventName = FLOWPILOT_ROUTING_KEYS.workflowExecutionCompleted,
+  status = "PUBLISHED"
+}: {
+  attempts?: number;
+  eventName?: string;
+  status?: string;
+} = {}) {
+  const now = new Date("2026-05-01T12:05:02.000Z");
+
+  return {
+    id: "outbox-1",
+    exchange: "flowpilot.events",
+    routingKey: eventName,
+    eventName,
+    messageId: "message-1",
+    idempotencyKey: `${eventName}:execution-1`,
+    payload: {},
+    headers: {},
+    status,
+    attempts,
+    lastError: null,
+    publishedAt: now,
     createdAt: now,
     updatedAt: now
   };

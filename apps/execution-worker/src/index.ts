@@ -1,4 +1,5 @@
 import { readConfig } from "@flowpilot/config";
+import { runDeterministicAiPrompt } from "@flowpilot/ai-orchestrator";
 import {
   FLOWPILOT_DEAD_LETTER_QUEUES,
   FLOWPILOT_EXCHANGES,
@@ -567,6 +568,15 @@ async function executeWorkflowNodes(
         startedAt,
         completedAt
       );
+      logger.info("Workflow node execution completed", {
+        durationMs: completedAt.getTime() - startedAt.getTime(),
+        executionId: execution.id,
+        nodeExecutionId: nodeExecution.id,
+        nodeId: node.id,
+        nodeType: node.type,
+        workflowId: execution.workflowId,
+        workspaceId: execution.workspaceId
+      });
       nodeOutputs.set(node.id, output);
       currentInput = output;
     } catch (error) {
@@ -574,6 +584,18 @@ async function executeWorkflowNodes(
       const failedAt = new Date();
       await failNodeExecution(prisma, nodeExecution.id, failure, failedAt);
       await publishNodeFailedEvent(channel, prisma, message, node, nodeExecution.id, failure, failedAt);
+      logger.error("Workflow node execution failed", {
+        code: failure.code,
+        durationMs: failedAt.getTime() - startedAt.getTime(),
+        error: failure.message,
+        executionId: execution.id,
+        nodeExecutionId: nodeExecution.id,
+        nodeId: node.id,
+        nodeType: node.type,
+        retryable: failure.retryable,
+        workflowId: execution.workflowId,
+        workspaceId: execution.workspaceId
+      });
       throw error;
     }
   }
@@ -721,6 +743,15 @@ function executeNode(node: WorkflowNode, input: Record<string, unknown>): Record
         .filter((key) => Object.prototype.hasOwnProperty.call(input, key))
         .map((key) => [key, input[key]])
     );
+  }
+
+  if (node.type === WORKFLOW_NODE_TYPES.aiPromptAction) {
+    return runDeterministicAiPrompt({
+      input,
+      model: node.config.model,
+      prompt: node.config.prompt,
+      temperature: node.config.temperature
+    });
   }
 
   return {
@@ -1130,6 +1161,11 @@ async function dispatchOutboxEvent(
       publishedAt: new Date()
     }
   });
+  logger.info("Outbox message published", {
+    eventName: outboxMessage.eventName,
+    id: outboxMessage.id,
+    routingKey: outboxMessage.routingKey
+  });
 }
 
 export async function dispatchPendingOutboxMessages(
@@ -1217,6 +1253,13 @@ async function markOutboxPublishFailure(
       status: attempts >= outboxMaxPublishAttempts ? "FAILED" : outboxMessage.status
     }
   });
+  logger.error("Outbox message publish attempt failed", {
+    attempts,
+    eventName: outboxMessage.eventName,
+    id: outboxMessage.id,
+    lastError: error.message,
+    status: attempts >= outboxMaxPublishAttempts ? "FAILED" : outboxMessage.status
+  });
 }
 
 function createOutboxHeaders(message: WorkflowLifecycleMessage): Record<string, unknown> {
@@ -1264,6 +1307,7 @@ async function publishRetryCommand(
   );
 
   logger.info("Workflow execution retry scheduled", {
+    retryDelayMs: retryConfig.ttlMs,
     executionId: message.payload.executionId,
     retryAttempt,
     retryQueue: retryConfig.queue
@@ -1297,6 +1341,13 @@ async function publishCommandDeadLetter(
       }
     }
   );
+  logger.error("Workflow execution command dead-lettered", {
+    code: failure.code,
+    executionId: message.payload.executionId,
+    reason: failure.message,
+    retryAttempt,
+    retryable: failure.retryable
+  });
 }
 
 async function publishRawDeadLetter(

@@ -169,7 +169,8 @@ describe("Workflow builder route", () => {
     expect(await screen.findByRole("heading", { name: "Lead Enrichment" })).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Edit workflow" }));
-    await user.click(screen.getByRole("button", { name: "HTTP request" }));
+    await user.click(screen.getByRole("button", { name: "Add node" }));
+    await user.click(screen.getByRole("menuitem", { name: /HTTP request/i }));
     await user.click(screen.getByRole("button", { name: "Save version" }));
 
     await waitFor(() => {

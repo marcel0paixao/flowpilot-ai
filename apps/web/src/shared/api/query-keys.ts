@@ -11,5 +11,7 @@ export const queryKeys = {
   workflowExecutions: (workspaceId: string, workflowId: string) =>
     ["workspaces", workspaceId, "workflows", workflowId, "executions"] as const,
   executionSummary: (workspaceId: string, workflowId: string, executionId: string) =>
-    ["workspaces", workspaceId, "workflows", workflowId, "executions", executionId, "summary"] as const
+    ["workspaces", workspaceId, "workflows", workflowId, "executions", executionId, "summary"] as const,
+  executionDiagnostics: (workspaceId: string, workflowId: string, executionId: string) =>
+    ["workspaces", workspaceId, "workflows", workflowId, "executions", executionId, "diagnostics"] as const
 };

@@ -381,6 +381,25 @@ Editable workflow builder MVP.
 - `pnpm -r typecheck` passed after the workflow metadata and frontend polish package.
 - `docker compose up -d --build api` rebuilt/restarted the local API with the metadata endpoint and optional node positions.
 - Browser smoke-test against `http://localhost:5173` confirmed workflow detail, edit mode, metadata controls, canvas controls, and inline slug validation.
+- Added execution diagnostics API:
+  - `GET /api/workspaces/:workspaceId/workflows/:workflowId/executions/:executionId/diagnostics`
+- Execution diagnostics expose retry attempts, dead-letter state, last failure code/message/retryability, and outbox dispatch rows associated with the execution.
+- Added API service coverage for execution diagnostics and missing-execution diagnostics errors.
+- Added retry/DLQ and outbox dispatch panels to the execution detail UI.
+- Added `action.aiPrompt` to the shared workflow definition contract.
+- Added a deterministic AI prompt boundary in `@flowpilot/ai-orchestrator`.
+- Execution worker now runs `action.aiPrompt` through the AI orchestrator boundary and returns deterministic mock AI output.
+- Added structured worker logs for node execution duration, node failures, retry scheduling delay, outbox publish success/failure, and command dead-lettering.
+- Docker Compose now builds `@flowpilot/ai-orchestrator` before starting `execution-worker`.
+- Added AI orchestrator unit coverage for deterministic prompt output.
+- Expanded execution-worker coverage so sequential runtime includes the AI prompt node.
+- `pnpm --filter @flowpilot/ai-orchestrator test` passed with 1 test after adding deterministic AI prompt coverage.
+- `pnpm --filter @flowpilot/ai-orchestrator typecheck` passed after adding the AI boundary.
+- `pnpm --filter @flowpilot/execution-worker test` passed with 11 tests after adding `action.aiPrompt` runtime coverage.
+- `pnpm --filter @flowpilot/api test` passed with 51 tests after adding execution diagnostics.
+- `pnpm --filter @flowpilot/web build`, `pnpm --filter @flowpilot/api build`, `pnpm --filter @flowpilot/execution-worker build`, and `pnpm -r typecheck` passed after the diagnostics and AI node package.
+- `docker compose up -d --build api execution-worker` restarted the local API and execution worker with diagnostics and `action.aiPrompt`.
+- Browser smoke-test against execution `eae5e399-a0d1-44c3-b6f2-c47e975cf42b` confirmed the execution detail renders `Retry & DLQ` plus `Outbox dispatch` panels populated from persisted diagnostics.
 
 ## Notes
 

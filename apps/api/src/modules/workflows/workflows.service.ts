@@ -366,6 +366,50 @@ export class WorkflowsService {
     };
   }
 
+  async findExecutionDiagnostics(workspaceId: string, workflowId: string, executionId: string) {
+    const execution = await this.findExecution(workspaceId, workflowId, executionId);
+
+    const [events, outboxMessages] = await Promise.all([
+      this.prisma.workflowExecutionEvent.findMany({
+        where: {
+          workspaceId,
+          workflowId,
+          executionId
+        },
+        orderBy: {
+          occurredAt: "asc"
+        }
+      }),
+      this.prisma.outboxMessage.findMany({
+        where: {
+          idempotencyKey: {
+            contains: executionId
+          }
+        },
+        orderBy: {
+          createdAt: "asc"
+        }
+      })
+    ]);
+
+    const failedEvent = events.find((event) => event.eventName === FLOWPILOT_ROUTING_KEYS.workflowExecutionFailed);
+    const failure = getFailureFromExecutionDiagnostics(execution.error, failedEvent?.payload);
+    const failedOutboxMessage = outboxMessages.find(
+      (message) => message.eventName === FLOWPILOT_ROUTING_KEYS.workflowExecutionFailed
+    );
+
+    return {
+      retry: {
+        attempts: Math.max(0, failedOutboxMessage?.attempts ?? 0),
+        deadLettered: execution.status === "FAILED" && Boolean(failure),
+        lastFailureCode: failure?.code ?? null,
+        lastFailureMessage: failure?.message ?? null,
+        retryable: failure?.retryable ?? null
+      },
+      outbox: outboxMessages.map(toWorkflowExecutionOutboxDiagnosticsResponse)
+    };
+  }
+
   private getInitialDefinition(definition?: WorkflowDefinition): Prisma.InputJsonValue {
     return (definition ?? DEFAULT_WORKFLOW_DEFINITION) as Prisma.InputJsonObject;
   }
@@ -488,6 +532,7 @@ type WorkflowVersion = Prisma.WorkflowVersionGetPayload<Record<string, never>>;
 type WorkflowExecution = Prisma.WorkflowExecutionGetPayload<Record<string, never>>;
 type WorkflowExecutionEvent = Prisma.WorkflowExecutionEventGetPayload<Record<string, never>>;
 type WorkflowNodeExecution = Prisma.WorkflowNodeExecutionGetPayload<Record<string, never>>;
+type OutboxMessage = Prisma.OutboxMessageGetPayload<Record<string, never>>;
 
 function toWorkflowResponse(workflow: WorkflowWithCurrentVersion) {
   const currentVersion = workflow.versions[0];
@@ -571,4 +616,43 @@ function toWorkflowNodeExecutionResponse(nodeExecution: WorkflowNodeExecution) {
     createdAt: nodeExecution.createdAt,
     updatedAt: nodeExecution.updatedAt
   };
+}
+
+function toWorkflowExecutionOutboxDiagnosticsResponse(message: OutboxMessage) {
+  return {
+    id: message.id,
+    eventName: message.eventName,
+    status: message.status,
+    attempts: message.attempts,
+    exchange: message.exchange,
+    routingKey: message.routingKey,
+    lastError: message.lastError,
+    publishedAt: message.publishedAt,
+    createdAt: message.createdAt
+  };
+}
+
+function getFailureFromExecutionDiagnostics(executionError: unknown, failedEventPayload: unknown) {
+  if (isFlowPilotFailure(executionError)) {
+    return executionError;
+  }
+
+  if (isRecord(failedEventPayload) && isFlowPilotFailure(failedEventPayload.error)) {
+    return failedEventPayload.error;
+  }
+
+  return null;
+}
+
+function isFlowPilotFailure(value: unknown): value is { code: string; message: string; retryable: boolean } {
+  return (
+    isRecord(value) &&
+    typeof value.code === "string" &&
+    typeof value.message === "string" &&
+    typeof value.retryable === "boolean"
+  );
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }

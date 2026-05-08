@@ -23,8 +23,17 @@ import {
   type NodeProps,
   type ReactFlowInstance
 } from "@xyflow/react";
-import { Braces, Globe2, Maximize2, Play, RotateCcw, Workflow as WorkflowIcon, X } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  Bot,
+  Braces,
+  Globe2,
+  Maximize2,
+  Play,
+  RotateCcw,
+  Workflow as WorkflowIcon,
+  X
+} from "lucide-react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
 import { humanizeIdentifier, cn } from "@/shared/lib/utils";
 import { useTheme } from "@/features/theme/theme-provider";
@@ -54,6 +63,7 @@ export function WorkflowCanvas({
   definition,
   selectedNodeId,
   selectedEdgeId,
+  canvasToolbar,
   editable = false,
   onDefinitionChange,
   onSelectEdge,
@@ -62,6 +72,7 @@ export function WorkflowCanvas({
   definition: WorkflowDefinition;
   selectedNodeId?: string;
   selectedEdgeId?: string;
+  canvasToolbar?: ReactNode;
   editable?: boolean;
   onDefinitionChange?: (definition: WorkflowDefinition) => void;
   onSelectEdge?: (edgeId: string | undefined) => void;
@@ -214,6 +225,11 @@ export function WorkflowCanvas({
       }}
       proOptions={{ hideAttribution: true }}
     >
+      {canvasToolbar ? (
+        <Panel position="top-left" className="pointer-events-auto">
+          {canvasToolbar}
+        </Panel>
+      ) : null}
       <Panel position="top-right" className="flex items-center gap-2">
         <div className="liquid-glass flex items-center gap-1 rounded-md border border-border bg-card/80 p-1 shadow-sm">
           <span className="px-2 text-xs font-medium text-muted-foreground">
@@ -221,7 +237,7 @@ export function WorkflowCanvas({
           </span>
           <button
             aria-label="Fit view"
-            className="flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+            className="flex size-8 cursor-pointer items-center justify-center rounded-md text-muted-foreground transition-all hover:-translate-y-px hover:bg-accent hover:text-accent-foreground hover:shadow-sm active:translate-y-0"
             type="button"
             onClick={() => flowInstance?.fitView({ padding: 0.25, duration: 240 })}
           >
@@ -229,7 +245,7 @@ export function WorkflowCanvas({
           </button>
           <button
             aria-label="Reset zoom"
-            className="flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+            className="flex size-8 cursor-pointer items-center justify-center rounded-md text-muted-foreground transition-all hover:-translate-y-px hover:bg-accent hover:text-accent-foreground hover:shadow-sm active:translate-y-0"
             type="button"
             onClick={() => flowInstance?.setViewport({ x: 32, y: 32, zoom: 1 }, { duration: 240 })}
           >
@@ -275,7 +291,7 @@ function FlowPilotEdge({
           <button
             aria-label={`Remove connection ${id}`}
             className={cn(
-              "nodrag nopan absolute flex size-6 items-center justify-center rounded-full border border-border bg-card text-muted-foreground shadow-sm transition-colors hover:bg-destructive hover:text-destructive-foreground",
+              "nodrag nopan absolute flex size-6 cursor-pointer items-center justify-center rounded-full border border-border bg-card text-muted-foreground shadow-sm transition-all hover:-translate-y-px hover:bg-destructive hover:text-destructive-foreground hover:shadow-md active:translate-y-0",
               selected && "border-violet-400 text-foreground"
             )}
             style={{
@@ -503,6 +519,10 @@ function getNodeIcon(type: string) {
     return Globe2;
   }
 
+  if (type === "action.aiPrompt") {
+    return Bot;
+  }
+
   return WorkflowIcon;
 }
 
@@ -523,6 +543,10 @@ function getNodeSummary(node: WorkflowNode) {
 
   if (node.type === "action.httpRequest") {
     return `${node.config.method} ${node.config.url}`;
+  }
+
+  if (node.type === "action.aiPrompt") {
+    return `${node.config.model}: ${node.config.prompt}`;
   }
 
   return "Workflow node";

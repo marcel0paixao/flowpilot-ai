@@ -3,6 +3,7 @@ import type { WorkflowDefinition } from "@flowpilot/contracts";
 import type {
   Workflow,
   WorkflowExecution,
+  WorkflowExecutionDiagnostics,
   WorkflowExecutionSummary,
   WorkflowStatus,
   WorkflowVersion
@@ -98,5 +99,11 @@ export function requestWorkflowExecution(
 export function getExecutionSummary(workspaceId: string, workflowId: string, executionId: string) {
   return apiRequest<WorkflowExecutionSummary>(
     `/workspaces/${workspaceId}/workflows/${workflowId}/executions/${executionId}/summary`
+  );
+}
+
+export function getExecutionDiagnostics(workspaceId: string, workflowId: string, executionId: string) {
+  return apiRequest<WorkflowExecutionDiagnostics>(
+    `/workspaces/${workspaceId}/workflows/${workflowId}/executions/${executionId}/diagnostics`
   );
 }

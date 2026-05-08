@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@flowpilot/config": "workspace:*",
+    "@flowpilot/ai-orchestrator": "workspace:*",
     "@flowpilot/contracts": "workspace:*",
     "@flowpilot/logger": "workspace:*",
     "@prisma/client": "^6.19.3",
