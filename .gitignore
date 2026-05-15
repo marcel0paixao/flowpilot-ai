@@ -12,6 +12,8 @@ coverage/
 .env
 .env.*
 !.env.example
+apps/ai-orchestrator/.venv/
+
 
 # Logs
 *.log
