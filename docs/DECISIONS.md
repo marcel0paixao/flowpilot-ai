@@ -311,3 +311,15 @@ Reason: RabbitMQ queue depth and live DLQ reads are useful later, but persisted 
 Decision: Add `action.aiPrompt` to the shared workflow definition contract and execute it through an `ai-orchestrator` boundary with a deterministic mock response.
 
 Reason: The workflow engine needs to prove the AI service boundary before adding external model providers, LangChain, RAG, credentials, rate limits, and token accounting. A deterministic AI node keeps tests repeatable while establishing the product shape for future AI-backed workflow actions.
+
+## 2026-05-15: AI Orchestrator Becomes A Python Service
+
+Decision: Replace the TypeScript `apps/ai-orchestrator` scaffold with a Python 3.12 FastAPI service at the same path, rather than creating a parallel `ai-orchestrator-python` app.
+
+Reason: The project is still local and not deployed, so there is no need for a slow migration path or two AI orchestrator services. Keeping the service name stable preserves the architecture while making Python the explicit AI boundary for LangChain, provider abstraction, embeddings, Qdrant, and future RAG work.
+
+## 2026-05-15: Prompt Execution Uses HTTP Before Messaging
+
+Decision: The execution worker will call the AI orchestrator through synchronous HTTP for `action.aiPrompt` execution, while RabbitMQ remains the event backbone and future async AI job transport.
+
+Reason: An AI prompt node blocks the next workflow node because its output becomes downstream input. HTTP gives a direct request/response boundary with simpler timeout, error, and test semantics. RabbitMQ is still the better fit for `ai.trace.created`, document ingestion, embedding batches, reindexing, evaluations, and other long-running work that does not need to synchronously return node output to the worker.

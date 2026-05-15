@@ -24,11 +24,11 @@ The project is inspired by common enterprise automation patterns, but it does no
 
 | Service | Responsibility |
 |---|---|
-| Web App | Next.js dashboard, workflow UI, execution views |
+| Web App | React/Vite dashboard, workflow UI, execution views |
 | Auth/API Service | Users, workspaces, JWT, RBAC, public REST API |
 | Workflow Service | Workflow definitions, triggers, executions, node metadata |
 | Execution Worker | Consumes RabbitMQ jobs and executes workflow nodes |
-| AI Orchestrator | LangChain, RAG, memory, tools, provider abstraction |
+| AI Orchestrator | Python/FastAPI service for deterministic prompt execution now, LangChain/RAG/provider abstraction later |
 | Observability Service | AI traces, execution logs, metrics, cost analytics |
 | Integration Service | Webhooks, HTTP requests, notifications, external adapters |
 
@@ -60,7 +60,7 @@ docs/
 
 ## Local Development
 
-This repository is set up as a TypeScript-first pnpm workspace.
+This repository is set up as a TypeScript-first pnpm workspace with a Python/FastAPI AI orchestrator service under `apps/ai-orchestrator`.
 
 ```bash
 pnpm install
@@ -69,7 +69,14 @@ docker compose up -d
 pnpm check
 ```
 
-`docker compose up -d` starts PostgreSQL, RabbitMQ, Redis, Qdrant, and the API service. The API will be available at `http://localhost:3000`, with health checks at `http://localhost:3000/api/health` and Swagger documentation at `http://localhost:3000/docs`.
+`docker compose up -d` starts PostgreSQL, RabbitMQ, Redis, Qdrant, the API service, web app, execution worker, workflow service, and AI orchestrator. The API will be available at `http://localhost:3000`, with health checks at `http://localhost:3000/api/health` and Swagger documentation at `http://localhost:3000/docs`. The AI orchestrator exposes `GET /health` and `POST /v1/prompts/run` at `http://localhost:8000`.
+
+Run the AI orchestrator checks inside Docker:
+
+```bash
+docker compose run --rm ai-orchestrator python -m pytest
+docker compose run --rm ai-orchestrator python -m ruff check .
+```
 
 Seed repeatable demo data after PostgreSQL is running:
 

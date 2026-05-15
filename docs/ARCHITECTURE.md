@@ -43,7 +43,9 @@ Consumes RabbitMQ execution jobs and runs workflow nodes. It is horizontally sca
 
 ### AI Orchestrator
 
-Owns LangChain flows, RAG, memory, tools, model provider abstraction, and AI-specific execution behavior.
+Python/FastAPI service that owns AI-specific execution behavior. The first implementation exposes a deterministic prompt provider over HTTP so `action.aiPrompt` behavior can be tested without external model providers. It will later own LangChain flows, RAG, memory, tools, model provider abstraction, token/cost accounting, and AI trace emission.
+
+Prompt execution is initially modeled as synchronous HTTP because the execution worker needs the AI node output before continuing the workflow DAG. RabbitMQ remains the asynchronous backbone for workflow lifecycle events and is the preferred path for future AI traces, document ingestion, embedding batches, reindexing, and other long-running AI jobs.
 
 ### Observability Service
 
@@ -86,7 +88,7 @@ Initial local development uses Qdrant as a separate vector store to make the RAG
 
 ## Monorepo Layout
 
-The repository starts as a TypeScript-first pnpm workspace.
+The repository starts as a TypeScript-first pnpm workspace, with `apps/ai-orchestrator` implemented as a separately containerized Python service.
 
 ```txt
 apps/
@@ -94,7 +96,7 @@ apps/
   api/                    auth, users, workspaces, roles, permissions, JWT
   workflow-service/       workflow definitions, triggers, executions, node metadata
   execution-worker/       RabbitMQ consumer and node execution runtime
-  ai-orchestrator/        LangChain, RAG, memory, tools, provider abstraction
+  ai-orchestrator/        Python/FastAPI prompt orchestration, LangChain/RAG later
   observability-service/  workflow logs and LLM traces
 packages/
   contracts/              shared RabbitMQ event contracts
@@ -111,7 +113,7 @@ packages/
 - Redis
 - Qdrant
 
-Docker Compose also runs the API, web app, execution worker, and workflow-service for local development. Dedicated production Dockerfiles can still be refined later when deployment shape becomes clearer.
+Docker Compose also runs the API, web app, execution worker, workflow-service, and Python AI orchestrator for local development. Dedicated production Dockerfiles can still be refined later when deployment shape becomes clearer.
 
 ## Security Strategy
 

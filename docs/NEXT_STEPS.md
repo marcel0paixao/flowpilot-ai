@@ -155,16 +155,18 @@ Create the project foundation.
 
 ## Immediate Tasks
 
+- Harden the Python AI orchestrator scaffold with provider unit tests, invalid request coverage, and a documented `/v1/prompts/run` contract fixture.
+- Replace the execution worker's local `@flowpilot/ai-orchestrator` dependency with an HTTP client to `AI_ORCHESTRATOR_URL` after the Python contract is stable.
 - Add end-to-end browser coverage for React Flow drag interactions once a stable browser automation harness is available.
 - Add live RabbitMQ queue-depth reads or an operator-only queue snapshot endpoint when operational requirements justify RabbitMQ Management API access.
 - Add metrics export for worker node duration, retry scheduling, terminal failures, and outbox dispatch.
-- Add real provider configuration for `action.aiPrompt` behind the deterministic mock boundary.
+- Add real provider configuration for `action.aiPrompt` behind the Python deterministic mock provider.
 - Add explicit ownership-transfer policy only when product requirements need it.
 
 ## Next Architecture Tasks
 
 - Define role permissions for `OWNER`, `ADMIN`, `MEMBER`, and `VIEWER`.
-- Add LangChain/provider abstraction inside `ai-orchestrator` after `action.aiPrompt` has credential and retry semantics.
+- Add LangChain/provider abstraction inside the Python `ai-orchestrator` after `action.aiPrompt` has credential and retry semantics.
 - Design the first RAG-backed workflow action and the Qdrant collection/index lifecycle.
 - Add local service Dockerfiles for any service that still relies on placeholder process setup.
 

@@ -2,7 +2,7 @@
 
 ## Current Phase
 
-Editable workflow builder MVP.
+Python AI orchestrator scaffold.
 
 ## Completed
 
@@ -390,16 +390,30 @@ Editable workflow builder MVP.
 - Added a deterministic AI prompt boundary in `@flowpilot/ai-orchestrator`.
 - Execution worker now runs `action.aiPrompt` through the AI orchestrator boundary and returns deterministic mock AI output.
 - Added structured worker logs for node execution duration, node failures, retry scheduling delay, outbox publish success/failure, and command dead-lettering.
-- Docker Compose now builds `@flowpilot/ai-orchestrator` before starting `execution-worker`.
+- Docker Compose previously built `@flowpilot/ai-orchestrator` before starting `execution-worker`.
 - Added AI orchestrator unit coverage for deterministic prompt output.
 - Expanded execution-worker coverage so sequential runtime includes the AI prompt node.
-- `pnpm --filter @flowpilot/ai-orchestrator test` passed with 1 test after adding deterministic AI prompt coverage.
-- `pnpm --filter @flowpilot/ai-orchestrator typecheck` passed after adding the AI boundary.
+- Replaced the TypeScript AI orchestrator scaffold with a Python/FastAPI service under `apps/ai-orchestrator`.
+- Added `pyproject.toml` for Python dependencies and tooling.
+- Added a Dockerfile for the AI orchestrator using Python 3.12.
+- Added the AI orchestrator service to Docker Compose at `http://localhost:8000`.
+- Added AI orchestrator `GET /health`.
+- Added AI orchestrator `POST /v1/prompts/run` with Pydantic request/response schemas.
+- Added a deterministic prompt provider that preserves the current mock AI behavior shape.
+- Added AI orchestrator tests for health and deterministic prompt execution.
+- Added Ruff configuration for the Python service.
+- Ignored Python local development artifacts such as virtual environments, caches, and generated egg metadata.
+- Installed Python 3.12 locally for editor/type-checking support while keeping Docker as the service runtime.
+- The old `pnpm --filter @flowpilot/ai-orchestrator` checks are superseded by Python `pytest` and Ruff checks.
 - `pnpm --filter @flowpilot/execution-worker test` passed with 11 tests after adding `action.aiPrompt` runtime coverage.
 - `pnpm --filter @flowpilot/api test` passed with 51 tests after adding execution diagnostics.
 - `pnpm --filter @flowpilot/web build`, `pnpm --filter @flowpilot/api build`, `pnpm --filter @flowpilot/execution-worker build`, and `pnpm -r typecheck` passed after the diagnostics and AI node package.
 - `docker compose up -d --build api execution-worker` restarted the local API and execution worker with diagnostics and `action.aiPrompt`.
 - Browser smoke-test against execution `eae5e399-a0d1-44c3-b6f2-c47e975cf42b` confirmed the execution detail renders `Retry & DLQ` plus `Outbox dispatch` panels populated from persisted diagnostics.
+- `./.venv/bin/pytest -p no:cacheprovider` passed in `apps/ai-orchestrator` with 2 tests after the Python scaffold.
+- `./.venv/bin/ruff check --no-cache .` passed in `apps/ai-orchestrator`.
+- `docker compose run --rm ai-orchestrator python -m pytest` passed with 2 tests.
+- `docker compose run --rm ai-orchestrator python -m ruff check .` passed.
 
 ## Notes
 
@@ -411,7 +425,7 @@ Editable workflow builder MVP.
 
 ## Recommended Next Step
 
-Move from the frontend MVP into the next backend/platform slice: expose execution retry/DLQ visibility, tighten worker observability, and start the AI/RAG service boundary only after defining the first AI-backed workflow action.
+Harden the Python AI orchestrator contract before integrating it into the execution worker: add deterministic provider unit coverage, invalid-payload/API validation coverage, a documented request/response fixture, and then replace the worker's local TypeScript AI boundary with an HTTP client to `ai-orchestrator`.
 
 ## Notes For Next Chat
 
