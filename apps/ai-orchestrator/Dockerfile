@@ -9,9 +9,10 @@ ENV PYTHONPATH=/app/src
 COPY pyproject.toml ./
 
 RUN pip install --no-cache-dir --upgrade pip \
-  && pip install --no-cache-dir -e .
+  && pip install --no-cache-dir -e ".[dev]"
 
 COPY src ./src
+COPY tests ./tests
 
 EXPOSE 8000
 

@@ -29,4 +29,10 @@ yarn-debug.log*
 # Runtime data
 tmp/
 data/
+#Python
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+apps/ai-orchestrator/.venv/
 

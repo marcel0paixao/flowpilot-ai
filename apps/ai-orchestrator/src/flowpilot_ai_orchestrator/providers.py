@@ -1,6 +1,11 @@
 import json
 
-from flowpilot_ai_orchestrator.schemas import PromptRunConfig, PromptRunResult, PromptTrace, TokenUsage
+from flowpilot_ai_orchestrator.schemas import (
+    PromptRunConfig,
+    PromptRunResult,
+    PromptTrace,
+    TokenUsage,
+)
 
 
 class DeterministicPromptProvider:
