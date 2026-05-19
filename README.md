@@ -126,6 +126,8 @@ RabbitMQ management UI will be available at `http://localhost:15672` with the lo
 
 - [Roadmap](docs/ROADMAP.md)
 - [Architecture](docs/ARCHITECTURE.md)
+- [AI Orchestrator](docs/AI_ORCHESTRATOR.md)
+- [AI Orchestrator Status](docs/AI_ORCHESTRATOR_STATUS.md)
 - [Status](docs/STATUS.md)
 - [Decisions](docs/DECISIONS.md)
 - [Next Steps](docs/NEXT_STEPS.md)

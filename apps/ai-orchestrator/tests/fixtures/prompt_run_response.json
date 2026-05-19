@@ -1,0 +1,20 @@
+{
+  "result": {
+    "provider": "flowpilot-mock-ai",
+    "model": "mock-flowpilot-llm",
+    "prompt": "Summarize this lead.",
+    "temperature": 0.2,
+    "summary": "Mock AI response for 2 input fields: email, leadId.",
+    "tokens": {
+      "input": 17,
+      "output": 12
+    },
+    "trace": {
+      "deterministic": true,
+      "inputKeys": [
+        "email",
+        "leadId"
+      ]
+    }
+  }
+}

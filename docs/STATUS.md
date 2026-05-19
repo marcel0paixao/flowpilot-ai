@@ -410,10 +410,17 @@ Python AI orchestrator scaffold.
 - `pnpm --filter @flowpilot/web build`, `pnpm --filter @flowpilot/api build`, `pnpm --filter @flowpilot/execution-worker build`, and `pnpm -r typecheck` passed after the diagnostics and AI node package.
 - `docker compose up -d --build api execution-worker` restarted the local API and execution worker with diagnostics and `action.aiPrompt`.
 - Browser smoke-test against execution `eae5e399-a0d1-44c3-b6f2-c47e975cf42b` confirmed the execution detail renders `Retry & DLQ` plus `Outbox dispatch` panels populated from persisted diagnostics.
-- `./.venv/bin/pytest -p no:cacheprovider` passed in `apps/ai-orchestrator` with 2 tests after the Python scaffold.
+- Reorganized AI orchestrator tests into `tests/unit`, `tests/api`, and `tests/fixtures`.
+- Added JSON contract fixtures for `/v1/prompts/run` request and response.
+- Added API validation coverage for invalid prompt payloads returning `422`.
+- `./.venv/bin/pytest -p no:cacheprovider` passed in `apps/ai-orchestrator` with 12 tests after adding provider, API, fixture, and validation coverage.
 - `./.venv/bin/ruff check --no-cache .` passed in `apps/ai-orchestrator`.
-- `docker compose run --rm ai-orchestrator python -m pytest` passed with 2 tests.
+- `docker compose build ai-orchestrator` passed after updating copied tests.
+- `docker compose run --rm ai-orchestrator python -m pytest` passed with 12 tests.
 - `docker compose run --rm ai-orchestrator python -m ruff check .` passed.
+- Added `docs/AI_ORCHESTRATOR.md` to define the AI Orchestrator as a data-driven AI execution, observability, benchmarking, and applied data science component.
+- Added `docs/AI_ORCHESTRATOR_STATUS.md` with MVP, intermediate, and advanced phases for the Python AI Orchestrator roadmap.
+- Linked the new AI Orchestrator documentation from the main README.
 
 ## Notes
 
