@@ -1,5 +1,4 @@
 import { readConfig } from "@flowpilot/config";
-import { runDeterministicAiPrompt } from "@flowpilot/ai-orchestrator";
 import {
   FLOWPILOT_DEAD_LETTER_QUEUES,
   FLOWPILOT_EXCHANGES,
@@ -28,6 +27,7 @@ import { Prisma, PrismaClient } from "@prisma/client/index";
 import { connect, type Channel, type ChannelModel, type ConsumeMessage } from "amqplib";
 import { pathToFileURL } from "node:url";
 import { randomUUID } from "node:crypto";
+import { AiOrchestratorClient } from "./ai-orchestrator-client.js";
 
 const logger = createLogger("execution-worker", "debug");
 
@@ -91,9 +91,10 @@ type WorkflowExecutionWithVersion = NonNullable<
 >;
 
 export async function startWorker(): Promise<WorkerResources> {
-  const config = readConfig();
+  const runtimeConfig = readConfig();
+  const aiOrchestratorClient = new AiOrchestratorClient(runtimeConfig.aiOrchestratorUrl);
   const prisma = new PrismaClient();
-  const connection = await connect(config.rabbitmqUrl);
+  const connection = await connect(runtimeConfig.rabbitmqUrl);
   const channel = await connection.createChannel();
 
   await declareTopology(channel);
@@ -104,7 +105,7 @@ export async function startWorker(): Promise<WorkerResources> {
       return;
     }
 
-    await handleDelivery(message, channel, prisma);
+    await handleDelivery(message, channel, prisma, aiOrchestratorClient);
   });
 
   const outboxDispatcher = startOutboxDispatcher(channel, prisma);
@@ -153,7 +154,8 @@ function startOutboxDispatcher(
 export async function handleDelivery(
   message: ConsumeMessage,
   channel: Channel,
-  prisma: PrismaClient
+  prisma: PrismaClient,
+  aiOrchestratorClient: AiOrchestratorClient
 ): Promise<void> {
   const parsedMessage = parseWorkflowExecutionRequestedMessage(message);
 
@@ -167,7 +169,7 @@ export async function handleDelivery(
   }
 
   try {
-    await processWorkflowExecution(parsedMessage, channel, prisma);
+    await processWorkflowExecution(parsedMessage, channel, prisma, aiOrchestratorClient);
     channel.ack(message);
   } catch (error) {
     const failure = normalizeWorkerFailure(error);
@@ -204,7 +206,8 @@ export async function handleDelivery(
 export async function processWorkflowExecution(
   message: WorkflowExecutionRequestedMessage,
   channel: Channel,
-  prisma: PrismaClient
+  prisma: PrismaClient,
+  aiOrchestratorClient: AiOrchestratorClient
 ): Promise<void> {
   const startedAt = new Date();
   const existingExecution = await findWorkflowExecutionForProcessing(
@@ -307,7 +310,13 @@ export async function processWorkflowExecution(
     await dispatchOutboxEvent(channel, prisma, startedOutboxMessage);
   }
 
-  const output = await executeWorkflowNodes(message, channel, prisma, execution);
+  const output = await executeWorkflowNodes(
+    message,
+    channel,
+    prisma,
+    execution,
+    aiOrchestratorClient
+  );
   const completedAt = new Date();
   const completedMessage = createWorkflowExecutionCompletedMessage(
     message,
@@ -533,7 +542,8 @@ async function executeWorkflowNodes(
   message: WorkflowExecutionRequestedMessage,
   channel: Channel,
   prisma: PrismaClient,
-  execution: WorkflowExecutionWithVersion
+  execution: WorkflowExecutionWithVersion,
+  aiOrchestratorClient: AiOrchestratorClient
 ): Promise<Record<string, unknown>> {
   assertNoSimulatedWorkflowFailure(message);
 
@@ -555,7 +565,13 @@ async function executeWorkflowNodes(
     await publishNodeStartedEvent(channel, prisma, message, node, nodeExecution.id, input, startedAt);
 
     try {
-      const output = executeNode(node, input);
+      const output = await executeNode({
+        node,
+        input,
+        message,
+        nodeExecutionId: nodeExecution.id,
+        aiOrchestratorClient
+      });
       const completedAt = new Date();
       await completeNodeExecution(prisma, nodeExecution.id, output, completedAt);
       await publishNodeCompletedEvent(
@@ -726,7 +742,19 @@ function getNodeInput(
   );
 }
 
-function executeNode(node: WorkflowNode, input: Record<string, unknown>): Record<string, unknown> {
+async function executeNode({
+  node,
+  input,
+  message,
+  nodeExecutionId,
+  aiOrchestratorClient
+}: {
+  node: WorkflowNode;
+  input: Record<string, unknown>;
+  message: WorkflowExecutionRequestedMessage;
+  nodeExecutionId: string;
+  aiOrchestratorClient: AiOrchestratorClient;
+}): Promise<Record<string, unknown>> {
   if (node.type === WORKFLOW_NODE_TYPES.manualTrigger) {
     return input;
   }
@@ -746,7 +774,13 @@ function executeNode(node: WorkflowNode, input: Record<string, unknown>): Record
   }
 
   if (node.type === WORKFLOW_NODE_TYPES.aiPromptAction) {
-    return runDeterministicAiPrompt({
+    return await aiOrchestratorClient.runPrompt({
+      workspaceId: message.workspaceId,
+      workflowId: message.payload.workflowId,
+      executionId: message.payload.executionId,
+      nodeExecutionId,
+      nodeId: node.id,
+      correlationId: message.correlationId,
       input,
       model: node.config.model,
       prompt: node.config.prompt,

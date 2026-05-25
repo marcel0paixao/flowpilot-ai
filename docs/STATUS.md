@@ -421,6 +421,20 @@ Python AI orchestrator scaffold.
 - Added `docs/AI_ORCHESTRATOR.md` to define the AI Orchestrator as a data-driven AI execution, observability, benchmarking, and applied data science component.
 - Added `docs/AI_ORCHESTRATOR_STATUS.md` with MVP, intermediate, and advanced phases for the Python AI Orchestrator roadmap.
 - Linked the new AI Orchestrator documentation from the main README.
+- Added `AI_ORCHESTRATOR_URL` to shared runtime config with a Docker-local default of `http://ai-orchestrator:8000`.
+- Added `apps/execution-worker/src/ai-orchestrator-client.ts` to call the Python AI Orchestrator over HTTP.
+- Added execution-worker unit coverage for the AI Orchestrator HTTP client success path, non-2xx responses, and malformed responses.
+- Changed `action.aiPrompt` execution in the worker from the removed local TypeScript boundary to the Python AI Orchestrator HTTP client.
+- Removed the execution worker dependency on `@flowpilot/ai-orchestrator`.
+- Removed the stale `pnpm --filter @flowpilot/ai-orchestrator build` command from Docker Compose.
+- Updated Docker Compose startup for `execution-worker` and `workflow-service` to build `@flowpilot/config` before starting services that import it.
+- `pnpm --filter @flowpilot/config build` passed after adding `AI_ORCHESTRATOR_URL`.
+- `pnpm --filter @flowpilot/config typecheck` passed.
+- `pnpm --filter @flowpilot/execution-worker test` passed with 14 tests after HTTP client integration.
+- `pnpm --filter @flowpilot/execution-worker typecheck` passed.
+- `docker compose config --quiet` passed.
+- `docker compose up -d --build ai-orchestrator execution-worker workflow-service` passed after rebuilding the Python AI service and restarting dependent services.
+- Smoke-tested workflow execution `11ab8c27-0f2b-4fca-a109-e118861ef7e9`; the `Lead Enrichment` workflow reached `SUCCEEDED`, and its `action.aiPrompt` node returned `provider=flowpilot-mock-ai` through the Python AI Orchestrator.
 
 ## Notes
 
@@ -432,7 +446,7 @@ Python AI orchestrator scaffold.
 
 ## Recommended Next Step
 
-Harden the Python AI orchestrator contract before integrating it into the execution worker: add deterministic provider unit coverage, invalid-payload/API validation coverage, a documented request/response fixture, and then replace the worker's local TypeScript AI boundary with an HTTP client to `ai-orchestrator`.
+Start the first real provider-abstraction slice in the Python AI Orchestrator: split the deterministic provider behind a provider interface/registry, keep deterministic as the default, and prepare the shape for OpenAI and Ollama providers without adding external model calls yet.
 
 ## Notes For Next Chat
 

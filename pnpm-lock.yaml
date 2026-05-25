@@ -15,22 +15,6 @@ importers:
         specifier: ^5.7.2
         version: 5.9.3
 
-  apps/ai-orchestrator:
-    dependencies:
-      '@flowpilot/config':
-        specifier: workspace:*
-        version: link:../../packages/config
-      '@flowpilot/contracts':
-        specifier: workspace:*
-        version: link:../../packages/contracts
-      '@flowpilot/logger':
-        specifier: workspace:*
-        version: link:../../packages/logger
-    devDependencies:
-      tsx:
-        specifier: ^4.21.0
-        version: 4.21.0
-
   apps/api:
     dependencies:
       '@fastify/cors':
@@ -118,9 +102,6 @@ importers:
 
   apps/execution-worker:
     dependencies:
-      '@flowpilot/ai-orchestrator':
-        specifier: workspace:*
-        version: link:../ai-orchestrator
       '@flowpilot/config':
         specifier: workspace:*
         version: link:../../packages/config

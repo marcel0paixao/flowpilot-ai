@@ -323,3 +323,9 @@ Reason: The project is still local and not deployed, so there is no need for a s
 Decision: The execution worker will call the AI orchestrator through synchronous HTTP for `action.aiPrompt` execution, while RabbitMQ remains the event backbone and future async AI job transport.
 
 Reason: An AI prompt node blocks the next workflow node because its output becomes downstream input. HTTP gives a direct request/response boundary with simpler timeout, error, and test semantics. RabbitMQ is still the better fit for `ai.trace.created`, document ingestion, embedding batches, reindexing, evaluations, and other long-running work that does not need to synchronously return node output to the worker.
+
+## 2026-05-19: Worker Uses Python AI Orchestrator Over HTTP
+
+Decision: Replace the execution worker's local TypeScript AI prompt call with an HTTP client that calls `POST /v1/prompts/run` on the Python AI Orchestrator and persists `response.result` as the workflow node output.
+
+Reason: This makes the Python service the real runtime boundary for `action.aiPrompt` while preserving the existing deterministic output shape. Keeping the worker responsible for workflow state and the AI Orchestrator responsible for AI execution gives a cleaner split before adding real providers, LangChain, observability, benchmarks, and RAG.

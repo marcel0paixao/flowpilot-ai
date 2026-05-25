@@ -155,8 +155,8 @@ Create the project foundation.
 
 ## Immediate Tasks
 
-- Harden the Python AI orchestrator scaffold with provider unit tests, invalid request coverage, and a documented `/v1/prompts/run` contract fixture.
-- Replace the execution worker's local `@flowpilot/ai-orchestrator` dependency with an HTTP client to `AI_ORCHESTRATOR_URL` after the Python contract is stable.
+- Add a provider interface and registry inside the Python AI Orchestrator, keeping the deterministic provider as the default.
+- Tighten AI Orchestrator timeout/error mapping between the TypeScript worker and Python service.
 - Add end-to-end browser coverage for React Flow drag interactions once a stable browser automation harness is available.
 - Add live RabbitMQ queue-depth reads or an operator-only queue snapshot endpoint when operational requirements justify RabbitMQ Management API access.
 - Add metrics export for worker node duration, retry scheduling, terminal failures, and outbox dispatch.

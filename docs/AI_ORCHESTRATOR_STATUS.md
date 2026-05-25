@@ -16,10 +16,12 @@ Current capabilities:
 - Deterministic mock provider.
 - Pytest test suite.
 - Ruff linting.
+- Execution worker integration through HTTP.
+- Docker Compose local smoke path for `action.aiPrompt`.
 
 Current limitation:
 
-- The execution worker still uses the previous local TypeScript AI boundary. The Python service is ready as an isolated service, but it is not yet the runtime path for `action.aiPrompt`.
+- Only the deterministic provider exists. OpenAI, Ollama, LangChain, traces, benchmarks, persistence, and RAG are still future phases.
 
 ## Guiding Question
 
@@ -39,8 +41,8 @@ Goal: make the Python AI Orchestrator a real workflow dependency while keeping t
 - Define stable request/response contracts for prompt execution.
 - Add contract fixtures for `/v1/prompts/run`.
 - Add invalid payload tests and schema validation tests.
-- Integrate the TypeScript execution worker with the Python service over HTTP.
-- Remove the old local TypeScript AI orchestrator package dependency.
+- Integrate the TypeScript execution worker with the Python service over HTTP. Completed.
+- Remove the old local TypeScript AI orchestrator package dependency. Completed.
 - Preserve existing `action.aiPrompt` behavior shape.
 - Add timeouts and clear error mapping in the worker's HTTP client.
 - Keep Docker Compose as the single local startup path.
@@ -70,6 +72,14 @@ Goal: make the Python AI Orchestrator a real workflow dependency while keeping t
 - `docker compose run --rm ai-orchestrator python -m ruff check .` passes.
 - `pnpm --filter @flowpilot/execution-worker test` passes.
 - A workflow with `action.aiPrompt` succeeds through the Python service.
+
+Current MVP status:
+
+- Contract fixtures, API validation tests, and provider unit tests are in place.
+- The worker calls the Python service over HTTP.
+- The old local TypeScript AI orchestrator dependency has been removed from the worker.
+- A Docker smoke execution has confirmed `action.aiPrompt` succeeds through the Python service.
+- Remaining MVP hardening: improve timeout/error mapping semantics and add a small provider interface/registry before real providers.
 
 ## Intermediate Phase
 
@@ -223,4 +233,3 @@ Public deliverables to prepare as the roadmap matures:
 - Avoid provider-specific logic leaking into workflow execution code.
 - Add persistence only when there is a query, export, benchmark, or product view that needs it.
 - Keep advanced ML simple and explainable unless the data volume justifies more complexity.
-

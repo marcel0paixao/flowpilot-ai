@@ -5,6 +5,7 @@ export type RuntimeConfig = {
   rabbitmqUrl: string;
   redisUrl: string;
   qdrantUrl: string;
+  aiOrchestratorUrl: string;
 };
 
 export function readConfig(env: NodeJS.ProcessEnv = process.env): RuntimeConfig {
@@ -14,7 +15,8 @@ export function readConfig(env: NodeJS.ProcessEnv = process.env): RuntimeConfig 
     databaseUrl: requireEnv(env, "DATABASE_URL"),
     rabbitmqUrl: requireEnv(env, "RABBITMQ_URL"),
     redisUrl: requireEnv(env, "REDIS_URL"),
-    qdrantUrl: requireEnv(env, "QDRANT_URL")
+    qdrantUrl: requireEnv(env, "QDRANT_URL"),
+    aiOrchestratorUrl: env.AI_ORCHESTRATOR_URL ?? "http://ai-orchestrator:8000"
   };
 }
 

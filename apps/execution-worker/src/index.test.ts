@@ -14,6 +14,7 @@ import {
 import type { Channel, ConsumeMessage } from "amqplib";
 import type { PrismaClient } from "@prisma/client/index";
 
+import { AiOrchestratorClient, type AiPromptRunInput } from "./ai-orchestrator-client.js";
 import {
   dispatchPendingOutboxMessages,
   getWorkflowExecutionRetryAttempt,
@@ -21,6 +22,8 @@ import {
   parseWorkflowExecutionRequestedMessage,
   processWorkflowExecution
 } from "./index.js";
+
+const testAiOrchestratorClient = createFakeAiOrchestratorClient();
 
 test("parses valid workflow execution request messages", () => {
   const parsed = parseWorkflowExecutionRequestedMessage(createConsumeMessage(validMessage()));
@@ -89,13 +92,14 @@ test("skips processing when workflow execution is already terminal", async () =>
     }
   } as unknown as PrismaClient;
 
-  await processWorkflowExecution(validMessage(), channel, prisma);
+  await processWorkflowExecution(validMessage(), channel, prisma, testAiOrchestratorClient);
 
   assert.equal(channel.published.length, 0);
 });
 
 test("executes workflow nodes sequentially and publishes node lifecycle events", async () => {
   const channel = createFakeChannel();
+  const aiPromptRequests: AiPromptRunInput[] = [];
   const workflowUpdates: unknown[] = [];
   const nodeUpserts: unknown[] = [];
   const nodeUpdates: unknown[] = [];
@@ -143,12 +147,52 @@ test("executes workflow nodes sequentially and publishes node lifecycle events",
     }
   } as unknown as PrismaClient;
 
-  await processWorkflowExecution(validMessage(), channel, prisma);
+  await processWorkflowExecution(
+    validMessage(),
+    channel,
+    prisma,
+    createFakeAiOrchestratorClient(aiPromptRequests)
+  );
 
   assert.equal(nodeUpserts.length, 4);
   assert.equal(nodeUpdates.length, 4);
   assert.equal(workflowUpdates.length, 2);
   assert.equal(channel.published.length, 10);
+  assert.deepEqual(aiPromptRequests, [
+    {
+      workspaceId: "workspace-1",
+      workflowId: "workflow-1",
+      executionId: "execution-1",
+      nodeExecutionId: "node-execution-ai-summary",
+      nodeId: "ai-summary",
+      correlationId: "workflow-execution:execution-1",
+      input: {
+        status: "mocked",
+        request: {
+          method: "POST",
+          url: "https://example.com/api/enrich-lead",
+          headers: {},
+          body: {
+            input: {
+              leadId: "lead-1"
+            }
+          }
+        },
+        response: {
+          statusCode: 200,
+          body: {
+            ok: true,
+            echoedInput: {
+              leadId: "lead-1"
+            }
+          }
+        }
+      },
+      prompt: "Summarize this lead.",
+      model: "mock-flowpilot-llm",
+      temperature: 0.2
+    }
+  ]);
   assert.deepEqual(
     channel.published.map((published) => published.routingKey),
     [
@@ -186,7 +230,12 @@ test("schedules retry and acknowledges retryable failures before max attempts", 
     }
   } as unknown as PrismaClient;
 
-  await handleDelivery(createConsumeMessage(validMessage()), channel, prisma);
+  await handleDelivery(
+    createConsumeMessage(validMessage()),
+    channel,
+    prisma,
+    testAiOrchestratorClient
+  );
 
   assert.equal(channel.acked, true);
   assert.equal(channel.nacked, false);
@@ -230,7 +279,8 @@ test("marks failed, publishes failed event, and dead-letters after max retries",
       }
     }),
     channel,
-    prisma
+    prisma,
+    testAiOrchestratorClient
   );
 
   assert.equal(channel.acked, true);
@@ -506,6 +556,33 @@ function createFakeChannel(options: { publishResults?: boolean[] } = {}) {
   };
 
   return channel as unknown as FakeChannel;
+}
+
+function createFakeAiOrchestratorClient(requests: AiPromptRunInput[] = []) {
+  return {
+    async runPrompt(request: AiPromptRunInput) {
+      requests.push(request);
+      const inputKeys = Object.keys(request.input).sort();
+
+      return {
+        provider: "flowpilot-mock-ai",
+        model: request.model,
+        prompt: request.prompt,
+        temperature: request.temperature,
+        summary: `Mock AI response for ${inputKeys.length} input fields: ${
+          inputKeys.join(", ") || "none"
+        }.`,
+        tokens: {
+          input: 1,
+          output: 12
+        },
+        trace: {
+          deterministic: true,
+          inputKeys
+        }
+      };
+    }
+  } as unknown as AiOrchestratorClient;
 }
 
 function createOutboxRecord(routingKey: string) {
