@@ -79,6 +79,7 @@ export const aiPromptActionNodeSchema = workflowNodeBaseSchema
     config: z
       .object({
         prompt: z.string().min(1).max(2_000),
+        provider: z.string().min(1).max(80).default("deterministic"),
         model: z.string().min(1).max(120).default("mock-flowpilot-llm"),
         temperature: z.number().min(0).max(2).default(0.2)
       })

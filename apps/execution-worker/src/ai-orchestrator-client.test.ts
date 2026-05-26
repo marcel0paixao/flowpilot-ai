@@ -37,6 +37,7 @@ test("AI orchestrator client posts prompt run requests and returns result payloa
       email: "lead@example.test"
     },
     prompt: "Summarize this lead.",
+    provider: "deterministic",
     model: "mock-flowpilot-llm",
     temperature: 0.2
   });
@@ -64,6 +65,7 @@ test("AI orchestrator client posts prompt run requests and returns result payloa
     },
     config: {
       prompt: "Summarize this lead.",
+      provider: "deterministic",
       model: "mock-flowpilot-llm",
       temperature: 0.2
     },
@@ -117,6 +119,7 @@ function validPromptInput() {
       leadId: "lead-1"
     },
     prompt: "Summarize this lead.",
+    provider: "deterministic",
     model: "mock-flowpilot-llm",
     temperature: 0.2
   };

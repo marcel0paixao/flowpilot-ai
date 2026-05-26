@@ -9,6 +9,7 @@
   },
   "config": {
     "prompt": "Summarize this lead.",
+    "provider": "deterministic",
     "model": "mock-flowpilot-llm",
     "temperature": 0.2
   },

@@ -1065,6 +1065,22 @@ function NodeConfigEditor({
     return (
       <div className="space-y-3">
         <div className="space-y-2">
+          <Label htmlFor="ai-prompt-provider">Provider</Label>
+          <Input
+            id="ai-prompt-provider"
+            value={node.config.provider}
+            onChange={(event) =>
+              onChange({
+                ...node,
+                config: {
+                  ...node.config,
+                  provider: event.target.value
+                }
+              })
+            }
+          />
+        </div>
+        <div className="space-y-2">
           <Label htmlFor="ai-prompt-model">Model</Label>
           <Input
             id="ai-prompt-model"
@@ -1267,6 +1283,7 @@ function createNode(type: WorkflowNodeType, nodeNumber: number, definition: Work
     type: WORKFLOW_NODE_TYPES.aiPromptAction,
     name: `AI Prompt ${nodeNumber}`,
     config: {
+      provider: "deterministic",
       model: "mock-flowpilot-llm",
       prompt: "Summarize the current workflow payload for an operator.",
       temperature: 0.2

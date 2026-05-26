@@ -189,6 +189,7 @@ test("executes workflow nodes sequentially and publishes node lifecycle events",
         }
       },
       prompt: "Summarize this lead.",
+      provider: "deterministic",
       model: "mock-flowpilot-llm",
       temperature: 0.2
     }
@@ -450,6 +451,7 @@ function workflowDefinition(): WorkflowDefinition {
         type: WORKFLOW_NODE_TYPES.aiPromptAction,
         name: "AI Summary",
         config: {
+          provider: "deterministic",
           model: "mock-flowpilot-llm",
           prompt: "Summarize this lead.",
           temperature: 0.2
