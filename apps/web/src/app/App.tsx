@@ -14,6 +14,11 @@ const ExecutionDetailPage = lazy(() =>
     default: module.ExecutionDetailPage
   }))
 );
+const CredentialsPage = lazy(() =>
+  import("@/features/credentials/credentials-page").then((module) => ({
+    default: module.CredentialsPage
+  }))
+);
 const ExecutionsPage = lazy(() =>
   import("@/features/executions/executions-page").then((module) => ({ default: module.ExecutionsPage }))
 );
@@ -74,6 +79,10 @@ export function App() {
                   <Route
                     path="workspaces/:workspaceId/executions"
                     element={<LazyRoute page={<ExecutionsPage />} />}
+                  />
+                  <Route
+                    path="workspaces/:workspaceId/credentials"
+                    element={<LazyRoute page={<CredentialsPage />} />}
                   />
                   <Route path="workspaces/:workspaceId/members" element={<LazyRoute page={<MembersPage />} />} />
                   <Route

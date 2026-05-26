@@ -5,6 +5,8 @@ export type WorkflowStatus = "DRAFT" | "ACTIVE" | "ARCHIVED";
 export type WorkflowExecutionStatus = "PENDING" | "RUNNING" | "SUCCEEDED" | "FAILED" | "CANCELLED";
 export type WorkflowNodeExecutionStatus = "PENDING" | "RUNNING" | "SUCCEEDED" | "FAILED" | "SKIPPED";
 export type OutboxMessageStatus = "PENDING" | "PUBLISHED" | "FAILED";
+export type CredentialProvider = "openrouter" | "ollama" | "openai";
+export type CredentialKind = "llm" | "database" | "search" | "webhook" | "email";
 
 export interface User {
   id: string;
@@ -41,6 +43,18 @@ export interface CurrentUserMembership {
 
 export interface CurrentUser extends UserProfile {
   memberships: CurrentUserMembership[];
+}
+
+export interface IntegrationCredential {
+  id: string;
+  workspaceId: string;
+  name: string;
+  provider: CredentialProvider;
+  kind: CredentialKind;
+  capabilities: string[];
+  lastUsedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface LoginResponse {

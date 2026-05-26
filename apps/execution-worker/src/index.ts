@@ -786,7 +786,9 @@ async function executeNode({
       correlationId: message.correlationId,
       input,
       provider: node.config.provider,
+      credentialId: node.config.credentialId,
       model: node.config.model,
+      systemPrompt: node.config.systemPrompt,
       prompt: node.config.prompt,
       temperature: node.config.temperature
     });

@@ -17,6 +17,7 @@ model Workspace {
   members WorkspaceMember[]
   workflows Workflow[]
   workflowExecutions WorkflowExecution[]
+  integrationCredentials IntegrationCredential[]
 }
 
 model User {
@@ -29,6 +30,32 @@ model User {
 
   memberships WorkspaceMember[]
   requestedWorkflowExecutions WorkflowExecution[]
+  integrationCredentials IntegrationCredential[]
+}
+
+model IntegrationCredential {
+  id             String   @id @default(uuid())
+  workspaceId    String
+  createdByUserId String?
+  name           String
+  provider       String
+  kind           String
+  capabilities   String[]
+  encryptedValue String
+  iv             String
+  authTag        String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  lastUsedAt     DateTime?
+
+  workspace     Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  createdByUser User?     @relation(fields: [createdByUserId], references: [id], onDelete: SetNull)
+
+  @@unique([workspaceId, provider, name])
+  @@index([workspaceId])
+  @@index([provider])
+  @@index([kind])
+  @@index([createdByUserId])
 }
 
 model WorkspaceMember {

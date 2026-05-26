@@ -39,8 +39,10 @@ test("AI orchestrator client posts prompt run requests and returns result payloa
       leadId: "lead-1",
       email: "lead@example.test"
     },
+    systemPrompt: "You summarize CRM leads.",
     prompt: "Summarize this lead.",
     provider: "deterministic",
+    credentialId: "credential-1",
     model: "mock-flowpilot-llm",
     temperature: 0.2
   });
@@ -68,7 +70,9 @@ test("AI orchestrator client posts prompt run requests and returns result payloa
     },
     config: {
       prompt: "Summarize this lead.",
+      systemPrompt: "You summarize CRM leads.",
       provider: "deterministic",
+      credentialId: "credential-1",
       model: "mock-flowpilot-llm",
       temperature: 0.2
     },

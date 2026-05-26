@@ -439,6 +439,13 @@ Python AI orchestrator scaffold.
 - Moved the deterministic provider behind `providers/deterministic/provider.py`.
 - `action.aiPrompt.config.provider` now selects the provider implementation.
 - Unknown AI provider names now return HTTP `422` with `unknown_ai_provider`.
+- Added encrypted workspace-scoped integration credentials in the API and Prisma schema.
+- Credentials now include non-secret compatibility metadata: `provider`, `kind`, and `capabilities`.
+- Added an internal credential secret lookup endpoint guarded by service-token auth for the future AI Orchestrator provider path.
+- Added a workspace Credentials page in the web app.
+- The AI prompt node now filters selectable credentials by provider, `kind=llm`, and `llm.chat` capability.
+- Extended `action.aiPrompt` with `credentialId` and `systemPrompt`, and the worker forwards those fields to the AI Orchestrator request.
+- Updated API CORS handling so browser clients can use `PATCH` and `DELETE` routes such as credential removal.
 
 ## Notes
 

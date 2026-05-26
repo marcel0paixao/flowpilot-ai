@@ -31,7 +31,7 @@ React + Vite SPA for workspaces, workflows, workflow builder, executions, and fu
 
 ### Auth/API Service
 
-Owns identity-adjacent application data: users, workspaces, roles, permissions, and JWT issuance or validation.
+Owns identity-adjacent application data: users, workspaces, roles, permissions, JWT issuance or validation, and encrypted integration credentials.
 
 ### Workflow Service
 
@@ -44,6 +44,8 @@ Consumes RabbitMQ execution jobs and runs workflow nodes. It is horizontally sca
 ### AI Orchestrator
 
 Python/FastAPI service that owns AI-specific execution behavior. The first implementation exposes a deterministic prompt provider over HTTP so `action.aiPrompt` behavior can be tested without external model providers. It will later own LangChain flows, RAG, memory, tools, model provider abstraction, token/cost accounting, and AI trace emission.
+
+Workflow AI nodes reference provider credentials by `credentialId`. Secret values are stored encrypted by the API service and should not be embedded in workflow definitions, worker logs, or execution outputs. Credentials are modeled with `provider`, `kind`, and `capabilities` so nodes can request compatible credentials by behavior, for example an AI prompt node requiring `kind=llm` and `llm.chat`, rather than depending on a rigid node-type mapping. The AI Orchestrator should resolve credentials through an internal API call guarded by a service token rather than receiving raw keys from the execution worker.
 
 Prompt execution is initially modeled as synchronous HTTP because the execution worker needs the AI node output before continuing the workflow DAG. RabbitMQ remains the asynchronous backbone for workflow lifecycle events and is the preferred path for future AI traces, document ingestion, embedding batches, reindexing, and other long-running AI jobs.
 
@@ -122,4 +124,7 @@ Docker Compose also runs the API, web app, execution worker, workflow-service, a
 - Role-based permissions
 - Tenant-aware query filtering
 - No secrets committed to the repository
+- Provider API keys stored as encrypted workspace-scoped credentials
+- Credentials expose non-secret compatibility metadata through `provider`, `kind`, and `capabilities`
+- Workflow definitions reference credential IDs rather than raw secret values
 - Explicit origin handling if iframe or embedded apps are ever introduced

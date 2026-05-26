@@ -11,7 +11,9 @@ const schema = z.object({
   RABBITMQ_URL: z.string().url(),
   REDIS_URL: z.string().url(),
   QDRANT_URL: z.string().url(),
-  JWT_SECRET: z.string().min(24)
+  JWT_SECRET: z.string().min(24),
+  CREDENTIAL_ENCRYPTION_KEY: z.string().min(24).optional(),
+  INTERNAL_API_TOKEN: z.string().min(24).optional()
 });
 
 const parsed = schema.safeParse(process.env);
@@ -29,5 +31,7 @@ export const appConfig = {
   rabbitmqUrl: parsed.data.RABBITMQ_URL,
   redisUrl: parsed.data.REDIS_URL,
   qdrantUrl: parsed.data.QDRANT_URL,
-  jwtSecret: parsed.data.JWT_SECRET
+  jwtSecret: parsed.data.JWT_SECRET,
+  credentialEncryptionKey: parsed.data.CREDENTIAL_ENCRYPTION_KEY ?? parsed.data.JWT_SECRET,
+  internalApiToken: parsed.data.INTERNAL_API_TOKEN ?? parsed.data.JWT_SECRET
 } as const;

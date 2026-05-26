@@ -16,7 +16,19 @@ class PromptRunConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     prompt: str = Field(min_length=1, max_length=2000)
+    system_prompt: str | None = Field(
+        default=None,
+        alias="systemPrompt",
+        min_length=1,
+        max_length=2000,
+    )
     provider: str = Field(default="deterministic", min_length=1, max_length=80)
+    credential_id: str | None = Field(
+        default=None,
+        alias="credentialId",
+        min_length=1,
+        max_length=120,
+    )
     model: str = Field(default="mock-flowpilot-llm", min_length=1, max_length=120)
     temperature: float = Field(default=0.2, ge=0, le=2)
 

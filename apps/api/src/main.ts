@@ -17,7 +17,11 @@ async function bootstrap(): Promise<void> {
   );
 
   await app.register(helmet);
-  await app.register(cors, { origin: appConfig.corsOrigin });
+  await app.register(cors, {
+    origin: appConfig.corsOrigin,
+    methods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"]
+  });
 
   app.setGlobalPrefix("api");
   app.useGlobalPipes(

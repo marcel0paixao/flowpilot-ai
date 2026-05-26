@@ -2,6 +2,7 @@ import { Module } from "@nestjs/common";
 
 import { AuthModule } from "./auth/auth.module.js";
 import { ConfigModule } from "./config/config.module.js";
+import { CredentialsModule } from "./credentials/credentials.module.js";
 import { HealthModule } from "./health/health.module.js";
 import { MessagingModule } from "./messaging/messaging.module.js";
 import { PrismaModule } from "./prisma/prisma.module.js";
@@ -12,6 +13,7 @@ import { WorkspacesModule } from "./workspaces/workspaces.module.js";
   imports: [
     ConfigModule,
     AuthModule,
+    CredentialsModule,
     HealthModule,
     MessagingModule,
     PrismaModule,

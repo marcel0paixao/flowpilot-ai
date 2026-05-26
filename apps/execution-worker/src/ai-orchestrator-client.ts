@@ -7,7 +7,9 @@ export type AiPromptRunInput = {
   correlationId: string;
   input: Record<string, unknown>;
   prompt: string;
+  systemPrompt?: string;
   provider: string;
+  credentialId?: string;
   model: string;
   temperature: number;
 };
@@ -118,7 +120,9 @@ function createPromptRunPayload(request: AiPromptRunInput) {
     },
     config: {
       prompt: request.prompt,
+      ...(request.systemPrompt !== undefined ? { systemPrompt: request.systemPrompt } : {}),
       provider: request.provider,
+      ...(request.credentialId !== undefined ? { credentialId: request.credentialId } : {}),
       model: request.model,
       temperature: request.temperature
     },

@@ -194,7 +194,9 @@ test("executes workflow nodes sequentially and publishes node lifecycle events",
       },
       prompt: "Summarize this lead.",
       provider: "deterministic",
+      credentialId: "credential-1",
       model: "mock-flowpilot-llm",
+      systemPrompt: "You summarize CRM leads.",
       temperature: 0.2
     }
   ]);
@@ -518,7 +520,9 @@ function workflowDefinition(): WorkflowDefinition {
         name: "AI Summary",
         config: {
           provider: "deterministic",
+          credentialId: "credential-1",
           model: "mock-flowpilot-llm",
+          systemPrompt: "You summarize CRM leads.",
           prompt: "Summarize this lead.",
           temperature: 0.2
         }

@@ -36,6 +36,7 @@ import {
   validateWorkflowDefinition
 } from "@/features/workflows/workflow-definition-validation";
 import { ApiError } from "@/shared/api/http";
+import { listCredentials } from "@/shared/api/credentials";
 import { queryKeys } from "@/shared/api/query-keys";
 import type { WorkflowStatus } from "@/shared/api/types";
 import {
@@ -962,6 +963,13 @@ function NodeConfigEditor({
   node: WorkflowNode;
   onChange: (node: WorkflowNode) => void;
 }) {
+  const { workspaceId = "" } = useParams();
+  const credentialsQuery = useQuery({
+    queryKey: queryKeys.credentials(workspaceId),
+    queryFn: () => listCredentials(workspaceId),
+    enabled: Boolean(workspaceId) && node.type === WORKFLOW_NODE_TYPES.aiPromptAction
+  });
+
   if (node.type === WORKFLOW_NODE_TYPES.manualTrigger) {
     return <JsonBlock value={node.config} />;
   }
@@ -1062,11 +1070,20 @@ function NodeConfigEditor({
   }
 
   if (node.type === WORKFLOW_NODE_TYPES.aiPromptAction) {
+    const providerCredentials =
+      credentialsQuery.data?.filter(
+        (credential) =>
+          credential.provider === node.config.provider &&
+          credential.kind === "llm" &&
+          credential.capabilities.includes("llm.chat")
+      ) ?? [];
+
     return (
       <div className="space-y-3">
         <div className="space-y-2">
           <Label htmlFor="ai-prompt-provider">Provider</Label>
-          <Input
+          <select
+            className="liquid-field h-10 w-full rounded-md border border-input bg-card px-3 text-sm"
             id="ai-prompt-provider"
             value={node.config.provider}
             onChange={(event) =>
@@ -1074,11 +1091,44 @@ function NodeConfigEditor({
                 ...node,
                 config: {
                   ...node.config,
-                  provider: event.target.value
+                  provider: event.target.value,
+                  credentialId: undefined
                 }
               })
             }
-          />
+          >
+            <option value="deterministic">Deterministic</option>
+            <option value="openrouter">OpenRouter</option>
+            <option value="ollama">Ollama</option>
+            <option value="openai">OpenAI</option>
+          </select>
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="ai-prompt-credential">Credential</Label>
+          <select
+            className="liquid-field h-10 w-full rounded-md border border-input bg-card px-3 text-sm"
+            disabled={node.config.provider === "deterministic"}
+            id="ai-prompt-credential"
+            value={node.config.credentialId ?? ""}
+            onChange={(event) =>
+              onChange({
+                ...node,
+                config: {
+                  ...node.config,
+                  credentialId: event.target.value || undefined
+                }
+              })
+            }
+          >
+            <option value="">
+              {node.config.provider === "deterministic" ? "No credential required" : "Select credential"}
+            </option>
+            {providerCredentials.map((credential) => (
+              <option key={credential.id} value={credential.id}>
+                {credential.name}
+              </option>
+            ))}
+          </select>
         </div>
         <div className="space-y-2">
           <Label htmlFor="ai-prompt-model">Model</Label>
@@ -1111,6 +1161,22 @@ function NodeConfigEditor({
                 config: {
                   ...node.config,
                   temperature: Number(event.target.value)
+                }
+              })
+            }
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="ai-system-prompt">System prompt</Label>
+          <Textarea
+            id="ai-system-prompt"
+            value={node.config.systemPrompt ?? ""}
+            onChange={(event) =>
+              onChange({
+                ...node,
+                config: {
+                  ...node.config,
+                  systemPrompt: event.target.value || undefined
                 }
               })
             }
@@ -1285,6 +1351,7 @@ function createNode(type: WorkflowNodeType, nodeNumber: number, definition: Work
     config: {
       provider: "deterministic",
       model: "mock-flowpilot-llm",
+      systemPrompt: "You are a concise workflow assistant.",
       prompt: "Summarize the current workflow payload for an operator.",
       temperature: 0.2
     }

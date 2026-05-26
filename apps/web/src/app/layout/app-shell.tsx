@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import {
   Bot,
   ChevronDown,
+  KeyRound,
   Clock3,
   LayoutDashboard,
   LogOut,
@@ -131,6 +132,13 @@ export function AppShell({ children }: { children: ReactNode }) {
             icon={Clock3}
             to={`${workspaceBasePath}/executions`}
             label="Executions"
+            disabled={!currentWorkspace}
+          />
+          <SidebarLink
+            collapsed={!isSidebarExpanded}
+            icon={KeyRound}
+            to={`${workspaceBasePath}/credentials`}
+            label="Credentials"
             disabled={!currentWorkspace}
           />
           <SidebarLink
