@@ -14,6 +14,9 @@ Current capabilities:
 - `GET /health`.
 - `POST /v1/prompts/run`.
 - Deterministic mock provider.
+- Provider base interface and registry.
+- Provider selection through `action.aiPrompt.config.provider`.
+- Unknown provider names return HTTP `422`.
 - Pytest test suite.
 - Ruff linting.
 - Execution worker integration through HTTP.
@@ -76,10 +79,11 @@ Goal: make the Python AI Orchestrator a real workflow dependency while keeping t
 Current MVP status:
 
 - Contract fixtures, API validation tests, and provider unit tests are in place.
+- Provider registry tests are in place.
 - The worker calls the Python service over HTTP.
 - The old local TypeScript AI orchestrator dependency has been removed from the worker.
 - A Docker smoke execution has confirmed `action.aiPrompt` succeeds through the Python service.
-- Remaining MVP hardening: improve timeout/error mapping semantics and add a small provider interface/registry before real providers.
+- Remaining MVP hardening: improve timeout/error mapping semantics between the TypeScript worker and Python service before real providers.
 
 ## Intermediate Phase
 
@@ -87,7 +91,7 @@ Goal: turn the AI Orchestrator into a measurable provider/model execution system
 
 ### Scope
 
-- Add provider interface.
+- Provider interface and registry are in place.
 - Add `OpenAIProvider`.
 - Add `OllamaProvider` for local Llama models.
 - Add provider/model selection in `action.aiPrompt` config.
@@ -173,7 +177,9 @@ Goal: make the AI Orchestrator a data-driven ML/LLM evaluation and recommendatio
 
 - Add contract fixture for `/v1/prompts/run`.
 - Add provider unit tests.
+- Add provider registry tests.
 - Add invalid payload tests.
+- Add unknown provider API validation.
 - Add worker HTTP client.
 - Remove worker dependency on local TypeScript AI package.
 - Update Docker Compose worker dependency on `ai-orchestrator`.
@@ -182,8 +188,6 @@ Goal: make the AI Orchestrator a data-driven ML/LLM evaluation and recommendatio
 
 ### Intermediate Checklist
 
-- Define provider base interface.
-- Add provider registry.
 - Add OpenAI provider behind config.
 - Add Ollama provider behind config.
 - Add LangChain prompt execution.

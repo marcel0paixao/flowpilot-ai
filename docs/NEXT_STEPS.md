@@ -155,12 +155,11 @@ Create the project foundation.
 
 ## Immediate Tasks
 
-- Add a provider interface and registry inside the Python AI Orchestrator, keeping the deterministic provider as the default.
 - Tighten AI Orchestrator timeout/error mapping between the TypeScript worker and Python service.
+- Add real provider configuration for `action.aiPrompt` behind the Python deterministic provider registry.
 - Add end-to-end browser coverage for React Flow drag interactions once a stable browser automation harness is available.
 - Add live RabbitMQ queue-depth reads or an operator-only queue snapshot endpoint when operational requirements justify RabbitMQ Management API access.
 - Add metrics export for worker node duration, retry scheduling, terminal failures, and outbox dispatch.
-- Add real provider configuration for `action.aiPrompt` behind the Python deterministic mock provider.
 - Add explicit ownership-transfer policy only when product requirements need it.
 
 ## Next Architecture Tasks

@@ -71,3 +71,20 @@ def test_prompt_run_rejects_invalid_payload(
     response = client.post("/v1/prompts/run", json=payload)
 
     assert response.status_code == 422
+
+
+def test_prompt_run_rejects_unknown_provider() -> None:
+    client = TestClient(app)
+    payload = load_prompt_request()
+    payload["config"]["provider"] = "unknown"
+
+    response = client.post("/v1/prompts/run", json=payload)
+
+    assert response.status_code == 422
+    assert response.json() == {
+        "detail": {
+            "code": "unknown_ai_provider",
+            "message": "Unknown AI provider: unknown",
+            "provider": "unknown",
+        }
+    }

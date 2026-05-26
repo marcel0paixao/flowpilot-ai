@@ -416,7 +416,7 @@ Python AI orchestrator scaffold.
 - `./.venv/bin/pytest -p no:cacheprovider` passed in `apps/ai-orchestrator` with 12 tests after adding provider, API, fixture, and validation coverage.
 - `./.venv/bin/ruff check --no-cache .` passed in `apps/ai-orchestrator`.
 - `docker compose build ai-orchestrator` passed after updating copied tests.
-- `docker compose run --rm ai-orchestrator python -m pytest` passed with 12 tests.
+- `docker compose run --rm ai-orchestrator python -m pytest` passed with 17 tests after provider registry and unknown provider validation coverage.
 - `docker compose run --rm ai-orchestrator python -m ruff check .` passed.
 - Added `docs/AI_ORCHESTRATOR.md` to define the AI Orchestrator as a data-driven AI execution, observability, benchmarking, and applied data science component.
 - Added `docs/AI_ORCHESTRATOR_STATUS.md` with MVP, intermediate, and advanced phases for the Python AI Orchestrator roadmap.
@@ -434,7 +434,11 @@ Python AI orchestrator scaffold.
 - `pnpm --filter @flowpilot/execution-worker typecheck` passed.
 - `docker compose config --quiet` passed.
 - `docker compose up -d --build ai-orchestrator execution-worker workflow-service` passed after rebuilding the Python AI service and restarting dependent services.
-- Smoke-tested workflow execution `11ab8c27-0f2b-4fca-a109-e118861ef7e9`; the `Lead Enrichment` workflow reached `SUCCEEDED`, and its `action.aiPrompt` node returned `provider=flowpilot-mock-ai` through the Python AI Orchestrator.
+- Smoke-tested workflow execution `11ab8c27-0f2b-4fca-a109-e118861ef7e9`; the `Lead Enrichment` workflow reached `SUCCEEDED` through the Python AI Orchestrator.
+- Added a Python provider base interface and registry for AI prompt providers.
+- Moved the deterministic provider behind `providers/deterministic/provider.py`.
+- `action.aiPrompt.config.provider` now selects the provider implementation.
+- Unknown AI provider names now return HTTP `422` with `unknown_ai_provider`.
 
 ## Notes
 
@@ -446,7 +450,7 @@ Python AI orchestrator scaffold.
 
 ## Recommended Next Step
 
-Start the first real provider-abstraction slice in the Python AI Orchestrator: split the deterministic provider behind a provider interface/registry, keep deterministic as the default, and prepare the shape for OpenAI and Ollama providers without adding external model calls yet.
+Tighten AI Orchestrator error semantics between the TypeScript worker and Python service: provider selection now resolves through the Python provider registry, and the next slice should make worker retries/failures explicit for orchestrator timeouts and non-2xx responses.
 
 ## Notes For Next Chat
 

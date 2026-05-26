@@ -118,6 +118,7 @@ Request shape:
   },
   "config": {
     "prompt": "Summarize this lead.",
+    "provider": "deterministic",
     "model": "mock-flowpilot-llm",
     "temperature": 0.2
   },
@@ -133,7 +134,7 @@ Response shape:
 ```json
 {
   "result": {
-    "provider": "flowpilot-mock-ai",
+    "provider": "deterministic",
     "model": "mock-flowpilot-llm",
     "prompt": "Summarize this lead.",
     "temperature": 0.2,
@@ -150,7 +151,7 @@ Response shape:
 }
 ```
 
-The response is intentionally compatible with the current deterministic AI node output shape. When observability metadata is added, the worker should still be able to persist a clean node output while trace data flows through an AI trace path.
+The response is intentionally compatible with the current deterministic AI node output shape. `config.provider` selects the provider implementation from the AI Orchestrator registry. Unknown provider names return HTTP `422` with an `unknown_ai_provider` error code. When observability metadata is added, the worker should still be able to persist a clean node output while trace data flows through an AI trace path.
 
 ## Core Architecture
 
@@ -185,7 +186,10 @@ apps/ai-orchestrator/
       providers/
         __init__.py
         base.py
-        deterministic.py
+        registry.py
+        deterministic/
+          __init__.py
+          provider.py
         openai.py
         ollama.py
       langchain/
@@ -554,4 +558,3 @@ The following additions would strengthen the project without making it artificia
 - A "schema strictness" setting that routes structured extraction tasks toward models with better JSON validity.
 
 These additions all connect to real product needs: cost control, reliability, evaluation, and explainability.
-

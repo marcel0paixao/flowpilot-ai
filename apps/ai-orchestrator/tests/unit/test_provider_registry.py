@@ -1,7 +1,10 @@
 import pytest
 
 from flowpilot_ai_orchestrator.providers.deterministic import DeterministicPromptProvider
-from flowpilot_ai_orchestrator.providers.registry import ProviderRegistry
+from flowpilot_ai_orchestrator.providers.registry import (
+    ProviderRegistry,
+    UnknownProviderError,
+)
 from flowpilot_ai_orchestrator.schemas import PromptRunConfig, PromptRunRequest
 from flowpilot_ai_orchestrator.service import PromptService
 
@@ -17,7 +20,7 @@ def test_provider_registry_returns_registered_provider() -> None:
 def test_provider_registry_rejects_unknown_provider() -> None:
     registry = ProviderRegistry()
 
-    with pytest.raises(ValueError, match="Unknown AI provider: unknown"):
+    with pytest.raises(UnknownProviderError, match="Unknown AI provider: unknown"):
         registry.get("unknown")
 
 
