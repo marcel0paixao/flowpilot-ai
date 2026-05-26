@@ -10,6 +10,7 @@ app = FastAPI(
 
 prompt_service = PromptService()
 
+
 @app.post("/v1/prompts/run", response_model=PromptRunResponse)
 def run_prompt(request: PromptRunRequest) -> PromptRunResponse:
     return prompt_service.run_prompt(request)

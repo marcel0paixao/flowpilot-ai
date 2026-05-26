@@ -28,6 +28,10 @@ def with_empty_prompt(payload: dict[str, Any]) -> None:
     payload["config"]["prompt"] = ""
 
 
+def with_empty_provider(payload: dict[str, Any]) -> None:
+    payload["config"]["provider"] = ""
+
+
 def with_temperature_below_range(payload: dict[str, Any]) -> None:
     payload["config"]["temperature"] = -0.1
 
@@ -50,6 +54,7 @@ def with_extra_config_field(payload: dict[str, Any]) -> None:
         without_context,
         without_prompt,
         with_empty_prompt,
+        with_empty_provider,
         with_temperature_below_range,
         with_temperature_above_range,
         with_extra_root_field,

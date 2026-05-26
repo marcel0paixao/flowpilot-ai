@@ -1,5 +1,6 @@
 import json
 
+from flowpilot_ai_orchestrator.providers.base import PromptProvider
 from flowpilot_ai_orchestrator.schemas import (
     PromptRunConfig,
     PromptRunResult,
@@ -8,10 +9,15 @@ from flowpilot_ai_orchestrator.schemas import (
 )
 
 
-class DeterministicPromptProvider:
-    provider_name = "flowpilot-mock-ai"
+class DeterministicPromptProvider(PromptProvider):
+    provider_name = "deterministic"
 
-    def run(self, *, config: PromptRunConfig, input_data: dict[str, object]) -> PromptRunResult:
+    def run(
+        self,
+        *,
+        config: PromptRunConfig,
+        input_data: dict[str, object],
+    ) -> PromptRunResult:
         input_keys = sorted(input_data.keys())
         compact_input = json.dumps(input_data, separators=(",", ":"), sort_keys=False)
 

@@ -21,7 +21,7 @@ def test_deterministic_provider_returns_stable_prompt_result() -> None:
 
     compact_input = json.dumps(input_data, separators=(",", ":"), sort_keys=False)
     assert first_result == second_result
-    assert first_result.provider == "flowpilot-mock-ai"
+    assert first_result.provider == "deterministic"
     assert first_result.model == "mock-flowpilot-llm"
     assert first_result.prompt == "Summarize this lead."
     assert first_result.temperature == 0.2

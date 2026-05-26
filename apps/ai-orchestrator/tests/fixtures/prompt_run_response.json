@@ -1,6 +1,6 @@
 {
   "result": {
-    "provider": "flowpilot-mock-ai",
+    "provider": "deterministic",
     "model": "mock-flowpilot-llm",
     "prompt": "Summarize this lead.",
     "temperature": 0.2,
