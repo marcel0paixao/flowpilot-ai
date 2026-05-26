@@ -27,7 +27,10 @@ import { Prisma, PrismaClient } from "@prisma/client/index";
 import { connect, type Channel, type ChannelModel, type ConsumeMessage } from "amqplib";
 import { pathToFileURL } from "node:url";
 import { randomUUID } from "node:crypto";
-import { AiOrchestratorClient } from "./ai-orchestrator-client.js";
+import {
+  AiOrchestratorClient,
+  AiOrchestratorClientError
+} from "./ai-orchestrator-client.js";
 
 const logger = createLogger("execution-worker", "debug");
 
@@ -1480,6 +1483,15 @@ function normalizeWorkerFailure(error: unknown): WorkerFailure {
       message: error.message,
       retryable: error.retryable,
       cause: error.cause
+    };
+  }
+
+  if (error instanceof AiOrchestratorClientError) {
+    return {
+      code: error.code,
+      message: error.message,
+      retryable: error.retryable,
+      cause: error
     };
   }
 

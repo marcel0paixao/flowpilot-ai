@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import { afterEach, test } from "node:test";
 
-import { AiOrchestratorClient } from "./ai-orchestrator-client.js";
+import {
+  AiOrchestratorClient,
+  AiOrchestratorClientError
+} from "./ai-orchestrator-client.js";
 
 const originalFetch = globalThis.fetch;
 
@@ -87,10 +90,37 @@ test("AI orchestrator client rejects non-successful responses", async () => {
 
   const client = new AiOrchestratorClient("http://ai-orchestrator:8000");
 
-  await assert.rejects(
-    () => client.runPrompt(validPromptInput()),
-    /AI orchestrator request failed with status 503/
-  );
+  const error = await captureAiOrchestratorError(() => client.runPrompt(validPromptInput()));
+
+  assert.equal(error.code, "ai_orchestrator_http_503");
+  assert.equal(error.statusCode, 503);
+  assert.equal(error.retryable, true);
+  assert.equal(error.message, "unavailable");
+});
+
+test("AI orchestrator client maps semantic validation errors as non-retryable", async () => {
+  globalThis.fetch = (async () =>
+    Response.json(
+      {
+        detail: {
+          code: "unknown_ai_provider",
+          message: "Unknown AI provider: unknown",
+          provider: "unknown"
+        }
+      },
+      {
+        status: 422
+      }
+    )) as typeof fetch;
+
+  const client = new AiOrchestratorClient("http://ai-orchestrator:8000");
+
+  const error = await captureAiOrchestratorError(() => client.runPrompt(validPromptInput()));
+
+  assert.equal(error.code, "unknown_ai_provider");
+  assert.equal(error.statusCode, 422);
+  assert.equal(error.retryable, false);
+  assert.equal(error.message, "Unknown AI provider: unknown");
 });
 
 test("AI orchestrator client rejects responses without result objects", async () => {
@@ -101,10 +131,26 @@ test("AI orchestrator client rejects responses without result objects", async ()
 
   const client = new AiOrchestratorClient("http://ai-orchestrator:8000");
 
-  await assert.rejects(
-    () => client.runPrompt(validPromptInput()),
-    /AI orchestrator response did not include a result object/
-  );
+  const error = await captureAiOrchestratorError(() => client.runPrompt(validPromptInput()));
+
+  assert.equal(error.code, "ai_orchestrator_malformed_response");
+  assert.equal(error.retryable, true);
+});
+
+test("AI orchestrator client treats request timeouts as retryable", async () => {
+  globalThis.fetch = ((_: RequestInfo | URL, init?: RequestInit) =>
+    new Promise<Response>((_, reject) => {
+      init?.signal?.addEventListener("abort", () => {
+        reject(new DOMException("The operation was aborted.", "AbortError"));
+      });
+    })) as typeof fetch;
+
+  const client = new AiOrchestratorClient("http://ai-orchestrator:8000", 1);
+
+  const error = await captureAiOrchestratorError(() => client.runPrompt(validPromptInput()));
+
+  assert.equal(error.code, "ai_orchestrator_timeout");
+  assert.equal(error.retryable, true);
 });
 
 function validPromptInput() {
@@ -123,4 +169,17 @@ function validPromptInput() {
     model: "mock-flowpilot-llm",
     temperature: 0.2
   };
+}
+
+async function captureAiOrchestratorError(
+  action: () => Promise<unknown>
+): Promise<AiOrchestratorClientError> {
+  try {
+    await action();
+  } catch (error) {
+    assert.ok(error instanceof AiOrchestratorClientError);
+    return error;
+  }
+
+  assert.fail("Expected AI orchestrator client error");
 }

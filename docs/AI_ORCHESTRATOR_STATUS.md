@@ -83,7 +83,8 @@ Current MVP status:
 - The worker calls the Python service over HTTP.
 - The old local TypeScript AI orchestrator dependency has been removed from the worker.
 - A Docker smoke execution has confirmed `action.aiPrompt` succeeds through the Python service.
-- Remaining MVP hardening: improve timeout/error mapping semantics between the TypeScript worker and Python service before real providers.
+- Worker error mapping distinguishes retryable AI Orchestrator failures from non-retryable semantic errors.
+- Remaining MVP hardening: add the first real provider behind the existing provider registry.
 
 ## Intermediate Phase
 
@@ -92,8 +93,9 @@ Goal: turn the AI Orchestrator into a measurable provider/model execution system
 ### Scope
 
 - Provider interface and registry are in place.
-- Add `OpenAIProvider`.
+- Add `OpenRouterProvider` as the first real cloud provider.
 - Add `OllamaProvider` for local Llama models.
+- Add `OpenAIProvider` after OpenRouter and Ollama prove the provider boundary.
 - Add provider/model selection in `action.aiPrompt` config.
 - Add LangChain for prompt execution and output parsing.
 - Add structured output parsing and schema validation.
@@ -114,8 +116,9 @@ Goal: turn the AI Orchestrator into a measurable provider/model execution system
 ### Tests
 
 - Provider contract tests.
-- Mocked OpenAI tests.
+- Mocked OpenRouter tests.
 - Mocked Ollama tests.
+- Mocked OpenAI tests.
 - LangChain chain tests with fake models.
 - Schema validity tests.
 - Benchmark service tests.

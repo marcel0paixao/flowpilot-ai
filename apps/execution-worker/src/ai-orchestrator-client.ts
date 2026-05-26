@@ -14,6 +14,20 @@ export type AiPromptRunInput = {
 
 export type AiPromptRunResult = Record<string, unknown>;
 
+export class AiOrchestratorClientError extends Error {
+  constructor(
+    public readonly code: string,
+    message: string,
+    public readonly retryable: boolean,
+    public readonly statusCode?: number,
+    public readonly responseBody?: unknown,
+    options?: ErrorOptions
+  ) {
+    super(message, options);
+    this.name = "AiOrchestratorClientError";
+  }
+}
+
 export class AiOrchestratorClient {
   constructor(
     private readonly baseUrl: string,
@@ -37,16 +51,55 @@ export class AiOrchestratorClient {
       });
 
       if (!response.ok) {
-        throw new Error(`AI orchestrator request failed with status ${response.status}`);
+        const responseBody = await readResponseBody(response);
+        const providerError = parseProviderError(responseBody);
+
+        throw new AiOrchestratorClientError(
+          providerError.code ?? `ai_orchestrator_http_${response.status}`,
+          providerError.message ?? `AI orchestrator request failed with status ${response.status}`,
+          isRetryableStatus(response.status),
+          response.status,
+          responseBody
+        );
       }
 
-      const data: unknown = await response.json();
+      const data: unknown = await readResponseBody(response);
 
       if (!isRecord(data) || !isRecord(data.result)) {
-        throw new Error("AI orchestrator response did not include a result object");
+        throw new AiOrchestratorClientError(
+          "ai_orchestrator_malformed_response",
+          "AI orchestrator response did not include a result object",
+          true,
+          response.status,
+          data
+        );
       }
 
       return data.result;
+    } catch (error) {
+      if (error instanceof AiOrchestratorClientError) {
+        throw error;
+      }
+
+      if (isAbortError(error)) {
+        throw new AiOrchestratorClientError(
+          "ai_orchestrator_timeout",
+          `AI orchestrator request timed out after ${this.timeoutMs}ms`,
+          true,
+          undefined,
+          undefined,
+          { cause: error }
+        );
+      }
+
+      throw new AiOrchestratorClientError(
+        "ai_orchestrator_unavailable",
+        error instanceof Error ? error.message : "AI orchestrator request failed",
+        true,
+        undefined,
+        undefined,
+        { cause: error }
+      );
     } finally {
       clearTimeout(timeout);
     }
@@ -75,4 +128,50 @@ function createPromptRunPayload(request: AiPromptRunInput) {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+async function readResponseBody(response: Response): Promise<unknown> {
+  try {
+    return await response.json();
+  } catch (error) {
+    throw new AiOrchestratorClientError(
+      "ai_orchestrator_invalid_json",
+      "AI orchestrator response body was not valid JSON",
+      true,
+      response.status,
+      undefined,
+      { cause: error }
+    );
+  }
+}
+
+function parseProviderError(responseBody: unknown): { code?: string; message?: string } {
+  if (!isRecord(responseBody)) {
+    return {};
+  }
+
+  const detail = responseBody.detail;
+
+  if (typeof detail === "string") {
+    return {
+      message: detail
+    };
+  }
+
+  if (!isRecord(detail)) {
+    return {};
+  }
+
+  return {
+    code: typeof detail.code === "string" ? detail.code : undefined,
+    message: typeof detail.message === "string" ? detail.message : undefined
+  };
+}
+
+function isRetryableStatus(statusCode: number): boolean {
+  return statusCode === 408 || statusCode === 429 || statusCode >= 500;
+}
+
+function isAbortError(error: unknown): boolean {
+  return error instanceof DOMException && error.name === "AbortError";
 }

@@ -450,7 +450,7 @@ Python AI orchestrator scaffold.
 
 ## Recommended Next Step
 
-Tighten AI Orchestrator error semantics between the TypeScript worker and Python service: provider selection now resolves through the Python provider registry, and the next slice should make worker retries/failures explicit for orchestrator timeouts and non-2xx responses.
+Add the first real AI provider behind the Python provider registry, starting with OpenRouter, then Ollama/local Llama, then OpenAI and additional providers.
 
 ## Notes For Next Chat
 

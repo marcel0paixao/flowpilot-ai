@@ -155,8 +155,9 @@ Create the project foundation.
 
 ## Immediate Tasks
 
-- Tighten AI Orchestrator timeout/error mapping between the TypeScript worker and Python service.
-- Add real provider configuration for `action.aiPrompt` behind the Python deterministic provider registry.
+- Add `OpenRouterProvider` as the first real provider behind the Python provider registry.
+- Add provider credential/configuration handling for `action.aiPrompt` without storing raw API keys in workflow definitions.
+- Add Ollama/local Llama support after OpenRouter proves the provider boundary.
 - Add end-to-end browser coverage for React Flow drag interactions once a stable browser automation harness is available.
 - Add live RabbitMQ queue-depth reads or an operator-only queue snapshot endpoint when operational requirements justify RabbitMQ Management API access.
 - Add metrics export for worker node duration, retry scheduling, terminal failures, and outbox dispatch.

@@ -14,7 +14,11 @@ import {
 import type { Channel, ConsumeMessage } from "amqplib";
 import type { PrismaClient } from "@prisma/client/index";
 
-import { AiOrchestratorClient, type AiPromptRunInput } from "./ai-orchestrator-client.js";
+import {
+  AiOrchestratorClient,
+  AiOrchestratorClientError,
+  type AiPromptRunInput
+} from "./ai-orchestrator-client.js";
 import {
   dispatchPendingOutboxMessages,
   getWorkflowExecutionRetryAttempt,
@@ -247,6 +251,68 @@ test("schedules retry and acknowledges retryable failures before max attempts", 
     FLOWPILOT_RETRY_ROUTING_KEYS.workflowExecutionRequested10s
   );
   assert.equal(channel.published[0]?.options.headers["x-flowpilot-retry-attempt"], 1);
+});
+
+test("schedules retry when AI orchestrator failures are retryable", async () => {
+  const channel = createFakeChannel();
+  const prisma = createWorkflowExecutionPrisma();
+  const aiOrchestratorClient = createFailingAiOrchestratorClient(
+    new AiOrchestratorClientError(
+      "ai_orchestrator_timeout",
+      "AI orchestrator request timed out after 5000ms",
+      true
+    )
+  );
+
+  await handleDelivery(createConsumeMessage(validMessage()), channel, prisma, aiOrchestratorClient);
+
+  const retryMessage = channel.published.find(
+    (published) => published.exchange === FLOWPILOT_EXCHANGES.retry
+  );
+  const failedWorkflowEvent = channel.published.find(
+    (published) => published.routingKey === FLOWPILOT_ROUTING_KEYS.workflowExecutionFailed
+  );
+
+  assert.equal(channel.acked, true);
+  assert.equal(channel.nacked, false);
+  assert.equal(retryMessage?.routingKey, FLOWPILOT_RETRY_ROUTING_KEYS.workflowExecutionRequested10s);
+  assert.equal(failedWorkflowEvent, undefined);
+});
+
+test("dead-letters without retry when AI orchestrator failures are non-retryable", async () => {
+  const channel = createFakeChannel();
+  const prisma = createWorkflowExecutionPrisma();
+  const aiOrchestratorClient = createFailingAiOrchestratorClient(
+    new AiOrchestratorClientError(
+      "unknown_ai_provider",
+      "Unknown AI provider: unknown",
+      false,
+      422
+    )
+  );
+
+  await handleDelivery(createConsumeMessage(validMessage()), channel, prisma, aiOrchestratorClient);
+
+  const retryMessage = channel.published.find(
+    (published) => published.exchange === FLOWPILOT_EXCHANGES.retry
+  );
+  const failedWorkflowEvent = channel.published.find(
+    (published) => published.routingKey === FLOWPILOT_ROUTING_KEYS.workflowExecutionFailed
+  );
+  const deadLetter = channel.published.find(
+    (published) => published.exchange === FLOWPILOT_EXCHANGES.dlx
+  );
+  const failedMessage = JSON.parse(failedWorkflowEvent?.content.toString("utf8") ?? "{}") as {
+    payload?: { error?: { code?: string; retryable?: boolean } };
+  };
+
+  assert.equal(channel.acked, true);
+  assert.equal(channel.nacked, false);
+  assert.equal(retryMessage, undefined);
+  assert.equal(deadLetter?.routingKey, FLOWPILOT_ROUTING_KEYS.workflowExecutionRequested);
+  assert.equal(deadLetter?.options.headers["x-flowpilot-dead-letter-code"], "unknown_ai_provider");
+  assert.equal(failedMessage.payload?.error?.code, "unknown_ai_provider");
+  assert.equal(failedMessage.payload?.error?.retryable, false);
 });
 
 test("marks failed, publishes failed event, and dead-letters after max retries", async () => {
@@ -585,6 +651,56 @@ function createFakeAiOrchestratorClient(requests: AiPromptRunInput[] = []) {
       };
     }
   } as unknown as AiOrchestratorClient;
+}
+
+function createFailingAiOrchestratorClient(error: AiOrchestratorClientError) {
+  return {
+    async runPrompt() {
+      throw error;
+    }
+  } as unknown as AiOrchestratorClient;
+}
+
+function createWorkflowExecutionPrisma() {
+  const prisma = {
+    workflowExecution: {
+      findUnique: async () => ({
+        id: "execution-1",
+        workflowId: "workflow-1",
+        workspaceId: "workspace-1",
+        status: "PENDING",
+        startedAt: null,
+        workflowVersion: {
+          definition: workflowDefinition()
+        }
+      }),
+      updateMany: async () => ({ count: 1 })
+    },
+    workflowNodeExecution: {
+      upsert: async (args: { create: { nodeId: string; nodeType: string } }) => ({
+        id: `node-execution-${args.create.nodeId}`,
+        nodeId: args.create.nodeId,
+        nodeType: args.create.nodeType
+      }),
+      update: async (args: unknown) => args
+    },
+    outboxMessage: {
+      upsert: async (args: { create: Record<string, unknown> }) =>
+        createOutboxRecordFromCreate(args.create),
+      update: async (args: { where?: { id?: string } }) => ({
+        ...createOutboxRecord(FLOWPILOT_ROUTING_KEYS.workflowExecutionFailed),
+        id: args.where?.id ?? "outbox-1",
+        status: "PUBLISHED",
+        attempts: 1,
+        publishedAt: new Date("2026-05-02T12:00:01.000Z")
+      })
+    },
+    $transaction: async <T>(callback: (tx: unknown) => Promise<T>) => {
+      return callback(prisma);
+    }
+  };
+
+  return prisma as unknown as PrismaClient;
 }
 
 function createOutboxRecord(routingKey: string) {
