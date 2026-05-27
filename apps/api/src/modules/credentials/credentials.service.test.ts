@@ -15,7 +15,7 @@ test("CredentialsService creates encrypted credentials without returning secret 
     id: "credential-1",
     workspaceId: "workspace-1",
     name: "OpenRouter personal",
-    provider: "openrouter",
+    type: "openrouter",
     kind: "llm",
     capabilities: ["llm.chat", "llm.structured_output"],
     encryptedValue: "encrypted",
@@ -35,7 +35,7 @@ test("CredentialsService creates encrypted credentials without returning secret 
 
   const result = await service.create("workspace-1", "user-1", {
     name: "OpenRouter personal",
-    provider: "openrouter",
+    type: "openrouter",
     kind: "llm",
     capabilities: ["llm.chat", "llm.structured_output"],
     value: "sk-test"
@@ -60,7 +60,7 @@ test("CredentialsService creates encrypted credentials without returning secret 
     id: "credential-1",
     workspaceId: "workspace-1",
     name: "OpenRouter personal",
-    provider: "openrouter",
+    type: "openrouter",
     kind: "llm",
     capabilities: ["llm.chat", "llm.structured_output"],
     lastUsedAt: null,
@@ -77,7 +77,7 @@ test("CredentialsService resolves credential secrets for internal callers", asyn
         id: "credential-1",
         workspaceId: "workspace-1",
         name: "OpenRouter personal",
-        provider: "openrouter",
+        type: "openrouter",
         kind: "llm",
         capabilities: ["llm.chat", "llm.structured_output"],
         encryptedValue: "encrypted",
@@ -93,7 +93,7 @@ test("CredentialsService resolves credential secrets for internal callers", asyn
 
   await createService.create("workspace-1", "user-1", {
     name: "OpenRouter personal",
-    provider: "openrouter",
+    type: "openrouter",
     kind: "llm",
     capabilities: ["llm.chat", "llm.structured_output"],
     value: "sk-test"
@@ -111,7 +111,7 @@ test("CredentialsService resolves credential secrets for internal callers", asyn
       findFirst: mockAsync({
         id: "credential-1",
         workspaceId: "workspace-1",
-        provider: "openrouter",
+        type: "openrouter",
         kind: "llm",
         capabilities: ["llm.chat", "llm.structured_output"],
         encryptedValue: createArgs.data.encryptedValue,
@@ -126,14 +126,14 @@ test("CredentialsService resolves credential secrets for internal callers", asyn
   assert.deepEqual(result, {
     id: "credential-1",
     workspaceId: "workspace-1",
-    provider: "openrouter",
+    type: "openrouter",
     kind: "llm",
     capabilities: ["llm.chat", "llm.structured_output"],
     value: "sk-test"
   });
 });
 
-test("CredentialsService rejects duplicate credential names per provider", async () => {
+test("CredentialsService rejects duplicate credential names per type", async () => {
   const prisma = {
     integrationCredential: {
       create: async () => {
@@ -151,7 +151,7 @@ test("CredentialsService rejects duplicate credential names per provider", async
     () =>
       service.create("workspace-1", "user-1", {
         name: "OpenRouter personal",
-        provider: "openrouter",
+        type: "openrouter",
         kind: "llm",
         capabilities: ["llm.chat", "llm.structured_output"],
         value: "sk-test"

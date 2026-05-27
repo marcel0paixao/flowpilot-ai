@@ -440,10 +440,10 @@ Python AI orchestrator scaffold.
 - `action.aiPrompt.config.provider` now selects the provider implementation.
 - Unknown AI provider names now return HTTP `422` with `unknown_ai_provider`.
 - Added encrypted workspace-scoped integration credentials in the API and Prisma schema.
-- Credentials now include non-secret compatibility metadata: `provider`, `kind`, and `capabilities`.
+- Credentials now include non-secret compatibility metadata: `type`, `kind`, and `capabilities`.
 - Added an internal credential secret lookup endpoint guarded by service-token auth for the future AI Orchestrator provider path.
 - Added a workspace Credentials page in the web app.
-- The AI prompt node now filters selectable credentials by provider, `kind=llm`, and `llm.chat` capability.
+- The AI prompt node now filters selectable credentials by credential `type`, `kind=llm`, and `llm.chat` capability.
 - Extended `action.aiPrompt` with `credentialId` and `systemPrompt`, and the worker forwards those fields to the AI Orchestrator request.
 - Updated API CORS handling so browser clients can use `PATCH` and `DELETE` routes such as credential removal.
 
@@ -458,16 +458,3 @@ Python AI orchestrator scaffold.
 ## Recommended Next Step
 
 Add the first real AI provider behind the Python provider registry, starting with OpenRouter, then Ollama/local Llama, then OpenAI and additional providers.
-
-## Notes For Next Chat
-
-Start by reading:
-
-- `README.md`
-- `docs/ROADMAP.md`
-- `docs/ARCHITECTURE.md`
-- `docs/STATUS.md`
-- `docs/DECISIONS.md`
-- `docs/NEXT_STEPS.md`
-
-Then continue from the editable workflow builder now present in `apps/web`: polish canvas interactions, expand validation feedback, add richer tests around invalid workflow definitions, and start the next product slice only after the builder feels stable in browser smoke tests.

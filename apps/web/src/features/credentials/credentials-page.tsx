@@ -10,7 +10,7 @@ import {
   type CreateCredentialRequest
 } from "@/shared/api/credentials";
 import { queryKeys } from "@/shared/api/query-keys";
-import type { CredentialKind, CredentialProvider } from "@/shared/api/types";
+import type { CredentialKind, CredentialType } from "@/shared/api/types";
 import { formatDateTime } from "@/shared/lib/utils";
 import { Badge } from "@/shared/ui/badge";
 import { Button } from "@/shared/ui/button";
@@ -20,7 +20,7 @@ import { Label } from "@/shared/ui/label";
 import { Skeleton } from "@/shared/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/shared/ui/table";
 
-const PROVIDERS: Array<{ value: CredentialProvider; label: string; kind: CredentialKind }> = [
+const CREDENTIAL_TYPES: Array<{ value: CredentialType; label: string; kind: CredentialKind }> = [
   { value: "openrouter", label: "OpenRouter", kind: "llm" },
   { value: "ollama", label: "Ollama", kind: "llm" },
   { value: "openai", label: "OpenAI", kind: "llm" }
@@ -31,7 +31,7 @@ export function CredentialsPage() {
   const queryClient = useQueryClient();
   const [form, setForm] = useState<CreateCredentialRequest>({
     name: "",
-    provider: "openrouter",
+    type: "openrouter",
     kind: "llm",
     value: ""
   });
@@ -48,12 +48,12 @@ export function CredentialsPage() {
     mutationFn: () =>
       createCredential(workspaceId, {
         name: form.name.trim(),
-        provider: form.provider,
-        kind: getProviderKind(form.provider),
+        type: form.type,
+        kind: getCredentialTypeKind(form.type),
         value: form.value
       }),
     onSuccess: async () => {
-      setForm({ name: "", provider: "openrouter", kind: "llm", value: "" });
+      setForm({ name: "", type: "openrouter", kind: "llm", value: "" });
       await queryClient.invalidateQueries({ queryKey: queryKeys.credentials(workspaceId) });
     }
   });
@@ -68,7 +68,7 @@ export function CredentialsPage() {
     <section className="mx-auto flex w-full max-w-6xl flex-col gap-6 p-4 lg:p-6">
       <div>
         <h1 className="text-2xl font-semibold tracking-normal">Credentials</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Provider keys used by workflow AI nodes.</p>
+        <p className="mt-1 text-sm text-muted-foreground">Integration keys used by workflow nodes.</p>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
@@ -83,7 +83,7 @@ export function CredentialsPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Name</TableHead>
-                  <TableHead>Provider</TableHead>
+                  <TableHead>Type</TableHead>
                   <TableHead>Kind</TableHead>
                   <TableHead>Capabilities</TableHead>
                   <TableHead>Last used</TableHead>
@@ -101,7 +101,7 @@ export function CredentialsPage() {
                       </div>
                     </TableCell>
                     <TableCell>
-                      <Badge variant="info">{credential.provider}</Badge>
+                      <Badge variant="info">{credential.type}</Badge>
                     </TableCell>
                     <TableCell>
                       <Badge variant="secondary">{credential.kind}</Badge>
@@ -150,22 +150,22 @@ export function CredentialsPage() {
           </CardHeader>
           <CardContent className="grid gap-4">
             <div className="space-y-2">
-              <Label htmlFor="credential-provider">Provider</Label>
+              <Label htmlFor="credential-type">Type</Label>
               <select
                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-                id="credential-provider"
-                value={form.provider}
+                id="credential-type"
+                value={form.type}
                 onChange={(event) =>
                   setForm((current) => ({
                     ...current,
-                    provider: event.target.value as CredentialProvider,
-                    kind: getProviderKind(event.target.value as CredentialProvider)
+                    type: event.target.value as CredentialType,
+                    kind: getCredentialTypeKind(event.target.value as CredentialType)
                   }))
                 }
               >
-                {PROVIDERS.map((provider) => (
-                  <option key={provider.value} value={provider.value}>
-                    {provider.label}
+                {CREDENTIAL_TYPES.map((credentialType) => (
+                  <option key={credentialType.value} value={credentialType.value}>
+                    {credentialType.label}
                   </option>
                 ))}
               </select>
@@ -203,6 +203,6 @@ export function CredentialsPage() {
   );
 }
 
-function getProviderKind(provider: CredentialProvider): CredentialKind {
-  return PROVIDERS.find((item) => item.value === provider)?.kind ?? "llm";
+function getCredentialTypeKind(type: CredentialType): CredentialKind {
+  return CREDENTIAL_TYPES.find((item) => item.value === type)?.kind ?? "llm";
 }

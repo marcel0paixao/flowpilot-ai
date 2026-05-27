@@ -1,9 +1,9 @@
 import { apiRequest } from "@/shared/api/http";
-import type { CredentialKind, CredentialProvider, IntegrationCredential } from "@/shared/api/types";
+import type { CredentialKind, CredentialType, IntegrationCredential } from "@/shared/api/types";
 
 export interface CreateCredentialRequest {
   name: string;
-  provider: CredentialProvider;
+  type: CredentialType;
   kind: CredentialKind;
   capabilities?: string[];
   value: string;

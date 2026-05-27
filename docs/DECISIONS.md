@@ -18,11 +18,11 @@ Decision: Use Redis for cache, rate limiting, locks, and temporary state rather 
 
 Reason: This shows a cleaner separation of responsibilities and avoids making Redis the central microservice broker.
 
-## 2026-04-27: Documentation as Chat Handoff
+## 2026-04-27: Documentation as Project Handoff
 
 Decision: Keep `STATUS.md`, `DECISIONS.md`, and `NEXT_STEPS.md` updated at the end of every work session.
 
-Reason: This allows a new chat to continue the project without depending on prior conversation history.
+Reason: This keeps project context durable across work sessions and makes the implementation history reviewable without relying on private notes.
 
 ## 2026-04-27: TypeScript-First pnpm Monorepo
 
@@ -88,7 +88,7 @@ Reason: The API is multi-tenant, so downstream guards and services need workspac
 
 Decision: Use `bcryptjs` for password hashing in the first auth slice.
 
-Reason: It avoids native module build friction in local Docker and Codex environments while still providing bcrypt-compatible password hashing. A native implementation can be revisited later if performance becomes relevant.
+Reason: It avoids native module build friction in local Docker environments while still providing bcrypt-compatible password hashing. A native implementation can be revisited later if performance becomes relevant.
 
 ## 2026-04-28: Workspace RBAC Enforced From Database Membership
 

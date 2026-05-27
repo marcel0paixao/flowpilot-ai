@@ -11,7 +11,7 @@ export class CredentialResponseDto {
   name!: string;
 
   @ApiProperty({ type: String, example: "openrouter" })
-  provider!: string;
+  type!: string;
 
   @ApiProperty({ type: String, example: "llm" })
   kind!: string;

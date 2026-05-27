@@ -1073,7 +1073,7 @@ function NodeConfigEditor({
     const providerCredentials =
       credentialsQuery.data?.filter(
         (credential) =>
-          credential.provider === node.config.provider &&
+          credential.type === node.config.provider &&
           credential.kind === "llm" &&
           credential.capabilities.includes("llm.chat")
       ) ?? [];

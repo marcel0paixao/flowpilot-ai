@@ -1,7 +1,7 @@
 import { ApiProperty } from "@nestjs/swagger";
 import { z } from "zod";
 
-export const credentialProviderSchema = z.enum(["openrouter", "ollama", "openai"]);
+export const credentialTypeSchema = z.enum(["openrouter", "ollama", "openai"]);
 export const credentialKindSchema = z.enum(["llm", "database", "search", "webhook", "email"]);
 
 const defaultCapabilitiesByKind = {
@@ -15,7 +15,7 @@ const defaultCapabilitiesByKind = {
 export const createCredentialSchema = z
   .object({
     name: z.string().min(1).max(120),
-    provider: credentialProviderSchema,
+    type: credentialTypeSchema,
     kind: credentialKindSchema.default("llm"),
     capabilities: z.array(z.string().min(1).max(120)).max(20).optional(),
     value: z.string().min(1).max(10_000)
@@ -36,7 +36,7 @@ export class CreateCredentialSwaggerDto {
   name!: string;
 
   @ApiProperty({ enum: ["openrouter", "ollama", "openai"], example: "openrouter" })
-  provider!: "openrouter" | "ollama" | "openai";
+  type!: "openrouter" | "ollama" | "openai";
 
   @ApiProperty({ enum: ["llm", "database", "search", "webhook", "email"], example: "llm" })
   kind!: "llm" | "database" | "search" | "webhook" | "email";

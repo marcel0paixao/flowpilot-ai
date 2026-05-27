@@ -38,7 +38,7 @@ model IntegrationCredential {
   workspaceId    String
   createdByUserId String?
   name           String
-  provider       String
+  type           String
   kind           String
   capabilities   String[]
   encryptedValue String
@@ -51,9 +51,9 @@ model IntegrationCredential {
   workspace     Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   createdByUser User?     @relation(fields: [createdByUserId], references: [id], onDelete: SetNull)
 
-  @@unique([workspaceId, provider, name])
+  @@unique([workspaceId, type, name])
   @@index([workspaceId])
-  @@index([provider])
+  @@index([type])
   @@index([kind])
   @@index([createdByUserId])
 }

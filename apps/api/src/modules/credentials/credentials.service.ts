@@ -19,7 +19,7 @@ export class CredentialsService {
           workspaceId,
           createdByUserId: actorUserId,
           name: dto.name,
-          provider: dto.provider,
+          type: dto.type,
           kind: dto.kind,
           capabilities: dto.capabilities,
           encryptedValue: encrypted.encryptedValue,
@@ -31,7 +31,7 @@ export class CredentialsService {
       return toCredentialResponse(credential);
     } catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-        throw new ConflictException("Credential name already exists for this provider");
+        throw new ConflictException("Credential name already exists for this credential type");
       }
 
       throw error;
@@ -45,7 +45,7 @@ export class CredentialsService {
       },
       orderBy: [
         {
-          provider: "asc"
+          type: "asc"
         },
         {
           name: "asc"
@@ -89,7 +89,7 @@ export class CredentialsService {
     return {
       id: credential.id,
       workspaceId: credential.workspaceId,
-      provider: credential.provider,
+      type: credential.type,
       kind: credential.kind,
       capabilities: credential.capabilities,
       value: decryptCredential({
@@ -141,7 +141,7 @@ function toCredentialResponse(credential: CredentialRecord) {
     id: credential.id,
     workspaceId: credential.workspaceId,
     name: credential.name,
-    provider: credential.provider,
+    type: credential.type,
     kind: credential.kind,
     capabilities: credential.capabilities,
     lastUsedAt: credential.lastUsedAt,
@@ -154,7 +154,7 @@ type CredentialRecord = {
   id: string;
   workspaceId: string;
   name: string;
-  provider: string;
+  type: string;
   kind: string;
   capabilities: string[];
   lastUsedAt: Date | null;
