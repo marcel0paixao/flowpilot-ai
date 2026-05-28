@@ -110,3 +110,82 @@ def test_prompt_run_can_use_openrouter_provider_without_real_credential(
     assert response.status_code == 200
     assert response.json()["result"]["provider"] == "openrouter"
     assert response.json()["result"]["summary"] == "OpenRouter mocked response"
+
+
+def test_prompt_run_returns_bad_gateway_when_openrouter_fails(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fake_get_secret(
+        self: CredentialClient,
+        *,
+        workspace_id: str,
+        credential_id: str,
+    ) -> CredentialSecret:
+        return CredentialSecret(
+            id=credential_id,
+            workspaceId=workspace_id,
+            type="openrouter",
+            kind="llm",
+            capabilities=["llm.chat"],
+            value="sk-test-openrouter",
+        )
+
+    class FakeOpenRouterResponse:
+        status_code = 429
+
+        def raise_for_status(self) -> None:
+            request = httpx.Request(
+                "POST", "https://openrouter.ai/api/v1/chat/completions"
+            )
+            response = httpx.Response(self.status_code, request=request)
+            raise httpx.HTTPStatusError(
+                "OpenRouter rate limit",
+                request=request,
+                response=response,
+            )
+
+    def fake_post(
+        url: str,
+        *,
+        headers: dict[str, str],
+        json: dict[str, object],
+        timeout: int,
+    ) -> FakeOpenRouterResponse:
+        return FakeOpenRouterResponse()
+
+    monkeypatch.setenv("FLOWPILOT_INTERNAL_API_TOKEN", "test-internal-token")
+    monkeypatch.setattr(CredentialClient, "get_secret", fake_get_secret)
+    monkeypatch.setattr(httpx, "post", fake_post)
+
+    client = TestClient(app)
+
+    response = client.post(
+        "/v1/prompts/run",
+        json={
+            "context": {
+                "workspaceId": "workspace-1",
+                "workflowId": "workflow-1",
+                "executionId": "execution-1",
+                "nodeExecutionId": "node-execution-1",
+                "nodeId": "ai-summary",
+                "correlationId": "correlation-1",
+            },
+            "config": {
+                "prompt": "Summarize this lead.",
+                "provider": "openrouter",
+                "credentialId": "credential-1",
+                "model": "openai/gpt-oss-20b:free",
+                "temperature": 0.2,
+            },
+            "input": {
+                "leadId": "lead-1",
+            },
+        },
+    )
+
+    assert response.status_code == 502
+    assert response.json()["detail"] == {
+        "code": "ai_provider_error",
+        "provider": "openrouter",
+        "message": "OpenRouter request failed with status 429",
+    }

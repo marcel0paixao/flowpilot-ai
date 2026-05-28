@@ -1,5 +1,6 @@
 from fastapi import FastAPI, HTTPException
 
+from flowpilot_ai_orchestrator.providers.openrouter.provider import OpenRouterProviderError
 from flowpilot_ai_orchestrator.providers.registry import UnknownProviderError
 from flowpilot_ai_orchestrator.schemas import PromptRunRequest, PromptRunResponse
 from flowpilot_ai_orchestrator.service import PromptService
@@ -23,6 +24,15 @@ def run_prompt(request: PromptRunRequest) -> PromptRunResponse:
                 "code": "unknown_ai_provider",
                 "message": str(error),
                 "provider": error.provider_name,
+            },
+        ) from error
+    except OpenRouterProviderError as error:
+        raise HTTPException(
+            status_code=502,
+            detail={
+                "code": "ai_provider_error",
+                "provider": "openrouter",
+                "message": str(error),
             },
         ) from error
 

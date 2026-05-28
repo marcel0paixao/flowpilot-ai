@@ -179,13 +179,13 @@ services:
       context: ./apps/ai-orchestrator
       dockerfile: Dockerfile
     container_name: flowpilot-ai-orchestrator
+    env_file:
+      - ./apps/ai-orchestrator/.env
     environment:
       LOG_LEVEL: debug
       AI_ORCHESTRATOR_HOST: 0.0.0.0
       AI_ORCHESTRATOR_PORT: 8000
       AI_PROVIDER: deterministic
-      FLOWPILOT_API_URL: http://api:3000/api
-      FLOWPILOT_INTERNAL_API_TOKEN: replace-with-local-development-secret
     ports:
       - "8000:8000"
     healthcheck:
