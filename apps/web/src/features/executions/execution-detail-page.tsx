@@ -135,7 +135,7 @@ export function ExecutionDetailPage() {
           </CardContent>
         </Card>
 
-        <Card className="overflow-x-auto">
+        <Card className="min-w-0 overflow-x-auto">
           <CardHeader>
             <CardTitle>Outbox dispatch</CardTitle>
             <CardDescription>Lifecycle events persisted before RabbitMQ publish.</CardDescription>
@@ -205,9 +205,9 @@ export function ExecutionDetailPage() {
                 {summary.nodes.length > 0 ? (
                   summary.nodes.map((node) => (
                     <TableRow key={node.id}>
-                      <TableCell>
+                      <TableCell className="min-w-0">
                         <div className="font-medium">{node.nodeId}</div>
-                        <div className="mt-1 text-xs text-muted-foreground">{node.id}</div>
+                        <div className="mt-1 max-w-72 truncate text-xs text-muted-foreground">{node.id}</div>
                         {node.error ? <JsonBlock className="mt-2 max-h-28" value={node.error} /> : null}
                       </TableCell>
                       <TableCell>
@@ -233,22 +233,22 @@ export function ExecutionDetailPage() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="min-w-0">
           <CardHeader>
             <CardTitle>Execution data</CardTitle>
             <CardDescription>{formatDateTime(summary.execution.createdAt)}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div>
+            <div className="min-w-0">
               <p className="mb-2 text-sm font-medium">Input</p>
               <JsonBlock value={summary.execution.input} />
             </div>
-            <div>
+            <div className="min-w-0">
               <p className="mb-2 text-sm font-medium">Output</p>
               <JsonBlock value={summary.execution.output} />
             </div>
             {summary.execution.error ? (
-              <div>
+              <div className="min-w-0">
                 <p className="mb-2 text-sm font-medium">Error</p>
                 <JsonBlock value={summary.execution.error} />
               </div>
@@ -266,7 +266,7 @@ export function ExecutionDetailPage() {
           <div className="space-y-3">
             {orderedEvents.length > 0 ? (
               orderedEvents.map((event, index) => (
-                <div key={event.id} className="relative rounded-lg border border-border p-4">
+                <div key={event.id} className="relative min-w-0 rounded-lg border border-border p-4">
                   <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                     <div className="flex min-w-0 gap-3">
                       <div className="mt-1 flex size-7 shrink-0 items-center justify-center rounded-full bg-accent text-xs font-semibold text-accent-foreground">

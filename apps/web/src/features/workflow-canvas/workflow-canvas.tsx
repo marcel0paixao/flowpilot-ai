@@ -67,7 +67,8 @@ export function WorkflowCanvas({
   editable = false,
   onDefinitionChange,
   onSelectEdge,
-  onSelectNode
+  onSelectNode,
+  onEditNode
 }: {
   definition: WorkflowDefinition;
   selectedNodeId?: string;
@@ -77,6 +78,7 @@ export function WorkflowCanvas({
   onDefinitionChange?: (definition: WorkflowDefinition) => void;
   onSelectEdge?: (edgeId: string | undefined) => void;
   onSelectNode?: (nodeId: string) => void;
+  onEditNode?: (nodeId: string) => void;
 }) {
   const theme = useTheme();
   const initialElements = useMemo(
@@ -222,6 +224,11 @@ export function WorkflowCanvas({
       onNodeClick={(_, node) => {
         onSelectEdge?.(undefined);
         onSelectNode?.(node.id);
+      }}
+      onNodeDoubleClick={(_, node) => {
+        onSelectEdge?.(undefined);
+        onSelectNode?.(node.id);
+        onEditNode?.(node.id);
       }}
       proOptions={{ hideAttribution: true }}
     >

@@ -17,6 +17,7 @@ import {
   History,
   MousePointerClick,
   Network,
+  Pencil,
   Plus,
   PlayCircle,
   RotateCcw,
@@ -51,6 +52,14 @@ import { cn, formatDateTime, formatDuration, humanizeIdentifier, slugify } from 
 import { Badge } from "@/shared/ui/badge";
 import { Button } from "@/shared/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle
+} from "@/shared/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -109,6 +118,7 @@ export function WorkflowDetailPage() {
   const queryClient = useQueryClient();
   const [selectedNodeId, setSelectedNodeId] = useState<string>();
   const [selectedEdgeId, setSelectedEdgeId] = useState<string>();
+  const [nodeEditorNodeId, setNodeEditorNodeId] = useState<string>();
   const [isEditing, setIsEditing] = useState(false);
   const [draftDefinition, setDraftDefinition] = useState<WorkflowDefinition>();
   const [formError, setFormError] = useState<string>();
@@ -196,9 +206,19 @@ export function WorkflowDetailPage() {
     }
   }, [activeDefinition, selectedNodeId]);
 
+  useEffect(() => {
+    if (nodeEditorNodeId && activeDefinition && !activeDefinition.nodes.some((node) => node.id === nodeEditorNodeId)) {
+      setNodeEditorNodeId(undefined);
+    }
+  }, [activeDefinition, nodeEditorNodeId]);
+
   const selectedNode = useMemo(
     () => activeDefinition?.nodes.find((node) => node.id === selectedNodeId),
     [activeDefinition?.nodes, selectedNodeId]
+  );
+  const nodeEditorNode = useMemo(
+    () => activeDefinition?.nodes.find((node) => node.id === nodeEditorNodeId),
+    [activeDefinition?.nodes, nodeEditorNodeId]
   );
   const selectedEdge = useMemo(
     () => activeDefinition?.edges.find((edge) => edge.id === selectedEdgeId),
@@ -290,7 +310,7 @@ export function WorkflowDetailPage() {
     setDraftDefinition(nextDefinition);
   }
 
-  function updateSelectedNode(nextNode: WorkflowNode) {
+  function updateNode(nextNode: WorkflowNode) {
     updateDraftDefinition((currentDefinition) => ({
       ...currentDefinition,
       nodes: currentDefinition.nodes.map((node) => (node.id === nextNode.id ? nextNode : node))
@@ -311,17 +331,29 @@ export function WorkflowDetailPage() {
     });
   }
 
-  function deleteSelectedNode() {
-    if (!selectedNode) {
-      return;
-    }
-
+  function deleteNode(nodeId: string) {
     updateDraftDefinition((currentDefinition) => ({
-      nodes: currentDefinition.nodes.filter((node) => node.id !== selectedNode.id),
+      nodes: currentDefinition.nodes.filter((node) => node.id !== nodeId),
       edges: currentDefinition.edges.filter(
-        (edge) => edge.sourceNodeId !== selectedNode.id && edge.targetNodeId !== selectedNode.id
+        (edge) => edge.sourceNodeId !== nodeId && edge.targetNodeId !== nodeId
       )
     }));
+    setNodeEditorNodeId(undefined);
+
+    if (selectedNodeId === nodeId) {
+      setSelectedNodeId(undefined);
+    }
+  }
+
+  function openNodeEditor(nodeId: string) {
+    setSelectedEdgeId(undefined);
+    setSelectedNodeId(nodeId);
+
+    if (!isEditing && canEditWorkflow) {
+      setIsEditing(true);
+    }
+
+    setNodeEditorNodeId(nodeId);
   }
 
   function deleteSelectedEdge() {
@@ -654,6 +686,7 @@ export function WorkflowDetailPage() {
           selectedEdgeId={selectedEdgeId}
           selectedNodeId={selectedNodeId}
           onDefinitionChange={handleDefinitionChange}
+          onEditNode={openNodeEditor}
           onSelectEdge={setSelectedEdgeId}
           onSelectNode={setSelectedNodeId}
         />
@@ -669,15 +702,13 @@ export function WorkflowDetailPage() {
             <WorkflowMetric icon={Network} label="Edges" value={String(definitionStats.edges)} />
           </div>
         ) : null}
-        <Card>
-          <CardHeader>
-            <CardTitle>{selectedEdge ? "Edge details" : "Node details"}</CardTitle>
-            <CardDescription>
-              {selectedEdge ? selectedEdge.id : selectedNode ? selectedNode.id : "Select a node"}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {selectedEdge ? (
+        {selectedEdge ? (
+          <Card>
+            <CardHeader>
+              <CardTitle>Edge details</CardTitle>
+              <CardDescription>{selectedEdge.id}</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
               <EdgeInspector
                 editable={isEditing}
                 edge={selectedEdge}
@@ -685,18 +716,52 @@ export function WorkflowDetailPage() {
                 onChange={updateSelectedEdge}
                 onDelete={deleteSelectedEdge}
               />
-            ) : selectedNode ? (
-              <NodeInspector
-                editable={isEditing}
-                node={selectedNode}
-                validationMessages={selectedNodeIssues}
-                onChange={updateSelectedNode}
-                onDelete={deleteSelectedNode}
-              />
-            ) : null}
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        ) : selectedNode ? (
+          <Card>
+            <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge variant="info">{humanizeIdentifier(selectedNode.type)}</Badge>
+                  <span className="truncate text-sm font-semibold">{selectedNode.name}</span>
+                  {selectedNodeIssues.length > 0 ? <Badge variant="danger">Needs attention</Badge> : null}
+                </div>
+                <p className="mt-1 truncate text-xs text-muted-foreground">{selectedNode.id}</p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {isEditing ? (
+                  <Button variant="outline" onClick={() => openNodeEditor(selectedNode.id)}>
+                    <Pencil />
+                    Edit node
+                  </Button>
+                ) : (
+                  <Button variant="outline" disabled={!canEditWorkflow} onClick={() => openNodeEditor(selectedNode.id)}>
+                    <Pencil />
+                    Edit node
+                  </Button>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        ) : null}
       </div>
+
+      <NodeEditorDialog
+        editable={isEditing}
+        node={nodeEditorNode}
+        open={Boolean(nodeEditorNode)}
+        validationMessages={
+          activeDefinition && nodeEditorNode ? getNodeDefinitionIssueMessages(activeDefinition, nodeEditorNode.id) : []
+        }
+        onChange={updateNode}
+        onClose={() => setNodeEditorNodeId(undefined)}
+        onDelete={() => {
+          if (nodeEditorNode) {
+            deleteNode(nodeEditorNode.id);
+          }
+        }}
+      />
 
       <Card>
         <CardHeader className="flex-row items-center justify-between">
@@ -802,15 +867,69 @@ function AddNodeMenu({ onAddNode }: { onAddNode: (type: WorkflowNodeType) => voi
   );
 }
 
+function NodeEditorDialog({
+  editable,
+  node,
+  open,
+  validationMessages,
+  onChange,
+  onClose,
+  onDelete
+}: {
+  editable: boolean;
+  node: WorkflowNode | undefined;
+  open: boolean;
+  validationMessages: string[];
+  onChange: (node: WorkflowNode) => void;
+  onClose: () => void;
+  onDelete: () => void;
+}) {
+  return (
+    <Dialog open={open} onOpenChange={(nextOpen) => (!nextOpen ? onClose() : undefined)}>
+      <DialogContent className="workflow-node-editor-dialog !flex w-[min(calc(100vw-2rem),46rem)] flex-col gap-0 !overflow-hidden p-0">
+        {node ? (
+          <>
+            <DialogHeader className="shrink-0 border-b border-border px-6 py-5 pr-12">
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge variant="info">{humanizeIdentifier(node.type)}</Badge>
+                <Badge variant="outline">{node.id}</Badge>
+              </div>
+              <DialogTitle className="mt-2">{node.name}</DialogTitle>
+              <DialogDescription>{getNodeRuntimeDescription(node.type)}</DialogDescription>
+            </DialogHeader>
+            <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-6 pb-6 pt-5">
+              <NodeInspector
+                editable={editable}
+                node={node}
+                showIdentity={false}
+                validationMessages={validationMessages}
+                onChange={onChange}
+                onDelete={onDelete}
+              />
+            </div>
+            <DialogFooter className="shrink-0 border-t border-border px-6 py-4">
+              <Button variant="outline" onClick={onClose}>
+                Close
+              </Button>
+            </DialogFooter>
+          </>
+        ) : null}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function NodeInspector({
   editable,
   node,
+  showIdentity = true,
   validationMessages,
   onChange,
   onDelete
 }: {
   editable: boolean;
   node: WorkflowNode;
+  showIdentity?: boolean;
   validationMessages: string[];
   onChange: (node: WorkflowNode) => void;
   onDelete: () => void;
@@ -830,10 +949,12 @@ function NodeInspector({
         ) : (
           <p className="text-sm font-medium">{node.name}</p>
         )}
-        <div className="mt-2 flex flex-wrap gap-2">
-          <Badge variant="info">{humanizeIdentifier(node.type)}</Badge>
-          <Badge variant="outline">{node.id}</Badge>
-        </div>
+        {showIdentity ? (
+          <div className="mt-2 flex flex-wrap gap-2">
+            <Badge variant="info">{humanizeIdentifier(node.type)}</Badge>
+            <Badge variant="outline">{node.id}</Badge>
+          </div>
+        ) : null}
       </div>
       <div className="rounded-lg border border-border bg-muted/40 p-3">
         <p className="text-xs font-medium uppercase text-muted-foreground">Runtime role</p>
@@ -910,7 +1031,9 @@ function EdgeInspector({
           </div>
         </div>
       )}
-      <JsonBlock value={edge} />
+      <div className="min-w-0">
+        <JsonBlock value={edge} />
+      </div>
       {editable ? (
         <Button variant="outline" className="w-full justify-center" onClick={onDelete}>
           <Trash2 />
@@ -1287,7 +1410,7 @@ function getNodeRuntimeDescription(type: string) {
   }
 
   if (type === "action.aiPrompt") {
-    return "Runs a deterministic mock AI prompt through the AI orchestration boundary.";
+    return "Runs an AI prompt through the configured orchestration provider.";
   }
 
   return "Runs as part of the workflow execution graph.";
