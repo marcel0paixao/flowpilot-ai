@@ -2,7 +2,10 @@ import httpx
 import pytest
 
 from flowpilot_ai_orchestrator.clients.credentials import CredentialSecret
-from flowpilot_ai_orchestrator.providers.openrouter import OpenRouterProvider
+from flowpilot_ai_orchestrator.providers.openrouter.provider import (
+    OpenRouterProvider,
+    OpenRouterProviderError,
+)
 from flowpilot_ai_orchestrator.schemas import PromptRunConfig, PromptRunContext
 
 
@@ -23,8 +26,13 @@ class FakeCredentialClient:
 
 
 class FakeResponse:
-    def json(self) -> dict[str, object]:
-        return {
+    def __init__(
+        self,
+        *,
+        body: dict[str, object] | list[object] | None = None,
+        status_code: int = 200,
+    ) -> None:
+        self.body = body if body is not None else {
             "choices": [
                 {
                     "message": {
@@ -33,6 +41,20 @@ class FakeResponse:
                 },
             ],
         }
+        self.status_code = status_code
+
+    def json(self) -> dict[str, object] | list[object]:
+        return self.body
+
+    def raise_for_status(self) -> None:
+        if self.status_code < 400:
+            return
+
+        request = httpx.Request(
+            "POST", "https://openrouter.ai/api/v1/chat/completions"
+        )
+        response = httpx.Response(self.status_code, request=request)
+        raise httpx.HTTPStatusError("OpenRouter error", request=request, response=response)
 
 
 def test_openrouter_provider_builds_request_and_returns_prompt_result(
@@ -45,10 +67,12 @@ def test_openrouter_provider_builds_request_and_returns_prompt_result(
         *,
         headers: dict[str, str],
         json: dict[str, object],
+        timeout: int,
     ) -> FakeResponse:
         captured["url"] = url
         captured["headers"] = headers
         captured["json"] = json
+        captured["timeout"] = timeout
         return FakeResponse()
 
     credential_client = FakeCredentialClient()
@@ -69,6 +93,7 @@ def test_openrouter_provider_builds_request_and_returns_prompt_result(
     assert credential_client.calls == [("workspace-1", "credential-1")]
     assert captured["url"] == "https://openrouter.ai/api/v1/chat/completions"
     assert captured["headers"] == {"Authorization": "Bearer sk-openrouter"}
+    assert captured["timeout"] == 30
     assert captured["json"] == {
         "model": "openai/gpt-oss-20b:free",
         "temperature": 0.2,
@@ -100,6 +125,82 @@ def test_openrouter_provider_requires_credential_id() -> None:
         )
 
     assert credential_client.calls == []
+
+
+def test_openrouter_provider_maps_timeout_errors(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fake_post(
+        url: str,
+        *,
+        headers: dict[str, str],
+        json: dict[str, object],
+        timeout: int,
+    ) -> FakeResponse:
+        raise httpx.TimeoutException("timeout")
+
+    monkeypatch.setattr(httpx, "post", fake_post)
+
+    with pytest.raises(OpenRouterProviderError, match="timed out"):
+        OpenRouterProvider(credential_client=FakeCredentialClient()).run(
+            context=make_context(),
+            config=make_openrouter_config(),
+            input_data={"leadId": "lead-1"},
+        )
+
+
+def test_openrouter_provider_maps_status_errors(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fake_post(
+        url: str,
+        *,
+        headers: dict[str, str],
+        json: dict[str, object],
+        timeout: int,
+    ) -> FakeResponse:
+        return FakeResponse(status_code=429)
+
+    monkeypatch.setattr(httpx, "post", fake_post)
+
+    with pytest.raises(OpenRouterProviderError, match="status 429"):
+        OpenRouterProvider(credential_client=FakeCredentialClient()).run(
+            context=make_context(),
+            config=make_openrouter_config(),
+            input_data={"leadId": "lead-1"},
+        )
+
+
+def test_openrouter_provider_rejects_invalid_response(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fake_post(
+        url: str,
+        *,
+        headers: dict[str, str],
+        json: dict[str, object],
+        timeout: int,
+    ) -> FakeResponse:
+        return FakeResponse(body=[])
+
+    monkeypatch.setattr(httpx, "post", fake_post)
+
+    with pytest.raises(OpenRouterProviderError, match="invalid response"):
+        OpenRouterProvider(credential_client=FakeCredentialClient()).run(
+            context=make_context(),
+            config=make_openrouter_config(),
+            input_data={"leadId": "lead-1"},
+        )
+
+
+def make_openrouter_config() -> PromptRunConfig:
+    return PromptRunConfig(
+        prompt="Summarize this lead.",
+        provider="openrouter",
+        credentialId="credential-1",
+        model="openai/gpt-oss-20b:free",
+        temperature=0.2,
+    )
 
 
 def make_context() -> PromptRunContext:

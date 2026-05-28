@@ -19,6 +19,10 @@ from flowpilot_ai_orchestrator.schemas import (
 )
 
 
+class OpenRouterProviderError(RuntimeError):
+    pass
+
+
 class OpenRouterProvider(PromptProvider):
     provider_name = "openrouter"
 
@@ -43,9 +47,7 @@ class OpenRouterProvider(PromptProvider):
         url = "https://openrouter.ai/api/v1/chat/completions"
 
         headers = {
-            f"Authorization": f"Bearer {credential}"
-            # "HTTP-Referer": "<YOUR_SITE_URL>", # Optional. Site URL for rankings on openrouter.ai.
-            # "X-OpenRouter-Title": "<YOUR_SITE_NAME>", # Optional. Site title for rankings on openrouter.ai.
+            "Authorization": f"Bearer {credential}",
         }
 
         payload = {
@@ -54,9 +56,28 @@ class OpenRouterProvider(PromptProvider):
             "messages": build_chat_messages(config=config, input_data=input_data),
         }
 
-        response = httpx.post(url, headers=headers, json=payload)
+        try:
+            response = httpx.post(url, headers=headers, json=payload, timeout=30)
+            response.raise_for_status()
+        except httpx.TimeoutException as error:
+            raise OpenRouterProviderError("OpenRouter request timed out") from error
+        except httpx.HTTPStatusError as error:
+            raise OpenRouterProviderError(
+                f"OpenRouter request failed with status {error.response.status_code}"
+            ) from error
+        except httpx.HTTPError as error:
+            raise OpenRouterProviderError("OpenRouter request failed") from error
 
-        summary = extract_openai_compatible_content(response.json())
+        try:
+            response_body = response.json()
+            if not isinstance(response_body, dict):
+                raise TypeError("OpenRouter response body must be an object")
+
+            summary = extract_openai_compatible_content(response_body)
+        except (ValueError, TypeError) as error:
+            raise OpenRouterProviderError(
+                "OpenRouter returned an invalid response"
+            ) from error
 
         return PromptRunResult(
             provider=self.provider_name,
