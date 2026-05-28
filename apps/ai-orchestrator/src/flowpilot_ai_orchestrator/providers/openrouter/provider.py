@@ -27,7 +27,7 @@ class OpenRouterProvider(PromptProvider):
     provider_name = "openrouter"
 
     def __init__(self, credential_client: CredentialClient | None = None) -> None:
-        self.credential_client = credential_client or CredentialClient()
+        self.credential_client = credential_client
 
     def run(
         self,
@@ -96,7 +96,8 @@ class OpenRouterProvider(PromptProvider):
         )
 
     def _get_credential(self, workspace_id: str, credential_id: str):
-        credential = self.credential_client.get_secret(
+        credential_client = self.credential_client or CredentialClient()
+        credential = credential_client.get_secret(
             workspace_id=workspace_id, credential_id=credential_id
         )
 

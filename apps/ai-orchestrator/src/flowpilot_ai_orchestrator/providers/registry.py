@@ -1,5 +1,6 @@
 from flowpilot_ai_orchestrator.providers.base import PromptProvider
 from flowpilot_ai_orchestrator.providers.deterministic import DeterministicPromptProvider
+from flowpilot_ai_orchestrator.providers.openrouter import OpenRouterProvider
 
 
 class UnknownProviderError(ValueError):
@@ -11,7 +12,8 @@ class UnknownProviderError(ValueError):
 class ProviderRegistry:
     def __init__(self) -> None:
         self._providers: dict[str, PromptProvider] = {
-            "deterministic": DeterministicPromptProvider()
+            "deterministic": DeterministicPromptProvider(),
+            "openrouter": OpenRouterProvider(),
         }
 
     def get(self, name: str) -> PromptProvider:
