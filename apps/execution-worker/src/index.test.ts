@@ -108,6 +108,7 @@ test("executes workflow nodes sequentially and publishes node lifecycle events",
   const nodeUpserts: unknown[] = [];
   const nodeUpdates: unknown[] = [];
   const outboxUpserts: unknown[] = [];
+  const aiTraceCreates: unknown[] = [];
   const prisma = {
     workflowExecution: {
       findUnique: async () => ({
@@ -146,6 +147,12 @@ test("executes workflow nodes sequentially and publishes node lifecycle events",
       },
       update: async (args: unknown) => args
     },
+    workflowAiTrace: {
+      create: async (args: unknown) => {
+        aiTraceCreates.push(args);
+        return args;
+      }
+    },
     $transaction: async <T>(callback: (tx: unknown) => Promise<T>) => {
       return callback(prisma);
     }
@@ -160,6 +167,7 @@ test("executes workflow nodes sequentially and publishes node lifecycle events",
 
   assert.equal(nodeUpserts.length, 4);
   assert.equal(nodeUpdates.length, 4);
+  assert.equal(aiTraceCreates.length, 1);
   assert.equal(workflowUpdates.length, 2);
   assert.equal(channel.published.length, 10);
   assert.deepEqual(aiPromptRequests, [
@@ -225,6 +233,27 @@ test("executes workflow nodes sequentially and publishes node lifecycle events",
     "response",
     "status"
   ]);
+
+  const aiTraceCreate = aiTraceCreates[0] as {
+    data: {
+      nodeExecutionId: string;
+      provider: string;
+      model: string;
+      status: string;
+      inputTokenCount: number;
+      outputTokenCount: number;
+      totalTokenCount: number;
+      schemaValid: boolean;
+    };
+  };
+  assert.equal(aiTraceCreate.data.nodeExecutionId, "node-execution-ai-summary");
+  assert.equal(aiTraceCreate.data.provider, "deterministic");
+  assert.equal(aiTraceCreate.data.model, "mock-flowpilot-llm");
+  assert.equal(aiTraceCreate.data.status, "SUCCEEDED");
+  assert.equal(aiTraceCreate.data.inputTokenCount, 1);
+  assert.equal(aiTraceCreate.data.outputTokenCount, 12);
+  assert.equal(aiTraceCreate.data.totalTokenCount, 13);
+  assert.equal(aiTraceCreate.data.schemaValid, true);
 });
 
 test("schedules retry and acknowledges retryable failures before max attempts", async () => {
@@ -283,7 +312,8 @@ test("schedules retry when AI orchestrator failures are retryable", async () => 
 
 test("dead-letters without retry when AI orchestrator failures are non-retryable", async () => {
   const channel = createFakeChannel();
-  const prisma = createWorkflowExecutionPrisma();
+  const aiTraceCreates: unknown[] = [];
+  const prisma = createWorkflowExecutionPrisma(aiTraceCreates);
   const aiOrchestratorClient = createFailingAiOrchestratorClient(
     new AiOrchestratorClientError(
       "unknown_ai_provider",
@@ -315,6 +345,21 @@ test("dead-letters without retry when AI orchestrator failures are non-retryable
   assert.equal(deadLetter?.options.headers["x-flowpilot-dead-letter-code"], "unknown_ai_provider");
   assert.equal(failedMessage.payload?.error?.code, "unknown_ai_provider");
   assert.equal(failedMessage.payload?.error?.retryable, false);
+
+  const aiTraceCreate = aiTraceCreates[0] as {
+    data: {
+      status: string;
+      errorCode: string;
+      errorMessage: string;
+      providerStatusCode: number | null;
+      retryable: boolean;
+    };
+  };
+  assert.equal(aiTraceCreate.data.status, "FAILED");
+  assert.equal(aiTraceCreate.data.errorCode, "unknown_ai_provider");
+  assert.equal(aiTraceCreate.data.errorMessage, "Unknown AI provider: unknown");
+  assert.equal(aiTraceCreate.data.providerStatusCode, null);
+  assert.equal(aiTraceCreate.data.retryable, false);
 });
 
 test("marks failed, publishes failed event, and dead-letters after max retries", async () => {
@@ -665,7 +710,7 @@ function createFailingAiOrchestratorClient(error: AiOrchestratorClientError) {
   } as unknown as AiOrchestratorClient;
 }
 
-function createWorkflowExecutionPrisma() {
+function createWorkflowExecutionPrisma(aiTraceCreates: unknown[] = []) {
   const prisma = {
     workflowExecution: {
       findUnique: async () => ({
@@ -698,6 +743,12 @@ function createWorkflowExecutionPrisma() {
         attempts: 1,
         publishedAt: new Date("2026-05-02T12:00:01.000Z")
       })
+    },
+    workflowAiTrace: {
+      create: async (args: unknown) => {
+        aiTraceCreates.push(args);
+        return args;
+      }
     },
     $transaction: async <T>(callback: (tx: unknown) => Promise<T>) => {
       return callback(prisma);

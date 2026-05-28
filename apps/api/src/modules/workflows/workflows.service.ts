@@ -1,5 +1,5 @@
 import { ConflictException, Inject, Injectable, NotFoundException } from "@nestjs/common";
-import { Prisma } from "@prisma/client/index";
+import { Prisma, type WorkflowAiTrace } from "@prisma/client/index";
 import {
   FLOWPILOT_MESSAGE_PRODUCERS,
   FLOWPILOT_MESSAGE_SCHEMA_VERSION,
@@ -336,7 +336,7 @@ export class WorkflowsService {
   async findExecutionSummary(workspaceId: string, workflowId: string, executionId: string) {
     const execution = await this.findExecution(workspaceId, workflowId, executionId);
 
-    const [nodeExecutions, events] = await Promise.all([
+    const [nodeExecutions, events, aiTraces] = await Promise.all([
       this.prisma.workflowNodeExecution.findMany({
         where: {
           workspaceId,
@@ -356,13 +356,24 @@ export class WorkflowsService {
         orderBy: {
           occurredAt: "asc"
         }
+      }),
+      this.prisma.workflowAiTrace.findMany({
+        where: {
+          workspaceId,
+          workflowId,
+          workflowExecutionId: executionId
+        },
+        orderBy: {
+          createdAt: "asc"
+        }
       })
     ]);
 
     return {
       execution,
       nodes: nodeExecutions.map(toWorkflowNodeExecutionResponse),
-      events: events.map(toWorkflowExecutionEventResponse)
+      events: events.map(toWorkflowExecutionEventResponse),
+      aiTraces: aiTraces.map(toWorkflowAiTraceResponse)
     };
   }
 
@@ -615,6 +626,34 @@ function toWorkflowNodeExecutionResponse(nodeExecution: WorkflowNodeExecution) {
     completedAt: nodeExecution.completedAt,
     createdAt: nodeExecution.createdAt,
     updatedAt: nodeExecution.updatedAt
+  };
+}
+
+function toWorkflowAiTraceResponse(trace: WorkflowAiTrace) {
+  return {
+    id: trace.id,
+    workspaceId: trace.workspaceId,
+    workflowId: trace.workflowId,
+    workflowExecutionId: trace.workflowExecutionId,
+    nodeExecutionId: trace.nodeExecutionId,
+    nodeId: trace.nodeId,
+    credentialId: trace.credentialId,
+    provider: trace.provider,
+    model: trace.model,
+    status: trace.status,
+    latencyMs: trace.latencyMs,
+    inputTokenCount: trace.inputTokenCount,
+    outputTokenCount: trace.outputTokenCount,
+    totalTokenCount: trace.totalTokenCount,
+    estimatedCostUsd: trace.estimatedCostUsd?.toString() ?? null,
+    inputSizeBytes: trace.inputSizeBytes,
+    outputSizeBytes: trace.outputSizeBytes,
+    schemaValid: trace.schemaValid,
+    errorCode: trace.errorCode,
+    errorMessage: trace.errorMessage,
+    providerStatusCode: trace.providerStatusCode,
+    retryable: trace.retryable,
+    createdAt: trace.createdAt
   };
 }
 

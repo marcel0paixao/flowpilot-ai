@@ -5,6 +5,7 @@ export type WorkflowStatus = "DRAFT" | "ACTIVE" | "ARCHIVED";
 export type WorkflowExecutionStatus = "PENDING" | "RUNNING" | "SUCCEEDED" | "FAILED" | "CANCELLED";
 export type WorkflowNodeExecutionStatus = "PENDING" | "RUNNING" | "SUCCEEDED" | "FAILED" | "SKIPPED";
 export type OutboxMessageStatus = "PENDING" | "PUBLISHED" | "FAILED";
+export type AiTraceStatus = "SUCCEEDED" | "FAILED";
 export type CredentialType = "openrouter" | "ollama" | "openai";
 export type CredentialKind = "llm" | "database" | "search" | "webhook" | "email";
 
@@ -136,10 +137,37 @@ export interface WorkflowExecutionEvent {
   createdAt: string;
 }
 
+export interface WorkflowAiTrace {
+  id: string;
+  workspaceId: string;
+  workflowId: string | null;
+  workflowExecutionId: string | null;
+  nodeExecutionId: string | null;
+  nodeId: string | null;
+  credentialId: string | null;
+  provider: string;
+  model: string;
+  status: AiTraceStatus;
+  latencyMs: number;
+  inputTokenCount: number;
+  outputTokenCount: number;
+  totalTokenCount: number;
+  estimatedCostUsd: string | null;
+  inputSizeBytes: number | null;
+  outputSizeBytes: number | null;
+  schemaValid: boolean | null;
+  errorCode: string | null;
+  errorMessage: string | null;
+  providerStatusCode: number | null;
+  retryable: boolean | null;
+  createdAt: string;
+}
+
 export interface WorkflowExecutionSummary {
   execution: WorkflowExecution;
   nodes: WorkflowNodeExecution[];
   events: WorkflowExecutionEvent[];
+  aiTraces: WorkflowAiTrace[];
 }
 
 export interface WorkflowExecutionDiagnostics {

@@ -577,6 +577,16 @@ async function executeWorkflowNodes(
       });
       const completedAt = new Date();
       await completeNodeExecution(prisma, nodeExecution.id, output, completedAt);
+      await recordAiTraceForSuccessfulNode(
+        prisma,
+        message,
+        node,
+        nodeExecution.id,
+        input,
+        output,
+        startedAt,
+        completedAt
+      );
       await publishNodeCompletedEvent(
         channel,
         prisma,
@@ -602,6 +612,16 @@ async function executeWorkflowNodes(
       const failure = normalizeWorkerFailure(error);
       const failedAt = new Date();
       await failNodeExecution(prisma, nodeExecution.id, failure, failedAt);
+      await recordAiTraceForFailedNode(
+        prisma,
+        message,
+        node,
+        nodeExecution.id,
+        input,
+        failure,
+        startedAt,
+        failedAt
+      );
       await publishNodeFailedEvent(channel, prisma, message, node, nodeExecution.id, failure, failedAt);
       logger.error("Workflow node execution failed", {
         code: failure.code,
@@ -813,6 +833,135 @@ async function executeNode({
       }
     }
   };
+}
+
+async function recordAiTraceForSuccessfulNode(
+  prisma: PrismaWriter,
+  message: WorkflowExecutionRequestedMessage,
+  node: WorkflowNode,
+  nodeExecutionId: string,
+  input: Record<string, unknown>,
+  output: Record<string, unknown>,
+  startedAt: Date,
+  completedAt: Date
+): Promise<void> {
+  if (node.type !== WORKFLOW_NODE_TYPES.aiPromptAction) {
+    return;
+  }
+
+  const tokenUsage = getAiTokenUsage(output);
+
+  try {
+    await prisma.workflowAiTrace.create({
+      data: {
+        workspaceId: message.workspaceId,
+        workflowId: message.payload.workflowId,
+        workflowExecutionId: message.payload.executionId,
+        nodeExecutionId,
+        nodeId: node.id,
+        credentialId: node.config.credentialId ?? null,
+        provider: node.config.provider,
+        model: node.config.model,
+        status: "SUCCEEDED",
+        latencyMs: completedAt.getTime() - startedAt.getTime(),
+        inputTokenCount: tokenUsage.input,
+        outputTokenCount: tokenUsage.output,
+        totalTokenCount: tokenUsage.input + tokenUsage.output,
+        inputSizeBytes: getJsonSizeBytes(input),
+        outputSizeBytes: getJsonSizeBytes(output),
+        schemaValid: true
+      }
+    });
+  } catch (error) {
+    logger.warn("AI trace persistence failed", {
+      error: error instanceof Error ? error.message : String(error),
+      executionId: message.payload.executionId,
+      nodeExecutionId,
+      nodeId: node.id,
+      status: "SUCCEEDED",
+      workflowId: message.payload.workflowId,
+      workspaceId: message.workspaceId
+    });
+  }
+}
+
+async function recordAiTraceForFailedNode(
+  prisma: PrismaWriter,
+  message: WorkflowExecutionRequestedMessage,
+  node: WorkflowNode,
+  nodeExecutionId: string,
+  input: Record<string, unknown>,
+  failure: WorkerFailure,
+  startedAt: Date,
+  failedAt: Date
+): Promise<void> {
+  if (node.type !== WORKFLOW_NODE_TYPES.aiPromptAction) {
+    return;
+  }
+
+  try {
+    await prisma.workflowAiTrace.create({
+      data: {
+        workspaceId: message.workspaceId,
+        workflowId: message.payload.workflowId,
+        workflowExecutionId: message.payload.executionId,
+        nodeExecutionId,
+        nodeId: node.id,
+        credentialId: node.config.credentialId ?? null,
+        provider: node.config.provider,
+        model: node.config.model,
+        status: "FAILED",
+        latencyMs: failedAt.getTime() - startedAt.getTime(),
+        inputSizeBytes: getJsonSizeBytes(input),
+        schemaValid: null,
+        errorCode: failure.code,
+        errorMessage: failure.message,
+        providerStatusCode: getProviderStatusCode(failure),
+        retryable: failure.retryable
+      }
+    });
+  } catch (error) {
+    logger.warn("AI trace persistence failed", {
+      error: error instanceof Error ? error.message : String(error),
+      executionId: message.payload.executionId,
+      nodeExecutionId,
+      nodeId: node.id,
+      status: "FAILED",
+      workflowId: message.payload.workflowId,
+      workspaceId: message.workspaceId
+    });
+  }
+}
+
+function getAiTokenUsage(output: Record<string, unknown>): { input: number; output: number } {
+  const tokens = isRecord(output.tokens) ? output.tokens : {};
+
+  return {
+    input: getNonNegativeInteger(tokens.input),
+    output: getNonNegativeInteger(tokens.output)
+  };
+}
+
+function getProviderStatusCode(failure: WorkerFailure): number | null {
+  const cause = failure.cause;
+
+  if (!(cause instanceof AiOrchestratorClientError)) {
+    return null;
+  }
+
+  const responseBody = isRecord(cause.responseBody) ? cause.responseBody : undefined;
+  const detail = isRecord(responseBody?.detail) ? responseBody.detail : undefined;
+  const providerStatus = detail?.status;
+
+  return typeof providerStatus === "number" ? providerStatus : null;
+}
+
+function getJsonSizeBytes(value: unknown): number {
+  return Buffer.byteLength(JSON.stringify(value), "utf8");
+}
+
+function getNonNegativeInteger(value: unknown): number {
+  return typeof value === "number" && Number.isInteger(value) && value >= 0 ? value : 0;
 }
 
 async function upsertRunningNodeExecution(

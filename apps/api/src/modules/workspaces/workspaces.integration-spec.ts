@@ -16,6 +16,7 @@ before(async () => {
 });
 
 beforeEach(async () => {
+  await prisma.workflowAiTrace.deleteMany();
   await prisma.workflowExecutionEvent.deleteMany();
   await prisma.workflowNodeExecution.deleteMany();
   await prisma.workflowExecution.deleteMany();
@@ -340,10 +341,12 @@ test("workflow HTTP flow creates, lists, details, and enforces workspace roles",
     execution: { id: string };
     nodes: Array<{ nodeId: string }>;
     events: Array<{ eventName: string }>;
+    aiTraces: Array<{ id: string }>;
   }>();
   assert.equal(executionSummary.execution.id, execution.id);
   assert.equal(executionSummary.nodes[0]?.nodeId, "normalize-lead");
   assert.equal(executionSummary.events[0]?.eventName, "workflow.execution.started");
+  assert.deepEqual(executionSummary.aiTraces, []);
 
   const missingExecutionResponse = await app.inject({
     method: "GET",

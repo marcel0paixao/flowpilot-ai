@@ -565,6 +565,7 @@ test("WorkflowsService returns execution summary with nodes and events", async (
   const execution = workflowExecutionFixture();
   const events = [workflowExecutionEventFixture()];
   const nodeExecutions = [workflowNodeExecutionFixture()];
+  const aiTraces = [workflowAiTraceFixture()];
   const prisma = {
     workflowExecution: {
       findFirst: mockAsync(execution)
@@ -574,6 +575,9 @@ test("WorkflowsService returns execution summary with nodes and events", async (
     },
     workflowNodeExecution: {
       findMany: mockAsync(nodeExecutions)
+    },
+    workflowAiTrace: {
+      findMany: mockAsync(aiTraces)
     }
   };
   const service = new WorkflowsService(prisma as never, fakeMessagingService());
@@ -585,6 +589,9 @@ test("WorkflowsService returns execution summary with nodes and events", async (
   assert.equal(result.nodes[0]?.nodeId, "normalize-lead");
   assert.equal(result.events.length, 1);
   assert.equal(result.events[0]?.eventName, FLOWPILOT_ROUTING_KEYS.workflowExecutionStarted);
+  assert.equal(result.aiTraces.length, 1);
+  assert.equal(result.aiTraces[0]?.provider, "openrouter");
+  assert.equal(result.aiTraces[0]?.estimatedCostUsd, "0.000123");
 
   const nodeFindManyArgs = prisma.workflowNodeExecution.findMany.calls[0]?.[0] as {
     where: { executionId: string; workspaceId: string; workflowId: string };
@@ -594,11 +601,17 @@ test("WorkflowsService returns execution summary with nodes and events", async (
     where: { executionId: string; workspaceId: string; workflowId: string };
     orderBy: { occurredAt: "asc" };
   };
+  const traceFindManyArgs = prisma.workflowAiTrace.findMany.calls[0]?.[0] as {
+    where: { workflowExecutionId: string; workspaceId: string; workflowId: string };
+    orderBy: { createdAt: "asc" };
+  };
 
   assert.equal(nodeFindManyArgs.where.executionId, "execution-1");
   assert.equal(nodeFindManyArgs.orderBy.createdAt, "asc");
   assert.equal(eventFindManyArgs.where.executionId, "execution-1");
   assert.equal(eventFindManyArgs.orderBy.occurredAt, "asc");
+  assert.equal(traceFindManyArgs.where.workflowExecutionId, "execution-1");
+  assert.equal(traceFindManyArgs.orderBy.createdAt, "asc");
 });
 
 test("WorkflowsService returns execution diagnostics with retry and outbox state", async () => {
@@ -826,6 +839,38 @@ function workflowNodeExecutionFixture() {
     completedAt: null,
     createdAt: now,
     updatedAt: now
+  };
+}
+
+function workflowAiTraceFixture() {
+  const now = new Date("2026-05-01T12:05:02.000Z");
+
+  return {
+    id: "ai-trace-1",
+    workspaceId: "workspace-1",
+    workflowId: "workflow-1",
+    workflowExecutionId: "execution-1",
+    nodeExecutionId: "node-execution-1",
+    nodeId: "ai-summary",
+    credentialId: "credential-1",
+    provider: "openrouter",
+    model: "openai/gpt-oss-20b:free",
+    status: "SUCCEEDED",
+    latencyMs: 1234,
+    inputTokenCount: 20,
+    outputTokenCount: 10,
+    totalTokenCount: 30,
+    estimatedCostUsd: {
+      toString: () => "0.000123"
+    },
+    inputSizeBytes: 128,
+    outputSizeBytes: 256,
+    schemaValid: true,
+    errorCode: null,
+    errorMessage: null,
+    providerStatusCode: null,
+    retryable: null,
+    createdAt: now
   };
 }
 
