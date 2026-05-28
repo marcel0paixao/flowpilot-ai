@@ -59,7 +59,7 @@ export class AiOrchestratorClient {
         throw new AiOrchestratorClientError(
           providerError.code ?? `ai_orchestrator_http_${response.status}`,
           providerError.message ?? `AI orchestrator request failed with status ${response.status}`,
-          isRetryableStatus(response.status),
+          isRetryableAiOrchestratorFailure(response.status, providerError),
           response.status,
           responseBody
         );
@@ -149,7 +149,13 @@ async function readResponseBody(response: Response): Promise<unknown> {
   }
 }
 
-function parseProviderError(responseBody: unknown): { code?: string; message?: string } {
+type ParsedProviderError = {
+  code?: string;
+  message?: string;
+  providerStatus?: number;
+};
+
+function parseProviderError(responseBody: unknown): ParsedProviderError {
   if (!isRecord(responseBody)) {
     return {};
   }
@@ -168,8 +174,20 @@ function parseProviderError(responseBody: unknown): { code?: string; message?: s
 
   return {
     code: typeof detail.code === "string" ? detail.code : undefined,
-    message: typeof detail.message === "string" ? detail.message : undefined
+    message: typeof detail.message === "string" ? detail.message : undefined,
+    providerStatus: typeof detail.status === "number" ? detail.status : undefined
   };
+}
+
+function isRetryableAiOrchestratorFailure(
+  statusCode: number,
+  providerError: ParsedProviderError
+): boolean {
+  if (providerError.code === "ai_provider_error" && providerError.providerStatus === 429) {
+    return false;
+  }
+
+  return isRetryableStatus(statusCode);
 }
 
 function isRetryableStatus(statusCode: number): boolean {

@@ -1,3 +1,4 @@
+import { WORKFLOW_NODE_TYPES } from "@flowpilot/contracts";
 import { useQuery } from "@tanstack/react-query";
 import { Activity, AlertTriangle, Clock3, GitBranch, ListChecks, RadioTower } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
@@ -208,7 +209,14 @@ export function ExecutionDetailPage() {
                       <TableCell className="min-w-0">
                         <div className="font-medium">{node.nodeId}</div>
                         <div className="mt-1 max-w-72 truncate text-xs text-muted-foreground">{node.id}</div>
-                        {node.error ? <JsonBlock className="mt-2 max-h-28" value={node.error} /> : null}
+                        {node.error ? (
+                          <div className="mt-2 space-y-2">
+                            {node.nodeType === WORKFLOW_NODE_TYPES.aiPromptAction ? (
+                              <AiProviderErrorNotice error={node.error} />
+                            ) : null}
+                            <JsonBlock className="max-h-28" value={node.error} />
+                          </div>
+                        ) : null}
                       </TableCell>
                       <TableCell>
                         <Badge variant="outline">{humanizeIdentifier(node.nodeType)}</Badge>
@@ -318,4 +326,66 @@ function MetricCard({
       </CardContent>
     </Card>
   );
+}
+
+function AiProviderErrorNotice({ error }: { error: unknown }) {
+  const details = getAiProviderErrorDetails(error);
+
+  if (!details) {
+    return null;
+  }
+
+  return (
+    <div className="rounded-md border border-amber-300/40 bg-amber-500/10 p-3 text-sm">
+      <div className="flex flex-wrap items-center gap-2">
+        <Badge variant="warning">{details.provider ?? "AI provider"}</Badge>
+        {details.status ? <Badge variant="outline">HTTP {details.status}</Badge> : null}
+        {details.retryable === false ? <Badge variant="outline">No auto retry</Badge> : null}
+      </div>
+      <p className="mt-2 font-medium text-foreground">{details.title}</p>
+      {details.message ? <p className="mt-1 text-muted-foreground">{details.message}</p> : null}
+    </div>
+  );
+}
+
+function getAiProviderErrorDetails(error: unknown) {
+  const errorRecord = asRecord(error);
+  const cause = asRecord(errorRecord?.cause);
+  const responseBody = asRecord(cause?.responseBody);
+  const detail = asRecord(responseBody?.detail);
+
+  if (detail?.code !== "ai_provider_error") {
+    return null;
+  }
+
+  const providerError = asRecord(detail.providerError);
+  const providerErrorBody = asRecord(providerError?.error);
+  const metadata = asRecord(providerErrorBody?.metadata);
+  const rawProviderMessage = typeof metadata?.raw === "string" ? metadata.raw : undefined;
+  const providerMessage =
+    rawProviderMessage ??
+    (typeof providerErrorBody?.message === "string" ? providerErrorBody.message : undefined);
+  const status = typeof detail.status === "number" ? detail.status : undefined;
+  const provider = typeof detail.provider === "string" ? humanizeIdentifier(detail.provider) : undefined;
+  const retryable = typeof errorRecord?.retryable === "boolean" ? errorRecord.retryable : undefined;
+
+  return {
+    provider,
+    retryable,
+    status,
+    title:
+      status === 429
+        ? "The selected AI provider is rate-limited right now."
+        : "The selected AI provider rejected this request.",
+    message:
+      providerMessage ??
+      (typeof detail.message === "string" ? detail.message : undefined) ??
+      (typeof errorRecord?.message === "string" ? errorRecord.message : undefined)
+  };
+}
+
+function asRecord(value: unknown): Record<string, unknown> | undefined {
+  return typeof value === "object" && value !== null && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : undefined;
 }
