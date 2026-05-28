@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 
-from flowpilot_ai_orchestrator.schemas import PromptRunConfig, PromptRunResult
+from flowpilot_ai_orchestrator.schemas import PromptRunConfig, PromptRunContext, PromptRunResult
 
 
 class PromptProvider(ABC):
@@ -10,6 +10,7 @@ class PromptProvider(ABC):
     def run(
         self,
         *,
+        context: PromptRunContext,
         config: PromptRunConfig,
         input_data: dict[str, object],
     ) -> PromptRunResult:

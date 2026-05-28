@@ -3,6 +3,7 @@ import json
 from flowpilot_ai_orchestrator.providers.base import PromptProvider
 from flowpilot_ai_orchestrator.schemas import (
     PromptRunConfig,
+    PromptRunContext,
     PromptRunResult,
     PromptTrace,
     TokenUsage,
@@ -15,6 +16,7 @@ class DeterministicPromptProvider(PromptProvider):
     def run(
         self,
         *,
+        context: PromptRunContext,
         config: PromptRunConfig,
         input_data: dict[str, object],
     ) -> PromptRunResult:

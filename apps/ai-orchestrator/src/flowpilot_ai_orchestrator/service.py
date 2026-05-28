@@ -10,6 +10,7 @@ class PromptService:
         provider = self.registry.get(request.config.provider)
 
         result = provider.run(
+            context=request.context,
             config=request.config,
             input_data=request.input,
         )
