@@ -53,7 +53,7 @@ class FakeResponse:
         request = httpx.Request(
             "POST", "https://openrouter.ai/api/v1/chat/completions"
         )
-        response = httpx.Response(self.status_code, request=request)
+        response = httpx.Response(self.status_code, json=self.body, request=request)
         raise httpx.HTTPStatusError("OpenRouter error", request=request, response=response)
 
 
@@ -163,12 +163,23 @@ def test_openrouter_provider_maps_status_errors(
 
     monkeypatch.setattr(httpx, "post", fake_post)
 
-    with pytest.raises(OpenRouterProviderError, match="status 429"):
+    with pytest.raises(OpenRouterProviderError, match="status 429") as error:
         OpenRouterProvider(credential_client=FakeCredentialClient()).run(
             context=make_context(),
             config=make_openrouter_config(),
             input_data={"leadId": "lead-1"},
         )
+
+    assert error.value.status_code == 429
+    assert error.value.provider_error == {
+        "choices": [
+            {
+                "message": {
+                    "content": "OpenRouter summary",
+                },
+            },
+        ],
+    }
 
 
 def test_openrouter_provider_rejects_invalid_response(

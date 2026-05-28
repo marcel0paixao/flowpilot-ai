@@ -20,7 +20,16 @@ from flowpilot_ai_orchestrator.schemas import (
 
 
 class OpenRouterProviderError(RuntimeError):
-    pass
+    def __init__(
+        self,
+        message: str,
+        *,
+        status_code: int | None = None,
+        provider_error: object | None = None,
+    ) -> None:
+        super().__init__(message)
+        self.status_code = status_code
+        self.provider_error = provider_error
 
 
 class OpenRouterProvider(PromptProvider):
@@ -62,8 +71,11 @@ class OpenRouterProvider(PromptProvider):
         except httpx.TimeoutException as error:
             raise OpenRouterProviderError("OpenRouter request timed out") from error
         except httpx.HTTPStatusError as error:
+            status_code = error.response.status_code
             raise OpenRouterProviderError(
-                f"OpenRouter request failed with status {error.response.status_code}"
+                f"OpenRouter request failed with status {status_code}",
+                status_code=status_code,
+                provider_error=parse_error_response(error.response),
             ) from error
         except httpx.HTTPError as error:
             raise OpenRouterProviderError("OpenRouter request failed") from error
@@ -112,3 +124,11 @@ class OpenRouterProvider(PromptProvider):
             raise RuntimeError("OpenRouter provider requires credentialId")
 
         return credential.value
+
+
+def parse_error_response(response: httpx.Response) -> object | None:
+    try:
+        return response.json()
+    except ValueError:
+        text = response.text.strip()
+        return text[:500] if text else None

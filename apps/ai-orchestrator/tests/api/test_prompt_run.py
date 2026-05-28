@@ -137,7 +137,15 @@ def test_prompt_run_returns_bad_gateway_when_openrouter_fails(
             request = httpx.Request(
                 "POST", "https://openrouter.ai/api/v1/chat/completions"
             )
-            response = httpx.Response(self.status_code, request=request)
+            response = httpx.Response(
+                self.status_code,
+                json={
+                    "error": {
+                        "message": "Rate limit exceeded",
+                    },
+                },
+                request=request,
+            )
             raise httpx.HTTPStatusError(
                 "OpenRouter rate limit",
                 request=request,
@@ -187,5 +195,11 @@ def test_prompt_run_returns_bad_gateway_when_openrouter_fails(
     assert response.json()["detail"] == {
         "code": "ai_provider_error",
         "provider": "openrouter",
+        "status": 429,
         "message": "OpenRouter request failed with status 429",
+        "providerError": {
+            "error": {
+                "message": "Rate limit exceeded",
+            },
+        },
     }

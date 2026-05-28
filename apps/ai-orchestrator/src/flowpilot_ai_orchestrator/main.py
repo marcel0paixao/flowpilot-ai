@@ -32,7 +32,9 @@ def run_prompt(request: PromptRunRequest) -> PromptRunResponse:
             detail={
                 "code": "ai_provider_error",
                 "provider": "openrouter",
+                "status": error.status_code,
                 "message": str(error),
+                "providerError": error.provider_error,
             },
         ) from error
 
