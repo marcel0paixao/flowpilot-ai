@@ -1,4 +1,5 @@
 import {
+  WORKFLOW_CONDITION_OPERATORS,
   WORKFLOW_HTTP_METHODS,
   WORKFLOW_NODE_TYPES,
   type WorkflowDefinition,
@@ -94,9 +95,15 @@ const NODE_LIBRARY = [
     icon: Braces
   },
   {
+    type: WORKFLOW_NODE_TYPES.conditionAction,
+    title: "Condition",
+    description: "Evaluates a rule and records a route decision in the payload.",
+    icon: GitBranch
+  },
+  {
     type: WORKFLOW_NODE_TYPES.httpRequestAction,
     title: "HTTP request",
-    description: "Runs a deterministic HTTP request action in the worker.",
+    description: "Runs a mock or real HTTP request action in the worker.",
     icon: Globe2
   },
   {
@@ -1145,9 +1152,127 @@ function NodeConfigEditor({
     );
   }
 
+  if (node.type === WORKFLOW_NODE_TYPES.conditionAction) {
+    return (
+      <div className="space-y-3">
+        <div className="space-y-2">
+          <Label htmlFor="condition-field">Field</Label>
+          <Input
+            id="condition-field"
+            value={node.config.field}
+            onChange={(event) =>
+              onChange({
+                ...node,
+                config: {
+                  ...node.config,
+                  field: event.target.value
+                }
+              })
+            }
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="condition-operator">Operator</Label>
+          <select
+            id="condition-operator"
+            className="liquid-field h-9 w-full rounded-md border border-input bg-card px-3 text-sm"
+            value={node.config.operator}
+            onChange={(event) =>
+              onChange({
+                ...node,
+                config: {
+                  ...node.config,
+                  operator: event.target.value as (typeof WORKFLOW_CONDITION_OPERATORS)[number]
+                }
+              })
+            }
+          >
+            {WORKFLOW_CONDITION_OPERATORS.map((operator) => (
+              <option key={operator} value={operator}>
+                {humanizeIdentifier(operator)}
+              </option>
+            ))}
+          </select>
+        </div>
+        {node.config.operator !== "exists" ? (
+          <div className="space-y-2">
+            <Label htmlFor="condition-value">Value</Label>
+            <Input
+              id="condition-value"
+              value={String(node.config.value ?? "")}
+              onChange={(event) =>
+                onChange({
+                  ...node,
+                  config: {
+                    ...node.config,
+                    value: event.target.value
+                  }
+                })
+              }
+            />
+          </div>
+        ) : null}
+        <div className="grid gap-3 md:grid-cols-2">
+          <div className="space-y-2">
+            <Label htmlFor="condition-true-label">True label</Label>
+            <Input
+              id="condition-true-label"
+              value={node.config.trueLabel}
+              onChange={(event) =>
+                onChange({
+                  ...node,
+                  config: {
+                    ...node.config,
+                    trueLabel: event.target.value
+                  }
+                })
+              }
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="condition-false-label">False label</Label>
+            <Input
+              id="condition-false-label"
+              value={node.config.falseLabel}
+              onChange={(event) =>
+                onChange({
+                  ...node,
+                  config: {
+                    ...node.config,
+                    falseLabel: event.target.value
+                  }
+                })
+              }
+            />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (node.type === WORKFLOW_NODE_TYPES.httpRequestAction) {
     return (
       <div className="space-y-3">
+        <div className="space-y-2">
+          <Label htmlFor="http-mode">Mode</Label>
+          <select
+            id="http-mode"
+            className="liquid-field h-9 w-full rounded-md border border-input bg-card px-3 text-sm"
+            value={node.config.mode ?? "mock"}
+            onChange={(event) =>
+              onChange({
+                ...node,
+                config: {
+                  ...node.config,
+                  mode: event.target.value as "mock" | "real"
+                }
+              })
+            }
+          >
+            <option value="mock">Mock response</option>
+            <option value="real">Real request</option>
+          </select>
+        </div>
         <div className="space-y-2">
           <Label htmlFor="http-method">Method</Label>
           <select
@@ -1182,6 +1307,26 @@ function NodeConfigEditor({
                 config: {
                   ...node.config,
                   url: event.target.value
+                }
+              })
+            }
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="http-timeout">Timeout ms</Label>
+          <Input
+            id="http-timeout"
+            type="number"
+            min="100"
+            max="30000"
+            step="100"
+            value={node.config.timeoutMs ?? 5000}
+            onChange={(event) =>
+              onChange({
+                ...node,
+                config: {
+                  ...node.config,
+                  timeoutMs: Number(event.target.value)
                 }
               })
             }
@@ -1405,8 +1550,12 @@ function getNodeRuntimeDescription(type: string) {
     return "Transforms the current payload before the next node runs.";
   }
 
+  if (type === "action.condition") {
+    return "Evaluates a rule and adds the matched route decision to the payload.";
+  }
+
   if (type === "action.httpRequest") {
-    return "Runs the deterministic HTTP request action used by the MVP worker.";
+    return "Runs a mock or real HTTP request action in the worker.";
   }
 
   if (type === "action.aiPrompt") {
@@ -1454,15 +1603,32 @@ function createNode(type: WorkflowNodeType, nodeNumber: number, definition: Work
     };
   }
 
+  if (type === WORKFLOW_NODE_TYPES.conditionAction) {
+    return {
+      id,
+      type,
+      name: `Condition ${nodeNumber}`,
+      config: {
+        field: "priority",
+        operator: "equals",
+        value: "high",
+        trueLabel: "high_priority",
+        falseLabel: "standard_priority"
+      }
+    };
+  }
+
   if (type === WORKFLOW_NODE_TYPES.httpRequestAction) {
     return {
       id,
       type,
       name: `HTTP Request ${nodeNumber}`,
       config: {
+        mode: "mock",
         method: "GET",
         url: "https://example.test/webhook",
-        body: {}
+        body: {},
+        timeoutMs: 5000
       }
     };
   }

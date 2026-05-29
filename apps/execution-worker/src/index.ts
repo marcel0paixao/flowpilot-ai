@@ -135,7 +135,10 @@ type WorkflowExecutionWithVersion = NonNullable<
 
 export async function startWorker(): Promise<WorkerResources> {
   const runtimeConfig = readConfig();
-  const aiOrchestratorClient = new AiOrchestratorClient(runtimeConfig.aiOrchestratorUrl);
+  const aiOrchestratorClient = new AiOrchestratorClient(
+    runtimeConfig.aiOrchestratorUrl,
+    runtimeConfig.aiOrchestratorTimeoutMs
+  );
   const prisma = new PrismaClient();
   const connection = await connect(runtimeConfig.rabbitmqUrl);
   const channel = await connection.createChannel();
@@ -838,6 +841,23 @@ async function executeNode({
     );
   }
 
+  if (node.type === WORKFLOW_NODE_TYPES.conditionAction) {
+    const actualValue = getValueByPath(input, node.config.field);
+    const matched = evaluateCondition(actualValue, node.config.operator, node.config.value);
+
+    return {
+      ...input,
+      condition: {
+        field: node.config.field,
+        operator: node.config.operator,
+        expected: node.config.value ?? null,
+        actual: actualValue ?? null,
+        matched,
+        route: matched ? node.config.trueLabel : node.config.falseLabel
+      }
+    };
+  }
+
   if (node.type === WORKFLOW_NODE_TYPES.aiPromptAction) {
     return await aiOrchestratorClient.runPrompt({
       workspaceId: message.workspaceId,
@@ -856,9 +876,14 @@ async function executeNode({
     });
   }
 
+  if (node.type === WORKFLOW_NODE_TYPES.httpRequestAction && node.config.mode === "real") {
+    return await executeHttpRequestNode(node, input);
+  }
+
   return {
     status: "mocked",
     request: {
+      mode: node.config.mode ?? "mock",
       method: node.config.method,
       url: node.config.url,
       headers: node.config.headers ?? {},
@@ -875,6 +900,110 @@ async function executeNode({
       }
     }
   };
+}
+
+async function executeHttpRequestNode(
+  node: Extract<WorkflowNode, { type: typeof WORKFLOW_NODE_TYPES.httpRequestAction }>,
+  input: Record<string, unknown>
+): Promise<Record<string, unknown>> {
+  const body = {
+    ...(node.config.body ?? {}),
+    input
+  };
+  const method = node.config.method;
+  const headers = {
+    "content-type": "application/json",
+    ...(node.config.headers ?? {})
+  };
+  const startedAt = Date.now();
+
+  try {
+    const response = await fetch(node.config.url, {
+      body: method === "GET" ? undefined : JSON.stringify(body),
+      headers,
+      method,
+      signal: AbortSignal.timeout(node.config.timeoutMs ?? 5_000)
+    });
+    const responseText = await response.text();
+
+    return {
+      status: response.ok ? "ok" : "http_error",
+      request: {
+        mode: "real",
+        method,
+        url: node.config.url,
+        headers,
+        body: method === "GET" ? null : body
+      },
+      response: {
+        statusCode: response.status,
+        headers: Object.fromEntries(response.headers.entries()),
+        body: parseHttpResponseBody(responseText),
+        durationMs: Date.now() - startedAt
+      }
+    };
+  } catch (error) {
+    throw new WorkflowExecutionWorkerError(
+      "http_request_failed",
+      error instanceof Error ? error.message : "HTTP request failed",
+      true,
+      { cause: error }
+    );
+  }
+}
+
+function parseHttpResponseBody(value: string): unknown {
+  if (!value) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(value);
+  } catch {
+    return value;
+  }
+}
+
+function getValueByPath(input: Record<string, unknown>, path: string): unknown {
+  return path.split(".").reduce<unknown>((currentValue, segment) => {
+    if (!isRecord(currentValue)) {
+      return undefined;
+    }
+
+    return currentValue[segment];
+  }, input);
+}
+
+function evaluateCondition(
+  actualValue: unknown,
+  operator: string,
+  expectedValue: string | number | boolean | undefined
+): boolean {
+  if (operator === "exists") {
+    return actualValue !== undefined && actualValue !== null && actualValue !== "";
+  }
+
+  if (operator === "equals") {
+    return String(actualValue) === String(expectedValue);
+  }
+
+  if (operator === "notEquals") {
+    return String(actualValue) !== String(expectedValue);
+  }
+
+  if (operator === "contains") {
+    return String(actualValue ?? "").includes(String(expectedValue ?? ""));
+  }
+
+  if (operator === "greaterThan") {
+    return Number(actualValue) > Number(expectedValue);
+  }
+
+  if (operator === "lessThan") {
+    return Number(actualValue) < Number(expectedValue);
+  }
+
+  return false;
 }
 
 async function recordAiTraceForSuccessfulNode(

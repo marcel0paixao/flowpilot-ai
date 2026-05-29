@@ -3,11 +3,20 @@ import { z } from "zod";
 export const WORKFLOW_NODE_TYPES = {
   manualTrigger: "trigger.manual",
   transformAction: "action.transform",
+  conditionAction: "action.condition",
   httpRequestAction: "action.httpRequest",
   aiPromptAction: "action.aiPrompt"
 } as const;
 
 export const WORKFLOW_HTTP_METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE"] as const;
+export const WORKFLOW_CONDITION_OPERATORS = [
+  "exists",
+  "equals",
+  "notEquals",
+  "contains",
+  "greaterThan",
+  "lessThan"
+] as const;
 
 const workflowNodeIdSchema = z
   .string()
@@ -59,15 +68,41 @@ export const transformActionNodeSchema = workflowNodeBaseSchema
   })
   .strict();
 
+export const conditionActionNodeSchema = workflowNodeBaseSchema
+  .extend({
+    type: z.literal(WORKFLOW_NODE_TYPES.conditionAction),
+    config: z
+      .object({
+        field: z.string().min(1).max(120),
+        operator: z.enum(WORKFLOW_CONDITION_OPERATORS),
+        value: z.union([z.string(), z.number(), z.boolean()]).optional(),
+        trueLabel: z.string().min(1).max(80).default("matched"),
+        falseLabel: z.string().min(1).max(80).default("not_matched")
+      })
+      .strict()
+      .superRefine((config, context) => {
+        if (config.operator !== "exists" && config.value === undefined) {
+          context.addIssue({
+            code: "custom",
+            message: "condition value is required for this operator",
+            path: ["value"]
+          });
+        }
+      })
+  })
+  .strict();
+
 export const httpRequestActionNodeSchema = workflowNodeBaseSchema
   .extend({
     type: z.literal(WORKFLOW_NODE_TYPES.httpRequestAction),
     config: z
       .object({
+        mode: z.enum(["mock", "real"]).default("mock"),
         method: z.enum(WORKFLOW_HTTP_METHODS),
         url: z.string().url(),
         headers: z.record(z.string(), z.string()).optional(),
-        body: z.record(z.string(), z.unknown()).optional()
+        body: z.record(z.string(), z.unknown()).optional(),
+        timeoutMs: z.number().int().min(100).max(30_000).default(5_000)
       })
       .strict()
   })
@@ -92,6 +127,7 @@ export const aiPromptActionNodeSchema = workflowNodeBaseSchema
 export const workflowNodeSchema = z.discriminatedUnion("type", [
   manualTriggerNodeSchema,
   transformActionNodeSchema,
+  conditionActionNodeSchema,
   httpRequestActionNodeSchema,
   aiPromptActionNodeSchema
 ]);
@@ -211,8 +247,10 @@ export const workflowDefinitionSchema = z
 
 export type WorkflowNodeType = (typeof WORKFLOW_NODE_TYPES)[keyof typeof WORKFLOW_NODE_TYPES];
 export type WorkflowHttpMethod = (typeof WORKFLOW_HTTP_METHODS)[number];
+export type WorkflowConditionOperator = (typeof WORKFLOW_CONDITION_OPERATORS)[number];
 export type ManualTriggerNode = z.infer<typeof manualTriggerNodeSchema>;
 export type TransformActionNode = z.infer<typeof transformActionNodeSchema>;
+export type ConditionActionNode = z.infer<typeof conditionActionNodeSchema>;
 export type HttpRequestActionNode = z.infer<typeof httpRequestActionNodeSchema>;
 export type AiPromptActionNode = z.infer<typeof aiPromptActionNodeSchema>;
 export type WorkflowNode = z.infer<typeof workflowNodeSchema>;

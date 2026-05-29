@@ -32,6 +32,7 @@ const leadEnrichmentDefinition = {
       type: WORKFLOW_NODE_TYPES.httpRequestAction,
       name: "Request Enrichment",
       config: {
+        mode: "mock",
         method: "POST",
         url: "https://example.com/api/enrich-lead",
         headers: {
@@ -39,7 +40,8 @@ const leadEnrichmentDefinition = {
         },
         body: {
           source: "flowpilot-demo"
-        }
+        },
+        timeoutMs: 5000
       }
     }
   ],

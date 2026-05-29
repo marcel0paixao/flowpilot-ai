@@ -72,6 +72,7 @@ services:
       QDRANT_URL: http://qdrant:6333
       FLOWPILOT_ENABLE_WORKER_FAILURE_SIMULATION: ${FLOWPILOT_ENABLE_WORKER_FAILURE_SIMULATION:-false}
       AI_ORCHESTRATOR_URL: http://ai-orchestrator:8000
+      AI_ORCHESTRATOR_TIMEOUT_MS: 30000
     volumes:
       - .:/workspace
       - api-node-modules:/workspace/node_modules

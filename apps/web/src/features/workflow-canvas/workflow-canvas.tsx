@@ -26,6 +26,7 @@ import {
 import {
   Bot,
   Braces,
+  GitBranch,
   Globe2,
   Maximize2,
   Play,
@@ -522,6 +523,10 @@ function getNodeIcon(type: string) {
     return Braces;
   }
 
+  if (type === "action.condition") {
+    return GitBranch;
+  }
+
   if (type === "action.httpRequest") {
     return Globe2;
   }
@@ -548,8 +553,12 @@ function getNodeSummary(node: WorkflowNode) {
       : "Pass input through unchanged.";
   }
 
+  if (node.type === "action.condition") {
+    return `${node.config.field} ${node.config.operator} ${String(node.config.value ?? "")}`;
+  }
+
   if (node.type === "action.httpRequest") {
-    return `${node.config.method} ${node.config.url}`;
+    return `${node.config.mode ?? "mock"} ${node.config.method} ${node.config.url}`;
   }
 
   if (node.type === "action.aiPrompt") {

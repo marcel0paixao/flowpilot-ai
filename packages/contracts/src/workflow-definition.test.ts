@@ -36,6 +36,7 @@ test("workflow definition accepts the initial demo node types", () => {
         type: WORKFLOW_NODE_TYPES.httpRequestAction,
         name: "Request Enrichment",
         config: {
+          mode: "mock",
           method: "POST",
           url: "https://example.com/api/enrich-lead",
           headers: {
@@ -44,6 +45,18 @@ test("workflow definition accepts the initial demo node types", () => {
           body: {
             source: "flowpilot-demo"
           }
+        }
+      },
+      {
+        id: "priority-check",
+        type: WORKFLOW_NODE_TYPES.conditionAction,
+        name: "Check Priority",
+        config: {
+          field: "priority",
+          operator: "equals",
+          value: "high",
+          trueLabel: "high_priority",
+          falseLabel: "standard_priority"
         }
       },
       {
@@ -69,12 +82,48 @@ test("workflow definition accepts the initial demo node types", () => {
       {
         id: "edge-enrichment-to-summary",
         sourceNodeId: "enrichment-request",
+        targetNodeId: "priority-check"
+      },
+      {
+        id: "edge-priority-to-summary",
+        sourceNodeId: "priority-check",
         targetNodeId: "ai-summary"
       }
     ]
   });
 
   assert.equal(result.success, true);
+});
+
+test("workflow definition rejects condition operators that require a missing value", () => {
+  const result = workflowDefinitionSchema.safeParse({
+    nodes: [
+      {
+        id: "manual-trigger",
+        type: WORKFLOW_NODE_TYPES.manualTrigger,
+        name: "Manual Trigger",
+        config: {}
+      },
+      {
+        id: "priority-check",
+        type: WORKFLOW_NODE_TYPES.conditionAction,
+        name: "Check Priority",
+        config: {
+          field: "priority",
+          operator: "equals"
+        }
+      }
+    ],
+    edges: [
+      {
+        id: "edge-manual-to-condition",
+        sourceNodeId: "manual-trigger",
+        targetNodeId: "priority-check"
+      }
+    ]
+  });
+
+  assert.equal(result.success, false);
 });
 
 test("workflow definition accepts optional node canvas positions", () => {

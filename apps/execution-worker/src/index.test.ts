@@ -182,6 +182,7 @@ test("executes workflow nodes sequentially and publishes node lifecycle events",
         status: "mocked",
         request: {
           method: "POST",
+          mode: "mock",
           url: "https://example.com/api/enrich-lead",
           headers: {},
           body: {
@@ -584,8 +585,10 @@ function workflowDefinition(): WorkflowDefinition {
         type: WORKFLOW_NODE_TYPES.httpRequestAction,
         name: "Request Enrichment",
         config: {
+          mode: "mock",
           method: "POST",
-          url: "https://example.com/api/enrich-lead"
+          url: "https://example.com/api/enrich-lead",
+          timeoutMs: 5000
         }
       },
       {
