@@ -14,6 +14,8 @@ Current capabilities:
 - `GET /health`.
 - `POST /v1/prompts/run`.
 - Deterministic mock provider.
+- OpenRouter provider.
+- Credential lookup through the API internal credential endpoint.
 - Provider base interface and registry.
 - Provider selection through `action.aiPrompt.config.provider`.
 - Unknown provider names return HTTP `422`.
@@ -21,10 +23,13 @@ Current capabilities:
 - Ruff linting.
 - Execution worker integration through HTTP.
 - Docker Compose local smoke path for `action.aiPrompt`.
+- AI trace persistence in the workflow execution path.
+- AI trace UI in execution detail views.
+- Benchmark CLI entrypoint for controlled prompt runs.
 
 Current limitation:
 
-- Only the deterministic provider exists. OpenAI, Ollama, LangChain, traces, benchmarks, persistence, and RAG are still future phases.
+- LangChain, Ollama, OpenAI, RAG, benchmark dataset export, EDA notebooks, and model quality evaluation are still future phases.
 
 ## Guiding Question
 
@@ -84,7 +89,16 @@ Current MVP status:
 - The old local TypeScript AI orchestrator dependency has been removed from the worker.
 - A Docker smoke execution has confirmed `action.aiPrompt` succeeds through the Python service.
 - Worker error mapping distinguishes retryable AI Orchestrator failures from non-retryable semantic errors.
-- Remaining MVP hardening: add the first real provider behind the existing provider registry.
+- OpenRouter is available as the first real cloud provider behind the provider registry.
+- Workflow executions persist AI traces with provider, model, status, latency, token usage, cost estimate, input/output size, and error metadata.
+- The UI exposes node progress, execution data, timeline details, diagnostics, and AI trace summaries.
+- A portfolio demo workflow has executed successfully against OpenRouter using the full MVP node chain: manual trigger, transform, condition, HTTP request, AI prompt, and final transform.
+
+Remaining MVP hardening:
+
+- Add a stable seeded or scripted demo fixture for the portfolio workflow.
+- Add a short public demo guide with screenshots and reproduction steps.
+- Add exportable trace/benchmark data for the first EDA notebook.
 
 ## Intermediate Phase
 
@@ -191,13 +205,15 @@ Goal: make the AI Orchestrator a data-driven ML/LLM evaluation and recommendatio
 
 ### Intermediate Checklist
 
-- Add OpenAI provider behind config.
+- Add OpenRouter provider behind config. Completed.
+- Add portfolio workflow using OpenRouter. Completed.
+- Add AI trace persistence. Completed.
+- Add AI trace execution UI. Completed.
+- Add benchmark runner. Started.
 - Add Ollama provider behind config.
+- Add OpenAI provider behind config.
 - Add LangChain prompt execution.
 - Add structured output parsing.
-- Add trace metric object.
-- Persist or emit AI traces.
-- Add benchmark runner.
 - Add CSV/JSON export.
 - Add first EDA notebook.
 

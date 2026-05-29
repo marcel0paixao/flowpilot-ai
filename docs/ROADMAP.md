@@ -29,16 +29,17 @@
 
 ## Week 5: AI Orchestrator
 
-- Add LangChain service.
-- Implement chat completion, RAG, memory, and basic tool calling.
-- Add provider abstraction for OpenAI, Anthropic, or local models.
-- Persist conversations, prompts, and document references.
+- Add Python/FastAPI AI Orchestrator service.
+- Add deterministic provider for repeatable tests.
+- Add first real cloud provider through OpenRouter.
+- Add provider abstraction for cloud and local models.
+- Keep LangChain, RAG, memory, and tool calling as later AI/data milestones.
 
 ## Week 6: Observability
 
 - Add trace model for workflow and AI execution.
 - Capture prompt, response, model, token usage, latency, status, and errors.
-- Integrate Langfuse or implement a lightweight internal trace dashboard.
+- Implement a lightweight internal trace view before evaluating external tracing tools.
 - Add correlation IDs across services.
 
 ## Week 7: Frontend
@@ -57,6 +58,15 @@
 - Add document ingestion for RAG.
 - Build a complete demo workflow.
 
+Current MVP demo:
+
+- Manual trigger.
+- Transform node.
+- Condition node.
+- HTTP request node with mock and real modes.
+- AI prompt node using the Python AI Orchestrator and OpenRouter.
+- Execution detail view with node progress, timeline, diagnostics, execution data, and AI traces.
+
 ## Week 9: Quality and DevOps
 
 - Add unit and integration tests.
@@ -73,6 +83,10 @@
 - Add resume-ready impact statements.
 - Prepare public GitHub release.
 
+Current portfolio case study:
+
+- [Real AI Incident Triage Demo](PORTFOLIO_DEMO_CASE_STUDY.md)
+
 ## Estimated Effort
 
 - MVP: 120-160 hours
@@ -80,4 +94,3 @@
 - Senior-level showcase: 320-420 hours
 
 Recommended target: 280 hours.
-

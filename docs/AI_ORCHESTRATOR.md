@@ -29,7 +29,7 @@ The AI Orchestrator is designed to show:
 
 ## Current Scope
 
-The first implementation is intentionally small:
+The current implementation is intentionally small, but it already crosses the boundary from deterministic testing into a real provider-backed workflow:
 
 - Python 3.12.
 - FastAPI service under `apps/ai-orchestrator`.
@@ -37,10 +37,14 @@ The first implementation is intentionally small:
 - `GET /health`.
 - `POST /v1/prompts/run`.
 - Deterministic mock provider.
+- OpenRouter provider.
+- Credential resolution through the API internal credential endpoint.
+- Provider-level token usage and latency extraction when available.
+- Provider error mapping for rate limits, timeouts, and invalid responses.
 - Dockerfile and Docker Compose service.
 - Pytest and Ruff checks.
 
-This creates the service boundary before adding real model providers, LangChain, RAG, persistence, or analytics.
+This creates the service boundary before adding LangChain, RAG, local models, benchmark exports, notebooks, and quality evaluation.
 
 ## Product Role
 
@@ -154,6 +158,22 @@ Response shape:
 ```
 
 The response is intentionally compatible with the current deterministic AI node output shape. `config.provider` selects the model provider implementation from the AI Orchestrator registry. `config.credentialId` references a workspace-scoped credential rather than carrying a raw API key. Credentials expose non-secret compatibility metadata (`type`, `kind`, and `capabilities`), so the AI prompt node can require an LLM credential with `type=openrouter` and `llm.chat` capability while the same credential system remains open for future search, database, webhook, and email nodes. For real providers, the AI Orchestrator should call the API's internal credential lookup endpoint with a service token, resolve the secret inside the provider boundary, and keep the raw value out of logs and outputs. Unknown provider names return HTTP `422` with an `unknown_ai_provider` error code. When observability metadata is added, the worker should still be able to persist a clean node output while trace data flows through an AI trace path.
+
+The OpenRouter provider is the first real implementation of this boundary. It uses the OpenAI-compatible chat completion shape, resolves the selected credential by ID, builds chat messages from `systemPrompt`, `prompt`, and workflow input, and returns a normalized result with provider, model, summary, token usage, and trace metadata.
+
+## MVP Workflow Nodes
+
+The current presentable MVP supports these executable workflow nodes:
+
+| Node | Type | Current behavior |
+|---|---|---|
+| Manual Trigger | `trigger.manual` | Starts a workflow with caller-provided input. |
+| Transform | `action.transform` | Passes through input or picks selected fields. |
+| Condition | `action.condition` | Evaluates a field with operators such as `exists`, `equals`, `contains`, `greaterThan`, and `lessThan`, then records the route decision in output. |
+| HTTP Request | `action.httpRequest` | Runs a deterministic mock request by default and supports real HTTP mode with timeout. |
+| AI Prompt | `action.aiPrompt` | Calls the Python AI Orchestrator using deterministic or OpenRouter providers. |
+
+This node set is intentionally compact. It is enough to demonstrate a real workflow: accept input, normalize it, route on business logic, enrich context, call a model, and persist execution/AI observability.
 
 ## Core Architecture
 

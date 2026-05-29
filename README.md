@@ -1,6 +1,6 @@
 # FlowPilot AI
 
-Multi-tenant workflow automation platform with microservices, RabbitMQ, Redis, LangChain, RAG, and LLM observability.
+Multi-tenant workflow automation platform with RabbitMQ execution, Python AI orchestration, OpenRouter-backed LLM nodes, encrypted credentials, and AI observability.
 
 ## Purpose
 
@@ -14,11 +14,14 @@ The project is inspired by common enterprise automation patterns, but it does no
 - Workflow definition, versioning, execution, and history
 - RabbitMQ-based asynchronous execution
 - Redis for cache, rate limiting, locks, and temporary runtime state
-- LangChain-powered AI orchestration
-- RAG over uploaded documents
-- LLM observability with traces, latency, token usage, and estimated cost
+- Visual workflow builder with manual trigger, transform, condition, HTTP request, and AI prompt nodes
+- Python/FastAPI AI Orchestrator with deterministic and OpenRouter providers
+- Workspace-scoped encrypted credentials for model providers
+- LLM observability with traces, latency, token usage, status, and estimated cost
 - Docker Compose local development environment
 - Architecture documentation suitable for interviews and portfolio review
+
+Planned AI/data science capabilities include LangChain orchestration, RAG over documents, local model comparison with Ollama, benchmark exports, EDA notebooks, and simple model recommendation based on cost, latency, reliability, and quality.
 
 ## Planned Services
 
@@ -28,7 +31,7 @@ The project is inspired by common enterprise automation patterns, but it does no
 | Auth/API Service | Users, workspaces, JWT, RBAC, public REST API |
 | Workflow Service | Workflow definitions, triggers, executions, node metadata |
 | Execution Worker | Consumes RabbitMQ jobs and executes workflow nodes |
-| AI Orchestrator | Python/FastAPI service for deterministic prompt execution now, LangChain/RAG/provider abstraction later |
+| AI Orchestrator | Python/FastAPI service for deterministic and OpenRouter prompt execution, with LangChain/RAG/provider expansion planned |
 | Observability Service | AI traces, execution logs, metrics, cost analytics |
 | Integration Service | Webhooks, HTTP requests, notifications, external adapters |
 
@@ -128,6 +131,5 @@ RabbitMQ management UI will be available at `http://localhost:15672` with the lo
 - [Architecture](docs/ARCHITECTURE.md)
 - [AI Orchestrator](docs/AI_ORCHESTRATOR.md)
 - [AI Orchestrator Status](docs/AI_ORCHESTRATOR_STATUS.md)
-- [Status](docs/STATUS.md)
-- [Decisions](docs/DECISIONS.md)
-- [Next Steps](docs/NEXT_STEPS.md)
+- [Portfolio Demo Case Study](docs/PORTFOLIO_DEMO_CASE_STUDY.md)
+- [Portfolio Launch Brief PT-BR](docs/PORTFOLIO_LAUNCH_BRIEF_PT_BR.md)

@@ -43,15 +43,15 @@ Consumes RabbitMQ execution jobs and runs workflow nodes. It is horizontally sca
 
 ### AI Orchestrator
 
-Python/FastAPI service that owns AI-specific execution behavior. The first implementation exposes a deterministic prompt provider over HTTP so `action.aiPrompt` behavior can be tested without external model providers. It will later own LangChain flows, RAG, memory, tools, model provider abstraction, token/cost accounting, and AI trace emission.
+Python/FastAPI service that owns AI-specific execution behavior. The current implementation exposes deterministic and OpenRouter prompt providers over HTTP so `action.aiPrompt` can run both repeatable tests and real cloud-model executions. It will later own LangChain flows, RAG, memory, tools, expanded model provider abstraction, richer token/cost accounting, and benchmark/evaluation workflows.
 
 Workflow AI nodes reference credentials by `credentialId`. Secret values are stored encrypted by the API service and should not be embedded in workflow definitions, worker logs, or execution outputs. Credentials are modeled with `type`, `kind`, and `capabilities` so nodes can request compatible credentials by behavior, for example an AI prompt node requiring `type=openrouter`, `kind=llm`, and `llm.chat`, rather than depending on a rigid node-type mapping. The AI Orchestrator should resolve credentials through an internal API call guarded by a service token rather than receiving raw keys from the execution worker.
 
-Prompt execution is initially modeled as synchronous HTTP because the execution worker needs the AI node output before continuing the workflow DAG. RabbitMQ remains the asynchronous backbone for workflow lifecycle events and is the preferred path for future AI traces, document ingestion, embedding batches, reindexing, and other long-running AI jobs.
+Prompt execution is modeled as synchronous HTTP because the execution worker needs the AI node output before continuing the workflow DAG. RabbitMQ remains the asynchronous backbone for workflow lifecycle events and is the preferred path for document ingestion, embedding batches, reindexing, benchmark jobs, analytics exports, and other long-running AI jobs.
 
 ### Observability Service
 
-Captures workflow execution logs and LLM traces, including latency, token usage, estimated cost, inputs, outputs, and errors.
+Captures workflow execution logs and LLM traces, including latency, token usage, estimated cost, inputs, outputs, and errors. The MVP currently persists AI traces in the workflow execution path and exposes them through API/UI execution detail views. A dedicated observability service remains the future extraction point when trace ingestion, analytics, exports, and dashboards become larger than the worker/API boundary should own.
 
 ### Integration Service
 

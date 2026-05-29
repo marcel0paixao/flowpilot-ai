@@ -1,11 +1,22 @@
 import { WORKFLOW_NODE_TYPES } from "@flowpilot/contracts";
 import { useQuery } from "@tanstack/react-query";
-import { Activity, AlertTriangle, Clock3, Eye, GitBranch, ListChecks, RadioTower } from "lucide-react";
+import {
+  Activity,
+  AlertTriangle,
+  BrainCircuit,
+  Clock3,
+  DollarSign,
+  Eye,
+  GitBranch,
+  ListChecks,
+  RadioTower
+} from "lucide-react";
 import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
 
 import { queryKeys } from "@/shared/api/query-keys";
 import type {
+  WorkflowAiTrace,
   WorkflowExecutionDiagnostics,
   WorkflowExecutionEvent,
   WorkflowExecutionSummary,
@@ -75,6 +86,9 @@ export function ExecutionDetailPage() {
 
   const summary = summaryQuery.data;
   const succeededNodes = summary.nodes.filter((node) => node.status === "SUCCEEDED").length;
+  const failedNodes = summary.nodes.filter((node) => node.status === "FAILED").length;
+  const totalTokens = summary.aiTraces.reduce((total, trace) => total + trace.totalTokenCount, 0);
+  const estimatedCost = sumEstimatedCost(summary.aiTraces);
   const isLive = !isTerminalExecutionStatus(summary.execution.status);
   const orderedEvents = [...summary.events].sort(
     (left, right) => new Date(left.occurredAt).getTime() - new Date(right.occurredAt).getTime()
@@ -96,13 +110,16 @@ export function ExecutionDetailPage() {
         </Button>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-4">
-        <MetricCard icon={Activity} label="Status" value={summary.execution.status} />
-        <MetricCard icon={GitBranch} label="Nodes" value={`${succeededNodes}/${summary.nodes.length}`} />
-        <MetricCard icon={ListChecks} label="Events" value={String(summary.events.length)} />
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
+        <MetricCard icon={GitBranch} label="Total nodes" value={String(summary.nodes.length)} />
+        <MetricCard icon={Activity} label="Successful nodes" value={String(succeededNodes)} />
+        <MetricCard icon={AlertTriangle} label="Failed nodes" value={String(failedNodes)} />
+        <MetricCard icon={BrainCircuit} label="AI traces" value={String(summary.aiTraces.length)} />
+        <MetricCard icon={ListChecks} label="Total tokens" value={formatInteger(totalTokens)} />
+        <MetricCard icon={DollarSign} label="Estimated cost" value={formatUsd(estimatedCost)} />
         <MetricCard
           icon={Clock3}
-          label="Duration"
+          label="Total latency"
           value={formatDuration(summary.execution.startedAt, summary.execution.completedAt)}
         />
       </div>
@@ -254,9 +271,10 @@ function AiObservabilityCard({ summary }: { summary: WorkflowExecutionSummary })
 
     return statusMatches && providerMatches && modelMatches;
   });
+  const traceSummary = buildAiTraceSummary(filteredTraces);
 
   return (
-    <Card className="min-w-0 overflow-x-auto">
+    <Card className="min-w-0">
       <CardHeader>
         <CardTitle>AI observability</CardTitle>
         <CardDescription>
@@ -267,6 +285,19 @@ function AiObservabilityCard({ summary }: { summary: WorkflowExecutionSummary })
       <CardContent>
         {summary.aiTraces.length > 0 ? (
           <div className="grid gap-4">
+            <div className="grid gap-3 md:grid-cols-4">
+              <DetailMetric label="AI calls" value={String(traceSummary.calls)} />
+              <DetailMetric label="Tokens" value={formatInteger(traceSummary.tokens)} />
+              <DetailMetric label="Provider latency" value={`${formatInteger(traceSummary.providerLatencyMs)}ms`} />
+              <DetailMetric label="Estimated cost" value={formatUsd(traceSummary.estimatedCost)} />
+            </div>
+
+            <p className="rounded-md border border-border bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
+              {traceSummary.calls} AI {traceSummary.calls === 1 ? "call" : "calls"},{" "}
+              {formatInteger(traceSummary.tokens)} tokens,{" "}
+              {formatInteger(traceSummary.providerLatencyMs)}ms provider latency.
+            </p>
+
             <div className="grid gap-3 md:grid-cols-3">
               <TraceFilterSelect
                 label="Status"
@@ -305,69 +336,73 @@ function AiObservabilityCard({ summary }: { summary: WorkflowExecutionSummary })
             </div>
 
             {filteredTraces.length > 0 ? (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Node</TableHead>
-                    <TableHead>Provider</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Latency</TableHead>
-                    <TableHead>Tokens</TableHead>
-                    <TableHead>Cost</TableHead>
-                    <TableHead>Error</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredTraces.map((trace) => (
-                    <TableRow key={trace.id}>
-                      <TableCell>
-                        <div className="font-medium">{trace.nodeId ?? "-"}</div>
-                        <div className="mt-1 max-w-64 truncate text-xs text-muted-foreground">
-                          {trace.id}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="font-medium">{humanizeIdentifier(trace.provider)}</div>
-                        <div className="mt-1 max-w-64 truncate text-xs text-muted-foreground">
-                          {trace.model}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <StatusBadge status={trace.status} />
-                        {trace.finishReason ? (
-                          <div className="mt-1 text-xs text-muted-foreground">
-                            {humanizeIdentifier(trace.finishReason)}
-                          </div>
-                        ) : null}
-                      </TableCell>
-                      <TableCell>
-                        <div>{trace.latencyMs}ms</div>
-                        {trace.providerLatencyMs !== null ? (
-                          <div className="mt-1 text-xs text-muted-foreground">
-                            Provider {trace.providerLatencyMs}ms
-                          </div>
-                        ) : null}
-                      </TableCell>
-                      <TableCell>{trace.totalTokenCount}</TableCell>
-                      <TableCell>
-                        {trace.estimatedCostUsd !== null ? `$${trace.estimatedCostUsd}` : "-"}
-                      </TableCell>
-                      <TableCell>
-                        {trace.errorCode !== null ? (
-                          <div>
-                            <div className="font-medium">{humanizeIdentifier(trace.errorCode)}</div>
-                            <div className="mt-1 max-w-72 truncate text-xs text-muted-foreground">
-                              {trace.errorMessage ?? "-"}
-                            </div>
-                          </div>
-                        ) : (
-                          "-"
-                        )}
-                      </TableCell>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Node</TableHead>
+                      <TableHead>Provider</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Latency</TableHead>
+                      <TableHead>Tokens</TableHead>
+                      <TableHead>Cost</TableHead>
+                      <TableHead>Finish</TableHead>
+                      <TableHead>Error</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredTraces.map((trace) => (
+                      <TableRow key={trace.id}>
+                        <TableCell>
+                          <div className="font-medium">{trace.nodeId ?? "-"}</div>
+                          <div className="mt-1 max-w-64 truncate text-xs text-muted-foreground">
+                            {trace.id}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="font-medium">{humanizeIdentifier(trace.provider)}</div>
+                          <div className="mt-1 max-w-64 truncate text-xs text-muted-foreground">
+                            {trace.model}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <StatusBadge status={trace.status} />
+                        </TableCell>
+                        <TableCell>
+                          <div>{formatInteger(trace.latencyMs)}ms</div>
+                          <div className="mt-1 text-xs text-muted-foreground">
+                            Provider{" "}
+                            {trace.providerLatencyMs !== null
+                              ? `${formatInteger(trace.providerLatencyMs)}ms`
+                              : "-"}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div>{formatInteger(trace.totalTokenCount)} total</div>
+                          <div className="mt-1 text-xs text-muted-foreground">
+                            {formatInteger(trace.inputTokenCount)} in ·{" "}
+                            {formatInteger(trace.outputTokenCount)} out
+                          </div>
+                        </TableCell>
+                        <TableCell>{formatUsd(parseEstimatedCost(trace.estimatedCostUsd))}</TableCell>
+                        <TableCell>{trace.finishReason ? humanizeIdentifier(trace.finishReason) : "-"}</TableCell>
+                        <TableCell>
+                          {trace.errorCode !== null ? (
+                            <div>
+                              <div className="font-medium">{humanizeIdentifier(trace.errorCode)}</div>
+                              <div className="mt-1 max-w-72 break-words text-xs text-muted-foreground">
+                                {trace.errorMessage ?? "-"}
+                              </div>
+                            </div>
+                          ) : (
+                            "-"
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
             ) : (
               <div className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
                 No AI traces match the selected filters.
@@ -623,6 +658,63 @@ function MetricCard({
       </CardContent>
     </Card>
   );
+}
+
+function buildAiTraceSummary(traces: WorkflowAiTrace[]) {
+  return traces.reduce(
+    (summary, trace) => ({
+      calls: summary.calls + 1,
+      estimatedCost: summary.estimatedCost + parseEstimatedCost(trace.estimatedCostUsd),
+      providerLatencyMs: summary.providerLatencyMs + (trace.providerLatencyMs ?? 0),
+      tokens: summary.tokens + trace.totalTokenCount
+    }),
+    {
+      calls: 0,
+      estimatedCost: 0,
+      providerLatencyMs: 0,
+      tokens: 0
+    }
+  );
+}
+
+function sumEstimatedCost(traces: WorkflowAiTrace[]): number {
+  return traces.reduce(
+    (total, trace) => total + parseEstimatedCost(trace.estimatedCostUsd),
+    0
+  );
+}
+
+function parseEstimatedCost(value: string | null): number {
+  if (value === null) {
+    return 0;
+  }
+
+  const parsed = Number(value);
+
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function formatUsd(value: number): string {
+  if (value === 0) {
+    return "$0";
+  }
+
+  if (value < 0.01) {
+    return `<$0.01`;
+  }
+
+  return new Intl.NumberFormat("en-US", {
+    currency: "USD",
+    maximumFractionDigits: 4,
+    minimumFractionDigits: 2,
+    style: "currency"
+  }).format(value);
+}
+
+function formatInteger(value: number): string {
+  return new Intl.NumberFormat("en-US", {
+    maximumFractionDigits: 0
+  }).format(value);
 }
 
 function AiProviderErrorNotice({ error }: { error: unknown }) {
