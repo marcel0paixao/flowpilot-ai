@@ -40,7 +40,7 @@ import {
 import { ApiError } from "@/shared/api/http";
 import { listCredentials } from "@/shared/api/credentials";
 import { queryKeys } from "@/shared/api/query-keys";
-import type { WorkflowStatus } from "@/shared/api/types";
+import type { IntegrationCredential, WorkflowStatus } from "@/shared/api/types";
 import {
   createWorkflowVersion,
   getWorkflow,
@@ -80,6 +80,33 @@ import { Textarea } from "@/shared/ui/textarea";
 
 const WORKFLOW_STATUSES = ["DRAFT", "ACTIVE", "ARCHIVED"] as const satisfies readonly WorkflowStatus[];
 type WorkflowStatusValue = (typeof WORKFLOW_STATUSES)[number];
+
+const AI_PROVIDER_OPTIONS = [
+  {
+    value: "deterministic",
+    label: "Deterministic",
+    model: "mock-flowpilot-llm",
+    credentialRequired: false
+  },
+  {
+    value: "openrouter",
+    label: "OpenRouter",
+    model: "openai/gpt-oss-20b:free",
+    credentialRequired: true
+  },
+  {
+    value: "ollama",
+    label: "Ollama",
+    model: "llama3.2",
+    credentialRequired: true
+  },
+  {
+    value: "openai",
+    label: "OpenAI",
+    model: "gpt-4o-mini",
+    credentialRequired: true
+  }
+] as const;
 
 const NODE_LIBRARY = [
   {
@@ -1338,105 +1365,140 @@ function NodeConfigEditor({
   }
 
   if (node.type === WORKFLOW_NODE_TYPES.aiPromptAction) {
-    const providerCredentials =
-      credentialsQuery.data?.filter(
-        (credential) =>
-          credential.type === node.config.provider &&
-          credential.kind === "llm" &&
-          credential.capabilities.includes("llm.chat")
-      ) ?? [];
+    const providerOption = getAiProviderOption(node.config.provider);
+    const providerCredentials = getCompatibleAiCredentials(
+      credentialsQuery.data ?? [],
+      node.config.provider
+    );
+    const selectedCredentialIsCompatible =
+      node.config.credentialId === undefined ||
+      providerCredentials.some((credential) => credential.id === node.config.credentialId);
 
     return (
-      <div className="space-y-3">
-        <div className="space-y-2">
-          <Label htmlFor="ai-prompt-provider">Provider</Label>
-          <select
-            className="liquid-field h-10 w-full rounded-md border border-input bg-card px-3 text-sm"
-            id="ai-prompt-provider"
-            value={node.config.provider}
-            onChange={(event) =>
-              onChange({
-                ...node,
-                config: {
-                  ...node.config,
-                  provider: event.target.value,
-                  credentialId: undefined
-                }
-              })
-            }
-          >
-            <option value="deterministic">Deterministic</option>
-            <option value="openrouter">OpenRouter</option>
-            <option value="ollama">Ollama</option>
-            <option value="openai">OpenAI</option>
-          </select>
+      <div className="space-y-4">
+        <div className="rounded-lg border border-border bg-muted/40 p-3 text-sm text-muted-foreground">
+          AI prompts use provider-specific credentials. Only credentials with matching provider,
+          kind <Badge variant="secondary">llm</Badge>, and capability{" "}
+          <Badge variant="outline">llm.chat</Badge> appear here.
         </div>
-        <div className="space-y-2">
-          <Label htmlFor="ai-prompt-credential">Credential</Label>
-          <select
-            className="liquid-field h-10 w-full rounded-md border border-input bg-card px-3 text-sm"
-            disabled={node.config.provider === "deterministic"}
-            id="ai-prompt-credential"
-            value={node.config.credentialId ?? ""}
-            onChange={(event) =>
-              onChange({
-                ...node,
-                config: {
-                  ...node.config,
-                  credentialId: event.target.value || undefined
-                }
-              })
-            }
-          >
-            <option value="">
-              {node.config.provider === "deterministic" ? "No credential required" : "Select credential"}
-            </option>
-            {providerCredentials.map((credential) => (
-              <option key={credential.id} value={credential.id}>
-                {credential.name}
+
+        <div className="grid gap-3 md:grid-cols-2">
+          <div className="space-y-2">
+            <Label htmlFor="ai-prompt-provider">Provider</Label>
+            <select
+              className="liquid-field h-10 w-full rounded-md border border-input bg-card px-3 text-sm"
+              id="ai-prompt-provider"
+              value={node.config.provider}
+              onChange={(event) => {
+                const nextProvider = event.target.value;
+                const nextProviderOption = getAiProviderOption(nextProvider);
+
+                onChange({
+                  ...node,
+                  config: {
+                    ...node.config,
+                    credentialId: undefined,
+                    model: nextProviderOption.model,
+                    provider: nextProvider
+                  }
+                });
+              }}
+            >
+              {AI_PROVIDER_OPTIONS.map((provider) => (
+                <option key={provider.value} value={provider.value}>
+                  {provider.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="ai-prompt-model">Model</Label>
+            <Input
+              id="ai-prompt-model"
+              value={node.config.model}
+              onChange={(event) =>
+                onChange({
+                  ...node,
+                  config: {
+                    ...node.config,
+                    model: event.target.value
+                  }
+                })
+              }
+            />
+          </div>
+        </div>
+
+        <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_10rem]">
+          <div className="space-y-2">
+            <Label htmlFor="ai-prompt-credential">Credential</Label>
+            <select
+              className="liquid-field h-10 w-full rounded-md border border-input bg-card px-3 text-sm"
+              disabled={!providerOption.credentialRequired || credentialsQuery.isLoading}
+              id="ai-prompt-credential"
+              value={selectedCredentialIsCompatible ? node.config.credentialId ?? "" : ""}
+              onChange={(event) =>
+                onChange({
+                  ...node,
+                  config: {
+                    ...node.config,
+                    credentialId: event.target.value || undefined
+                  }
+                })
+              }
+            >
+              <option value="">
+                {!providerOption.credentialRequired
+                  ? "No credential required"
+                  : credentialsQuery.isLoading
+                    ? "Loading credentials"
+                    : "Select compatible credential"}
               </option>
-            ))}
-          </select>
+              {providerCredentials.map((credential) => (
+                <option key={credential.id} value={credential.id}>
+                  {credential.name}
+                </option>
+              ))}
+            </select>
+            {providerOption.credentialRequired && providerCredentials.length === 0 ? (
+              <p className="text-xs text-amber-300">
+                No compatible {providerOption.label} LLM credential found. Add one in Credentials.
+              </p>
+            ) : null}
+            {!selectedCredentialIsCompatible ? (
+              <p className="text-xs text-amber-300">
+                The saved credential no longer matches this provider and will not be used.
+              </p>
+            ) : null}
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="ai-prompt-temperature">Temperature</Label>
+            <Input
+              id="ai-prompt-temperature"
+              type="number"
+              min="0"
+              max="2"
+              step="0.1"
+              value={node.config.temperature}
+              onChange={(event) =>
+                onChange({
+                  ...node,
+                  config: {
+                    ...node.config,
+                    temperature: Number(event.target.value)
+                  }
+                })
+              }
+            />
+          </div>
         </div>
-        <div className="space-y-2">
-          <Label htmlFor="ai-prompt-model">Model</Label>
-          <Input
-            id="ai-prompt-model"
-            value={node.config.model}
-            onChange={(event) =>
-              onChange({
-                ...node,
-                config: {
-                  ...node.config,
-                  model: event.target.value
-                }
-              })
-            }
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="ai-prompt-temperature">Temperature</Label>
-          <Input
-            id="ai-prompt-temperature"
-            type="number"
-            min="0"
-            max="2"
-            step="0.1"
-            value={node.config.temperature}
-            onChange={(event) =>
-              onChange({
-                ...node,
-                config: {
-                  ...node.config,
-                  temperature: Number(event.target.value)
-                }
-              })
-            }
-          />
-        </div>
+
         <div className="space-y-2">
           <Label htmlFor="ai-system-prompt">System prompt</Label>
           <Textarea
+            className="min-h-24"
             id="ai-system-prompt"
             value={node.config.systemPrompt ?? ""}
             onChange={(event) =>
@@ -1453,6 +1515,7 @@ function NodeConfigEditor({
         <div className="space-y-2">
           <Label htmlFor="ai-prompt">Prompt</Label>
           <Textarea
+            className="min-h-32"
             id="ai-prompt"
             value={node.config.prompt}
             onChange={(event) =>
@@ -1686,6 +1749,23 @@ function parseJsonObject(value: string) {
   } catch {
     return undefined;
   }
+}
+
+function getAiProviderOption(provider: string) {
+  return AI_PROVIDER_OPTIONS.find((option) => option.value === provider) ?? AI_PROVIDER_OPTIONS[0];
+}
+
+function getCompatibleAiCredentials(credentials: IntegrationCredential[], provider: string) {
+  if (provider === "deterministic") {
+    return [];
+  }
+
+  return credentials.filter(
+    (credential) =>
+      credential.type === provider &&
+      credential.kind === "llm" &&
+      credential.capabilities.includes("llm.chat")
+  );
 }
 
 function canWriteWorkflows(role: string) {

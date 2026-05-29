@@ -455,19 +455,19 @@ function ExecutionDataCard({ summary }: { summary: WorkflowExecutionSummary }) {
         <CardTitle>Execution data</CardTitle>
         <CardDescription>{formatDateTime(summary.execution.createdAt)}</CardDescription>
       </CardHeader>
-      <CardContent className="grid gap-4 lg:grid-cols-2">
+      <CardContent className="grid min-h-0 gap-4 lg:grid-cols-2">
         <div className="min-w-0">
           <p className="mb-2 text-sm font-medium">Input</p>
-          <JsonBlock value={summary.execution.input} />
+          <JsonBlock className="max-h-[26rem]" value={summary.execution.input} />
         </div>
         <div className="min-w-0">
           <p className="mb-2 text-sm font-medium">Output</p>
-          <JsonBlock value={summary.execution.output} />
+          <JsonBlock className="max-h-[26rem]" value={summary.execution.output} />
         </div>
         {summary.execution.error ? (
           <div className="min-w-0 lg:col-span-2">
             <p className="mb-2 text-sm font-medium">Error</p>
-            <JsonBlock value={summary.execution.error} />
+            <JsonBlock className="max-h-[22rem]" value={summary.execution.error} />
           </div>
         ) : null}
       </CardContent>
@@ -494,7 +494,7 @@ function TimelineCard({
             events.map((event, index) => (
               <button
                 key={event.id}
-                className="relative w-full min-w-0 cursor-pointer rounded-lg border border-border p-4 text-left transition-colors hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="relative w-full min-w-0 cursor-pointer overflow-hidden rounded-lg border border-border p-4 text-left transition-colors hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 type="button"
                 onClick={() => onSelectEvent(event)}
               >
@@ -512,7 +512,7 @@ function TimelineCard({
                   </div>
                   <Badge variant="outline">{event.eventId.slice(0, 8)}</Badge>
                 </div>
-                <p className="mt-3 line-clamp-2 break-words text-xs text-muted-foreground">
+                <p className="mt-3 max-h-10 overflow-hidden break-words text-xs leading-5 text-muted-foreground">
                   {createPayloadPreview(event.payload)}
                 </p>
               </button>
