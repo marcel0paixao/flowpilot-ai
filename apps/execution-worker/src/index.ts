@@ -10,6 +10,7 @@ import {
   FLOWPILOT_RETRY_ROUTING_KEYS,
   FLOWPILOT_ROUTING_KEYS,
   WORKFLOW_NODE_TYPES,
+  type AiTraceCreatedMessage,
   type FlowPilotExecutionError,
   type NodeExecutionCompletedMessage,
   type NodeExecutionFailedMessage,
@@ -77,7 +78,8 @@ type WorkflowLifecycleRoutingKey =
   | typeof FLOWPILOT_ROUTING_KEYS.workflowExecutionFailed
   | typeof FLOWPILOT_ROUTING_KEYS.nodeExecutionStarted
   | typeof FLOWPILOT_ROUTING_KEYS.nodeExecutionCompleted
-  | typeof FLOWPILOT_ROUTING_KEYS.nodeExecutionFailed;
+  | typeof FLOWPILOT_ROUTING_KEYS.nodeExecutionFailed
+  | typeof FLOWPILOT_ROUTING_KEYS.aiTraceCreated;
 
 type WorkflowLifecycleMessage =
   | WorkflowExecutionStartedMessage
@@ -85,9 +87,47 @@ type WorkflowLifecycleMessage =
   | WorkflowExecutionFailedMessage
   | NodeExecutionStartedMessage
   | NodeExecutionCompletedMessage
-  | NodeExecutionFailedMessage;
+  | NodeExecutionFailedMessage
+  | AiTraceCreatedMessage;
 
 type PrismaWriter = PrismaClient | Prisma.TransactionClient;
+
+type WorkflowAiTraceCreateData = {
+  workspaceId: string;
+  workflowId: string;
+  workflowExecutionId: string;
+  nodeExecutionId: string;
+  nodeId: string;
+  credentialId: string | null;
+  provider: string;
+  model: string;
+  status: "SUCCEEDED" | "FAILED";
+  latencyMs: number;
+  providerLatencyMs?: number | null;
+  finishReason?: string | null;
+  inputTokenCount?: number;
+  outputTokenCount?: number;
+  totalTokenCount?: number;
+  estimatedCostUsd?: number | null;
+  inputSizeBytes?: number;
+  outputSizeBytes?: number;
+  schemaValid?: boolean | null;
+  errorCode?: string;
+  errorMessage?: string;
+  providerStatusCode?: number | null;
+  retryable?: boolean;
+};
+
+type WorkflowAiTraceEventRecord = WorkflowAiTraceCreateData & {
+  id: string;
+  createdAt: Date;
+};
+
+type AiTracePrismaWriter = PrismaWriter & {
+  workflowAiTrace: {
+    create(args: { data: WorkflowAiTraceCreateData }): Promise<{ id: string; createdAt: Date }>;
+  };
+};
 
 type WorkflowExecutionWithVersion = NonNullable<
   Awaited<ReturnType<typeof findWorkflowExecutionForProcessing>>
@@ -578,6 +618,7 @@ async function executeWorkflowNodes(
       const completedAt = new Date();
       await completeNodeExecution(prisma, nodeExecution.id, output, completedAt);
       await recordAiTraceForSuccessfulNode(
+        channel,
         prisma,
         message,
         node,
@@ -613,6 +654,7 @@ async function executeWorkflowNodes(
       const failedAt = new Date();
       await failNodeExecution(prisma, nodeExecution.id, failure, failedAt);
       await recordAiTraceForFailedNode(
+        channel,
         prisma,
         message,
         node,
@@ -836,7 +878,8 @@ async function executeNode({
 }
 
 async function recordAiTraceForSuccessfulNode(
-  prisma: PrismaWriter,
+  channel: Channel,
+  prisma: PrismaClient,
   message: WorkflowExecutionRequestedMessage,
   node: WorkflowNode,
   nodeExecutionId: string,
@@ -850,27 +893,38 @@ async function recordAiTraceForSuccessfulNode(
   }
 
   const tokenUsage = getAiTokenUsage(output);
+  const providerTrace = getAiProviderTrace(output);
 
   try {
-    await prisma.workflowAiTrace.create({
-      data: {
-        workspaceId: message.workspaceId,
-        workflowId: message.payload.workflowId,
-        workflowExecutionId: message.payload.executionId,
-        nodeExecutionId,
-        nodeId: node.id,
-        credentialId: node.config.credentialId ?? null,
-        provider: node.config.provider,
-        model: node.config.model,
-        status: "SUCCEEDED",
-        latencyMs: completedAt.getTime() - startedAt.getTime(),
-        inputTokenCount: tokenUsage.input,
-        outputTokenCount: tokenUsage.output,
-        totalTokenCount: tokenUsage.input + tokenUsage.output,
-        inputSizeBytes: getJsonSizeBytes(input),
-        outputSizeBytes: getJsonSizeBytes(output),
-        schemaValid: true
-      }
+    const data: WorkflowAiTraceCreateData = {
+      workspaceId: message.workspaceId,
+      workflowId: message.payload.workflowId,
+      workflowExecutionId: message.payload.executionId,
+      nodeExecutionId,
+      nodeId: node.id,
+      credentialId: node.config.credentialId ?? null,
+      provider: node.config.provider,
+      model: node.config.model,
+      status: "SUCCEEDED",
+      latencyMs: completedAt.getTime() - startedAt.getTime(),
+      providerLatencyMs: providerTrace.providerLatencyMs,
+      finishReason: providerTrace.finishReason,
+      inputTokenCount: tokenUsage.input,
+      outputTokenCount: tokenUsage.output,
+      totalTokenCount: tokenUsage.input + tokenUsage.output,
+      estimatedCostUsd: estimateAiCostUsd(node.config.provider, node.config.model, tokenUsage),
+      inputSizeBytes: getJsonSizeBytes(input),
+      outputSizeBytes: getJsonSizeBytes(output),
+      schemaValid: true
+    };
+    const aiTracePrisma = prisma as AiTracePrismaWriter;
+    const trace = await aiTracePrisma.workflowAiTrace.create({
+      data
+    });
+    await publishAiTraceCreatedEvent(channel, prisma, message, {
+      ...data,
+      id: trace.id,
+      createdAt: trace.createdAt
     });
   } catch (error) {
     logger.warn("AI trace persistence failed", {
@@ -886,7 +940,8 @@ async function recordAiTraceForSuccessfulNode(
 }
 
 async function recordAiTraceForFailedNode(
-  prisma: PrismaWriter,
+  channel: Channel,
+  prisma: PrismaClient,
   message: WorkflowExecutionRequestedMessage,
   node: WorkflowNode,
   nodeExecutionId: string,
@@ -900,25 +955,32 @@ async function recordAiTraceForFailedNode(
   }
 
   try {
-    await prisma.workflowAiTrace.create({
-      data: {
-        workspaceId: message.workspaceId,
-        workflowId: message.payload.workflowId,
-        workflowExecutionId: message.payload.executionId,
-        nodeExecutionId,
-        nodeId: node.id,
-        credentialId: node.config.credentialId ?? null,
-        provider: node.config.provider,
-        model: node.config.model,
-        status: "FAILED",
-        latencyMs: failedAt.getTime() - startedAt.getTime(),
-        inputSizeBytes: getJsonSizeBytes(input),
-        schemaValid: null,
-        errorCode: failure.code,
-        errorMessage: failure.message,
-        providerStatusCode: getProviderStatusCode(failure),
-        retryable: failure.retryable
-      }
+    const data: WorkflowAiTraceCreateData = {
+      workspaceId: message.workspaceId,
+      workflowId: message.payload.workflowId,
+      workflowExecutionId: message.payload.executionId,
+      nodeExecutionId,
+      nodeId: node.id,
+      credentialId: node.config.credentialId ?? null,
+      provider: node.config.provider,
+      model: node.config.model,
+      status: "FAILED",
+      latencyMs: failedAt.getTime() - startedAt.getTime(),
+      inputSizeBytes: getJsonSizeBytes(input),
+      schemaValid: null,
+      errorCode: failure.code,
+      errorMessage: failure.message,
+      providerStatusCode: getProviderStatusCode(failure),
+      retryable: failure.retryable
+    };
+    const aiTracePrisma = prisma as AiTracePrismaWriter;
+    const trace = await aiTracePrisma.workflowAiTrace.create({
+      data
+    });
+    await publishAiTraceCreatedEvent(channel, prisma, message, {
+      ...data,
+      id: trace.id,
+      createdAt: trace.createdAt
     });
   } catch (error) {
     logger.warn("AI trace persistence failed", {
@@ -933,6 +995,77 @@ async function recordAiTraceForFailedNode(
   }
 }
 
+async function publishAiTraceCreatedEvent(
+  channel: Channel,
+  prisma: PrismaClient,
+  message: WorkflowExecutionRequestedMessage,
+  trace: WorkflowAiTraceEventRecord
+): Promise<void> {
+  const outboxMessage = await persistOutboxEvent(
+    prisma,
+    FLOWPILOT_ROUTING_KEYS.aiTraceCreated,
+    createAiTraceCreatedMessage(message, trace)
+  );
+  await dispatchOutboxEvent(channel, prisma, outboxMessage);
+}
+
+function createAiTraceCreatedMessage(
+  message: WorkflowExecutionRequestedMessage,
+  trace: WorkflowAiTraceEventRecord
+): AiTraceCreatedMessage {
+  return {
+    eventName: FLOWPILOT_ROUTING_KEYS.aiTraceCreated,
+    eventId: randomUUID(),
+    schemaVersion: FLOWPILOT_MESSAGE_SCHEMA_VERSION,
+    occurredAt: trace.createdAt.toISOString(),
+    workspaceId: message.workspaceId,
+    correlationId: message.correlationId,
+    causationId: message.eventId,
+    producer: FLOWPILOT_MESSAGE_PRODUCERS.executionWorker,
+    actor: {
+      type: "system",
+      id: FLOWPILOT_MESSAGE_PRODUCERS.executionWorker
+    },
+    idempotencyKey: `ai.trace.created:${trace.id}`,
+    payload: {
+      traceId: trace.id,
+      workflowId: trace.workflowId,
+      executionId: trace.workflowExecutionId,
+      nodeExecutionId: trace.nodeExecutionId,
+      nodeId: trace.nodeId,
+      model: trace.model,
+      provider: trace.provider,
+      latencyMs: trace.latencyMs,
+      providerLatencyMs: trace.providerLatencyMs ?? null,
+      finishReason: trace.finishReason ?? null,
+      tokenUsage: {
+        inputTokens: trace.inputTokenCount ?? 0,
+        outputTokens: trace.outputTokenCount ?? 0,
+        totalTokens: trace.totalTokenCount ?? 0
+      },
+      estimatedCostUsd: trace.estimatedCostUsd ?? null,
+      status: trace.status,
+      errorCode: trace.errorCode ?? null,
+      providerStatusCode: trace.providerStatusCode ?? null,
+      retryable: trace.retryable ?? null
+    }
+  };
+}
+
+function getAiProviderTrace(output: Record<string, unknown>): {
+  providerLatencyMs: number | null;
+  finishReason: string | null;
+} {
+  const trace = isRecord(output.trace) ? output.trace : {};
+  const providerLatencyMs = trace.providerLatencyMs;
+  const finishReason = trace.finishReason;
+
+  return {
+    providerLatencyMs: getNonNegativeIntegerOrNull(providerLatencyMs),
+    finishReason: typeof finishReason === "string" && finishReason ? finishReason : null
+  };
+}
+
 function getAiTokenUsage(output: Record<string, unknown>): { input: number; output: number } {
   const tokens = isRecord(output.tokens) ? output.tokens : {};
 
@@ -940,6 +1073,45 @@ function getAiTokenUsage(output: Record<string, unknown>): { input: number; outp
     input: getNonNegativeInteger(tokens.input),
     output: getNonNegativeInteger(tokens.output)
   };
+}
+
+function estimateAiCostUsd(
+  provider: string,
+  model: string,
+  tokenUsage: { input: number; output: number }
+): number | null {
+  if (provider === "deterministic" || model.endsWith(":free")) {
+    return 0;
+  }
+
+  const pricing = getAiModelPricing(provider, model);
+
+  if (!pricing) {
+    return null;
+  }
+
+  return (
+    (tokenUsage.input / 1_000_000) * pricing.inputUsdPerMillionTokens +
+    (tokenUsage.output / 1_000_000) * pricing.outputUsdPerMillionTokens
+  );
+}
+
+function getAiModelPricing(
+  provider: string,
+  model: string
+): { inputUsdPerMillionTokens: number; outputUsdPerMillionTokens: number } | null {
+  if (provider === "openrouter" && model === "openai/gpt-4o-mini") {
+    return {
+      inputUsdPerMillionTokens: 0.15,
+      outputUsdPerMillionTokens: 0.6
+    };
+  }
+
+  return null;
+}
+
+function getNonNegativeIntegerOrNull(value: unknown): number | null {
+  return typeof value === "number" && Number.isInteger(value) && value >= 0 ? value : null;
 }
 
 function getProviderStatusCode(failure: WorkerFailure): number | null {

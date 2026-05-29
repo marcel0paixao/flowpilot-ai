@@ -38,6 +38,12 @@ export class WorkflowAiTraceResponseDto {
   @ApiProperty({ example: 1240, type: Number })
   latencyMs!: number;
 
+  @ApiProperty({ example: 1180, nullable: true, type: Number })
+  providerLatencyMs!: number | null;
+
+  @ApiProperty({ example: "stop", nullable: true, type: String })
+  finishReason!: string | null;
+
   @ApiProperty({ example: 87, type: Number })
   inputTokenCount!: number;
 

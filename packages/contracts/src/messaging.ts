@@ -176,17 +176,25 @@ export type WorkflowExecutionFailedPayload = {
 
 export type AiTraceCreatedPayload = {
   traceId: string;
-  executionId?: string;
+  workflowId: string;
+  executionId: string;
+  nodeExecutionId: string;
+  nodeId: string;
   model: string;
   provider: string;
   latencyMs: number;
+  providerLatencyMs?: number | null;
+  finishReason?: string | null;
   tokenUsage: {
     inputTokens: number;
     outputTokens: number;
     totalTokens: number;
   };
-  estimatedCostUsd?: number;
-  status: "success" | "error";
+  estimatedCostUsd?: number | null;
+  status: "SUCCEEDED" | "FAILED";
+  errorCode?: string | null;
+  providerStatusCode?: number | null;
+  retryable?: boolean | null;
 };
 
 export type WorkflowCreatedMessage = FlowPilotMessageEnvelope<

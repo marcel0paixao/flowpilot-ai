@@ -39,5 +39,7 @@ class DeterministicPromptProvider(PromptProvider):
             trace=PromptTrace(
                 deterministic=True,
                 inputKeys=input_keys,
+                providerLatencyMs=0,
+                finishReason="deterministic",
             ),
         )

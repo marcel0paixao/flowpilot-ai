@@ -242,59 +242,138 @@ function NodeProgressCard({
 }
 
 function AiObservabilityCard({ summary }: { summary: WorkflowExecutionSummary }) {
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [providerFilter, setProviderFilter] = useState("all");
+  const [modelFilter, setModelFilter] = useState("all");
+  const providers = Array.from(new Set(summary.aiTraces.map((trace) => trace.provider))).sort();
+  const models = Array.from(new Set(summary.aiTraces.map((trace) => trace.model))).sort();
+  const filteredTraces = summary.aiTraces.filter((trace) => {
+    const statusMatches = statusFilter === "all" || trace.status === statusFilter;
+    const providerMatches = providerFilter === "all" || trace.provider === providerFilter;
+    const modelMatches = modelFilter === "all" || trace.model === modelFilter;
+
+    return statusMatches && providerMatches && modelMatches;
+  });
+
   return (
     <Card className="min-w-0 overflow-x-auto">
       <CardHeader>
         <CardTitle>AI observability</CardTitle>
-        <CardDescription>Structured traces captured from AI prompt node executions.</CardDescription>
+        <CardDescription>
+          {filteredTraces.length} of {summary.aiTraces.length} structured traces captured from AI
+          prompt node executions.
+        </CardDescription>
       </CardHeader>
       <CardContent>
         {summary.aiTraces.length > 0 ? (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Node</TableHead>
-                <TableHead>Provider</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Latency</TableHead>
-                <TableHead>Tokens</TableHead>
-                <TableHead>Cost</TableHead>
-                <TableHead>Error</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {summary.aiTraces.map((trace) => (
-                <TableRow key={trace.id}>
-                  <TableCell>
-                    <div className="font-medium">{trace.nodeId ?? "-"}</div>
-                    <div className="mt-1 max-w-64 truncate text-xs text-muted-foreground">{trace.id}</div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="font-medium">{humanizeIdentifier(trace.provider)}</div>
-                    <div className="mt-1 max-w-64 truncate text-xs text-muted-foreground">{trace.model}</div>
-                  </TableCell>
-                  <TableCell>
-                    <StatusBadge status={trace.status} />
-                  </TableCell>
-                  <TableCell>{trace.latencyMs}ms</TableCell>
-                  <TableCell>{trace.totalTokenCount}</TableCell>
-                  <TableCell>{trace.estimatedCostUsd !== null ? `$${trace.estimatedCostUsd}` : "-"}</TableCell>
-                  <TableCell>
-                    {trace.errorCode !== null ? (
-                      <div>
-                        <div className="font-medium">{humanizeIdentifier(trace.errorCode)}</div>
-                        <div className="mt-1 max-w-72 truncate text-xs text-muted-foreground">
-                          {trace.errorMessage ?? "-"}
+          <div className="grid gap-4">
+            <div className="grid gap-3 md:grid-cols-3">
+              <TraceFilterSelect
+                label="Status"
+                value={statusFilter}
+                options={[
+                  { label: "All statuses", value: "all" },
+                  { label: "Succeeded", value: "SUCCEEDED" },
+                  { label: "Failed", value: "FAILED" }
+                ]}
+                onChange={setStatusFilter}
+              />
+              <TraceFilterSelect
+                label="Provider"
+                value={providerFilter}
+                options={[
+                  { label: "All providers", value: "all" },
+                  ...providers.map((provider) => ({
+                    label: humanizeIdentifier(provider),
+                    value: provider
+                  }))
+                ]}
+                onChange={setProviderFilter}
+              />
+              <TraceFilterSelect
+                label="Model"
+                value={modelFilter}
+                options={[
+                  { label: "All models", value: "all" },
+                  ...models.map((model) => ({
+                    label: model,
+                    value: model
+                  }))
+                ]}
+                onChange={setModelFilter}
+              />
+            </div>
+
+            {filteredTraces.length > 0 ? (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Node</TableHead>
+                    <TableHead>Provider</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Latency</TableHead>
+                    <TableHead>Tokens</TableHead>
+                    <TableHead>Cost</TableHead>
+                    <TableHead>Error</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredTraces.map((trace) => (
+                    <TableRow key={trace.id}>
+                      <TableCell>
+                        <div className="font-medium">{trace.nodeId ?? "-"}</div>
+                        <div className="mt-1 max-w-64 truncate text-xs text-muted-foreground">
+                          {trace.id}
                         </div>
-                      </div>
-                    ) : (
-                      "-"
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+                      </TableCell>
+                      <TableCell>
+                        <div className="font-medium">{humanizeIdentifier(trace.provider)}</div>
+                        <div className="mt-1 max-w-64 truncate text-xs text-muted-foreground">
+                          {trace.model}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <StatusBadge status={trace.status} />
+                        {trace.finishReason ? (
+                          <div className="mt-1 text-xs text-muted-foreground">
+                            {humanizeIdentifier(trace.finishReason)}
+                          </div>
+                        ) : null}
+                      </TableCell>
+                      <TableCell>
+                        <div>{trace.latencyMs}ms</div>
+                        {trace.providerLatencyMs !== null ? (
+                          <div className="mt-1 text-xs text-muted-foreground">
+                            Provider {trace.providerLatencyMs}ms
+                          </div>
+                        ) : null}
+                      </TableCell>
+                      <TableCell>{trace.totalTokenCount}</TableCell>
+                      <TableCell>
+                        {trace.estimatedCostUsd !== null ? `$${trace.estimatedCostUsd}` : "-"}
+                      </TableCell>
+                      <TableCell>
+                        {trace.errorCode !== null ? (
+                          <div>
+                            <div className="font-medium">{humanizeIdentifier(trace.errorCode)}</div>
+                            <div className="mt-1 max-w-72 truncate text-xs text-muted-foreground">
+                              {trace.errorMessage ?? "-"}
+                            </div>
+                          </div>
+                        ) : (
+                          "-"
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            ) : (
+              <div className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
+                No AI traces match the selected filters.
+              </div>
+            )}
+          </div>
         ) : (
           <div className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
             No AI traces have been recorded for this execution yet.
@@ -302,6 +381,35 @@ function AiObservabilityCard({ summary }: { summary: WorkflowExecutionSummary })
         )}
       </CardContent>
     </Card>
+  );
+}
+
+function TraceFilterSelect({
+  label,
+  value,
+  options,
+  onChange
+}: {
+  label: string;
+  value: string;
+  options: { label: string; value: string }[];
+  onChange: (value: string) => void;
+}) {
+  return (
+    <label className="grid gap-1 text-sm">
+      <span className="font-medium text-muted-foreground">{label}</span>
+      <select
+        className="h-10 min-w-0 rounded-md border border-border bg-card px-3 text-sm text-foreground outline-none transition focus:border-primary"
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+      >
+        {options.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+    </label>
   );
 }
 

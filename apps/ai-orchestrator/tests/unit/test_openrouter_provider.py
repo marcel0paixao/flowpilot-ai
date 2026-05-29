@@ -35,11 +35,16 @@ class FakeResponse:
         self.body = body if body is not None else {
             "choices": [
                 {
+                    "finish_reason": "stop",
                     "message": {
                         "content": "OpenRouter summary",
                     },
                 },
             ],
+            "usage": {
+                "prompt_tokens": 7,
+                "completion_tokens": 5,
+            },
         }
         self.status_code = status_code
 
@@ -106,7 +111,11 @@ def test_openrouter_provider_builds_request_and_returns_prompt_result(
     }
     assert result.provider == "openrouter"
     assert result.summary == "OpenRouter summary"
+    assert result.tokens.input == 7
+    assert result.tokens.output == 5
     assert result.trace.deterministic is False
+    assert result.trace.finish_reason == "stop"
+    assert result.trace.provider_latency_ms is not None
 
 
 def test_openrouter_provider_requires_credential_id() -> None:
@@ -174,11 +183,16 @@ def test_openrouter_provider_maps_status_errors(
     assert error.value.provider_error == {
         "choices": [
             {
+                "finish_reason": "stop",
                 "message": {
                     "content": "OpenRouter summary",
                 },
             },
         ],
+        "usage": {
+            "prompt_tokens": 7,
+            "completion_tokens": 5,
+        },
     }
 
 

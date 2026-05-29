@@ -256,6 +256,8 @@ model WorkflowAiTrace {
   model               String
   status              AiTraceStatus
   latencyMs           Int
+  providerLatencyMs   Int?
+  finishReason        String?
   inputTokenCount     Int           @default(0)
   outputTokenCount    Int           @default(0)
   totalTokenCount     Int           @default(0)

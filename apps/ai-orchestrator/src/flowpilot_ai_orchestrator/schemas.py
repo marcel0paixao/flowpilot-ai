@@ -49,6 +49,8 @@ class TokenUsage(BaseModel):
 class PromptTrace(BaseModel):
     deterministic: bool
     input_keys: list[str] = Field(alias="inputKeys")
+    provider_latency_ms: int | None = Field(default=None, alias="providerLatencyMs")
+    finish_reason: str | None = Field(default=None, alias="finishReason")
 
 
 class PromptRunResult(BaseModel):

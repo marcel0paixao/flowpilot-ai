@@ -149,6 +149,8 @@ export interface WorkflowAiTrace {
   model: string;
   status: AiTraceStatus;
   latencyMs: number;
+  providerLatencyMs: number | null;
+  finishReason: string | null;
   inputTokenCount: number;
   outputTokenCount: number;
   totalTokenCount: number;

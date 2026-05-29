@@ -11,6 +11,8 @@
     },
     "trace": {
       "deterministic": true,
+      "providerLatencyMs": 0,
+      "finishReason": "deterministic",
       "inputKeys": [
         "email",
         "leadId"

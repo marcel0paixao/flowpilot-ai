@@ -148,9 +148,9 @@ test("executes workflow nodes sequentially and publishes node lifecycle events",
       update: async (args: unknown) => args
     },
     workflowAiTrace: {
-      create: async (args: unknown) => {
+      create: async (args: { data: Record<string, unknown> }) => {
         aiTraceCreates.push(args);
-        return args;
+        return createAiTraceRecordFromCreate(args.data);
       }
     },
     $transaction: async <T>(callback: (tx: unknown) => Promise<T>) => {
@@ -169,7 +169,7 @@ test("executes workflow nodes sequentially and publishes node lifecycle events",
   assert.equal(nodeUpdates.length, 4);
   assert.equal(aiTraceCreates.length, 1);
   assert.equal(workflowUpdates.length, 2);
-  assert.equal(channel.published.length, 10);
+  assert.equal(channel.published.length, 11);
   assert.deepEqual(aiPromptRequests, [
     {
       workspaceId: "workspace-1",
@@ -219,6 +219,7 @@ test("executes workflow nodes sequentially and publishes node lifecycle events",
       FLOWPILOT_ROUTING_KEYS.nodeExecutionStarted,
       FLOWPILOT_ROUTING_KEYS.nodeExecutionCompleted,
       FLOWPILOT_ROUTING_KEYS.nodeExecutionStarted,
+      FLOWPILOT_ROUTING_KEYS.aiTraceCreated,
       FLOWPILOT_ROUTING_KEYS.nodeExecutionCompleted,
       FLOWPILOT_ROUTING_KEYS.workflowExecutionCompleted
     ]
@@ -243,6 +244,9 @@ test("executes workflow nodes sequentially and publishes node lifecycle events",
       inputTokenCount: number;
       outputTokenCount: number;
       totalTokenCount: number;
+      estimatedCostUsd: number | null;
+      providerLatencyMs: number | null;
+      finishReason: string | null;
       schemaValid: boolean;
     };
   };
@@ -253,7 +257,32 @@ test("executes workflow nodes sequentially and publishes node lifecycle events",
   assert.equal(aiTraceCreate.data.inputTokenCount, 1);
   assert.equal(aiTraceCreate.data.outputTokenCount, 12);
   assert.equal(aiTraceCreate.data.totalTokenCount, 13);
+  assert.equal(aiTraceCreate.data.estimatedCostUsd, 0);
+  assert.equal(aiTraceCreate.data.providerLatencyMs, 0);
+  assert.equal(aiTraceCreate.data.finishReason, "deterministic");
   assert.equal(aiTraceCreate.data.schemaValid, true);
+
+  const aiTraceCreatedEvent = channel.published.find(
+    (published) => published.routingKey === FLOWPILOT_ROUTING_KEYS.aiTraceCreated
+  );
+  const aiTraceCreatedMessage = JSON.parse(
+    aiTraceCreatedEvent?.content.toString("utf8") ?? "{}"
+  ) as {
+    payload?: {
+      traceId?: string;
+      provider?: string;
+      tokenUsage?: { totalTokens?: number };
+      estimatedCostUsd?: number | null;
+      providerLatencyMs?: number | null;
+      finishReason?: string | null;
+    };
+  };
+  assert.equal(aiTraceCreatedMessage.payload?.traceId, "ai-trace-1");
+  assert.equal(aiTraceCreatedMessage.payload?.provider, "deterministic");
+  assert.equal(aiTraceCreatedMessage.payload?.tokenUsage?.totalTokens, 13);
+  assert.equal(aiTraceCreatedMessage.payload?.estimatedCostUsd, 0);
+  assert.equal(aiTraceCreatedMessage.payload?.providerLatencyMs, 0);
+  assert.equal(aiTraceCreatedMessage.payload?.finishReason, "deterministic");
 });
 
 test("schedules retry and acknowledges retryable failures before max attempts", async () => {
@@ -695,7 +724,9 @@ function createFakeAiOrchestratorClient(requests: AiPromptRunInput[] = []) {
         },
         trace: {
           deterministic: true,
-          inputKeys
+          finishReason: "deterministic",
+          inputKeys,
+          providerLatencyMs: 0
         }
       };
     }
@@ -745,9 +776,9 @@ function createWorkflowExecutionPrisma(aiTraceCreates: unknown[] = []) {
       })
     },
     workflowAiTrace: {
-      create: async (args: unknown) => {
+      create: async (args: { data: Record<string, unknown> }) => {
         aiTraceCreates.push(args);
-        return args;
+        return createAiTraceRecordFromCreate(args.data);
       }
     },
     $transaction: async <T>(callback: (tx: unknown) => Promise<T>) => {
@@ -756,6 +787,29 @@ function createWorkflowExecutionPrisma(aiTraceCreates: unknown[] = []) {
   };
 
   return prisma as unknown as PrismaClient;
+}
+
+function createAiTraceRecordFromCreate(data: Record<string, unknown>) {
+  return {
+    id: "ai-trace-1",
+    workspaceId: data.workspaceId,
+    workflowId: data.workflowId,
+    workflowExecutionId: data.workflowExecutionId,
+    nodeExecutionId: data.nodeExecutionId,
+    nodeId: data.nodeId,
+    provider: data.provider,
+    model: data.model,
+    status: data.status,
+    latencyMs: data.latencyMs,
+    inputTokenCount: data.inputTokenCount ?? 0,
+    outputTokenCount: data.outputTokenCount ?? 0,
+    totalTokenCount: data.totalTokenCount ?? 0,
+    estimatedCostUsd: data.estimatedCostUsd ?? null,
+    errorCode: data.errorCode ?? null,
+    providerStatusCode: data.providerStatusCode ?? null,
+    retryable: data.retryable ?? null,
+    createdAt: new Date("2026-05-02T12:00:01.000Z")
+  };
 }
 
 function createOutboxRecord(routingKey: string) {

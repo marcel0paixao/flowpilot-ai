@@ -857,6 +857,8 @@ function workflowAiTraceFixture() {
     model: "openai/gpt-oss-20b:free",
     status: "SUCCEEDED",
     latencyMs: 1234,
+    providerLatencyMs: 1120,
+    finishReason: "stop",
     inputTokenCount: 20,
     outputTokenCount: 10,
     totalTokenCount: 30,

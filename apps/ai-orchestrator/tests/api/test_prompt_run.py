@@ -57,11 +57,16 @@ def test_prompt_run_can_use_openrouter_provider_without_real_credential(
             return {
                 "choices": [
                     {
+                        "finish_reason": "stop",
                         "message": {
                             "content": "OpenRouter mocked response",
                         },
                     },
                 ],
+                "usage": {
+                    "prompt_tokens": 9,
+                    "completion_tokens": 4,
+                },
             }
 
     def fake_post(
@@ -110,6 +115,8 @@ def test_prompt_run_can_use_openrouter_provider_without_real_credential(
     assert response.status_code == 200
     assert response.json()["result"]["provider"] == "openrouter"
     assert response.json()["result"]["summary"] == "OpenRouter mocked response"
+    assert response.json()["result"]["tokens"] == {"input": 9, "output": 4}
+    assert response.json()["result"]["trace"]["finishReason"] == "stop"
 
 
 def test_prompt_run_returns_bad_gateway_when_openrouter_fails(

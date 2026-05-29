@@ -642,6 +642,8 @@ function toWorkflowAiTraceResponse(trace: WorkflowAiTrace) {
     model: trace.model,
     status: trace.status,
     latencyMs: trace.latencyMs,
+    providerLatencyMs: trace.providerLatencyMs,
+    finishReason: trace.finishReason,
     inputTokenCount: trace.inputTokenCount,
     outputTokenCount: trace.outputTokenCount,
     totalTokenCount: trace.totalTokenCount,

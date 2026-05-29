@@ -1,4 +1,5 @@
 import json
+import time
 
 import httpx
 
@@ -9,6 +10,8 @@ from flowpilot_ai_orchestrator.providers.utils import (
     build_chat_messages,
     estimate_text_tokens,
     extract_openai_compatible_content,
+    extract_openai_compatible_finish_reason,
+    extract_openai_compatible_token_usage,
 )
 from flowpilot_ai_orchestrator.schemas import (
     PromptRunConfig,
@@ -66,7 +69,9 @@ class OpenRouterProvider(PromptProvider):
         }
 
         try:
+            started_at = time.perf_counter()
             response = httpx.post(url, headers=headers, json=payload, timeout=30)
+            provider_latency_ms = int((time.perf_counter() - started_at) * 1000)
             response.raise_for_status()
         except httpx.TimeoutException as error:
             raise OpenRouterProviderError("OpenRouter request timed out") from error
@@ -86,10 +91,17 @@ class OpenRouterProvider(PromptProvider):
                 raise TypeError("OpenRouter response body must be an object")
 
             summary = extract_openai_compatible_content(response_body)
+            finish_reason = extract_openai_compatible_finish_reason(response_body)
+            input_tokens, output_tokens = extract_openai_compatible_token_usage(
+                response_body
+            )
         except (ValueError, TypeError) as error:
             raise OpenRouterProviderError(
                 "OpenRouter returned an invalid response"
             ) from error
+
+        estimated_input_tokens = estimate_text_tokens(config.prompt + compact_input)
+        estimated_output_tokens = max(12, estimate_text_tokens(summary))
 
         return PromptRunResult(
             provider=self.provider_name,
@@ -98,12 +110,18 @@ class OpenRouterProvider(PromptProvider):
             temperature=config.temperature,
             summary=summary,
             tokens=TokenUsage(
-                input=estimate_text_tokens(config.prompt + compact_input),
-                output=max(12, estimate_text_tokens(summary)),
+                input=input_tokens if input_tokens is not None else estimated_input_tokens,
+                output=(
+                    output_tokens
+                    if output_tokens is not None
+                    else estimated_output_tokens
+                ),
             ),
             trace=PromptTrace(
                 deterministic=False,
                 inputKeys=input_keys,
+                providerLatencyMs=provider_latency_ms,
+                finishReason=finish_reason,
             ),
         )
 
