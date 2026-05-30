@@ -87,7 +87,7 @@ Seed repeatable demo data after PostgreSQL is running:
 pnpm --filter @flowpilot/api seed:demo
 ```
 
-The demo seed creates `Acme Automation`, a `Lead Enrichment` workflow, and `OWNER`, `ADMIN`, `MEMBER`, and `VIEWER` users. All demo users use the password `correct horse battery staple`.
+The demo seed creates `Acme Automation`, a `Lead Enrichment` workflow, the portfolio workflow `Demo - Real AI Incident Triage`, and `OWNER`, `ADMIN`, `MEMBER`, and `VIEWER` users. All demo users use the password `correct horse battery staple`.
 
 Run API integration tests against a local PostgreSQL test database:
 
@@ -131,5 +131,6 @@ RabbitMQ management UI will be available at `http://localhost:15672` with the lo
 - [Architecture](docs/ARCHITECTURE.md)
 - [AI Orchestrator](docs/AI_ORCHESTRATOR.md)
 - [AI Orchestrator Status](docs/AI_ORCHESTRATOR_STATUS.md)
+- [Demo Guide](docs/DEMO_GUIDE.md)
 - [Portfolio Demo Case Study](docs/PORTFOLIO_DEMO_CASE_STUDY.md)
 - [Portfolio Launch Brief PT-BR](docs/PORTFOLIO_LAUNCH_BRIEF_PT_BR.md)

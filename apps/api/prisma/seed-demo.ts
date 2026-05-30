@@ -58,6 +58,114 @@ const leadEnrichmentDefinition = {
     }
   ]
 } satisfies WorkflowDefinition;
+
+const incidentTriageDefinition = {
+  nodes: [
+    {
+      id: "manual-trigger",
+      type: WORKFLOW_NODE_TYPES.manualTrigger,
+      name: "Incident Intake",
+      config: {}
+    },
+    {
+      id: "normalize-incident",
+      type: WORKFLOW_NODE_TYPES.transformAction,
+      name: "Normalize Incident",
+      config: {
+        mode: "pick",
+        pick: [
+          "incidentId",
+          "customer",
+          "severity",
+          "service",
+          "reportedBy",
+          "slaMinutes",
+          "message"
+        ]
+      }
+    },
+    {
+      id: "severity-router",
+      type: WORKFLOW_NODE_TYPES.conditionAction,
+      name: "Severity Check",
+      config: {
+        field: "severity",
+        operator: "equals",
+        value: "high",
+        trueLabel: "urgent_incident",
+        falseLabel: "standard_incident"
+      }
+    },
+    {
+      id: "account-context",
+      type: WORKFLOW_NODE_TYPES.httpRequestAction,
+      name: "Customer Context Lookup",
+      config: {
+        mode: "mock",
+        method: "POST",
+        url: "https://api.flowpilot.local/customer-health",
+        headers: {
+          "x-demo": "incident-triage"
+        },
+        body: {
+          source: "flowpilot-demo",
+          dataset: "customer-health-snapshot"
+        },
+        timeoutMs: 5000
+      }
+    },
+    {
+      id: "ai-triage-plan",
+      type: WORKFLOW_NODE_TYPES.aiPromptAction,
+      name: "AI Triage Plan",
+      config: {
+        provider: "deterministic",
+        model: "mock-flowpilot-llm",
+        temperature: 0.2,
+        systemPrompt:
+          "You are an incident commander for a SaaS workflow automation platform. Be concise and operational.",
+        prompt:
+          "In Portuguese, create a compact incident triage plan with: severity rationale, first 3 actions, customer update, and metrics to watch. Use the workflow input as context."
+      }
+    },
+    {
+      id: "final-output",
+      type: WORKFLOW_NODE_TYPES.transformAction,
+      name: "Portfolio Output",
+      config: {
+        mode: "pick",
+        pick: ["summary", "provider", "model", "tokens", "trace"]
+      }
+    }
+  ],
+  edges: [
+    {
+      id: "edge-manual-normalize",
+      sourceNodeId: "manual-trigger",
+      targetNodeId: "normalize-incident"
+    },
+    {
+      id: "edge-normalize-condition",
+      sourceNodeId: "normalize-incident",
+      targetNodeId: "severity-router"
+    },
+    {
+      id: "edge-condition-context",
+      sourceNodeId: "severity-router",
+      targetNodeId: "account-context"
+    },
+    {
+      id: "edge-context-ai",
+      sourceNodeId: "account-context",
+      targetNodeId: "ai-triage-plan"
+    },
+    {
+      id: "edge-ai-final",
+      sourceNodeId: "ai-triage-plan",
+      targetNodeId: "final-output"
+    }
+  ]
+} satisfies WorkflowDefinition;
 const demoUsers = [
   {
     email: "owner@acme.test",
@@ -178,6 +286,50 @@ async function main() {
     }
   });
 
+  const incidentTriageWorkflow = await prisma.workflow.upsert({
+    where: {
+      workspaceId_slug: {
+        workspaceId: workspace.id,
+        slug: "demo-real-ai-incident-triage"
+      }
+    },
+    create: {
+      workspaceId: workspace.id,
+      name: "Demo - Real AI Incident Triage",
+      slug: "demo-real-ai-incident-triage",
+      description:
+        "Portfolio workflow that normalizes an incident, evaluates severity, enriches context, calls an AI prompt node, and records execution observability.",
+      versions: {
+        create: {
+          version: 1,
+          definition: incidentTriageDefinition
+        }
+      }
+    },
+    update: {
+      name: "Demo - Real AI Incident Triage",
+      description:
+        "Portfolio workflow that normalizes an incident, evaluates severity, enriches context, calls an AI prompt node, and records execution observability."
+    }
+  });
+
+  await prisma.workflowVersion.upsert({
+    where: {
+      workflowId_version: {
+        workflowId: incidentTriageWorkflow.id,
+        version: 1
+      }
+    },
+    create: {
+      workflowId: incidentTriageWorkflow.id,
+      version: 1,
+      definition: incidentTriageDefinition
+    },
+    update: {
+      definition: incidentTriageDefinition
+    }
+  });
+
   console.log("Demo seed completed");
   console.log("");
   console.log(`Workspace: ${workspace.name}`);
@@ -186,6 +338,9 @@ async function main() {
   console.log(`Workflow: ${workflow.name}`);
   console.log(`Workflow ID: ${workflow.id}`);
   console.log(`Workflow slug: ${workflow.slug}`);
+  console.log(`Portfolio workflow: ${incidentTriageWorkflow.name}`);
+  console.log(`Portfolio workflow ID: ${incidentTriageWorkflow.id}`);
+  console.log(`Portfolio workflow slug: ${incidentTriageWorkflow.slug}`);
   console.log("");
   console.log("Demo credentials:");
 
