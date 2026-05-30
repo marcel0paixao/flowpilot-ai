@@ -98,6 +98,16 @@ pnpm --filter @flowpilot/api test:integration
 
 The integration test script creates `flowpilot_test` when needed, applies Prisma migrations, and runs the HTTP flow against the Nest/Fastify app.
 
+## Quality Checks
+
+The repository includes GitHub Actions CI for the portfolio/MVP release:
+
+- TypeScript monorepo install, Prisma validate/generate, lint, typecheck, tests, and build.
+- API integration tests against PostgreSQL.
+- Python AI Orchestrator Ruff and Pytest checks.
+
+See [CI](docs/CI.md) for the workflow structure and local equivalents.
+
 Initial workspace endpoints:
 
 - `POST /api/workspaces` - requires a bearer token and creates an `OWNER` membership for the authenticated user.
@@ -135,3 +145,4 @@ RabbitMQ management UI will be available at `http://localhost:15672` with the lo
 - [Portfolio Demo Case Study](docs/PORTFOLIO_DEMO_CASE_STUDY.md)
 - [Portfolio Launch Brief PT-BR](docs/PORTFOLIO_LAUNCH_BRIEF_PT_BR.md)
 - [Portfolio Release Checklist](docs/PORTFOLIO_RELEASE_CHECKLIST.md)
+- [CI](docs/CI.md)
