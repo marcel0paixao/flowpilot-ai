@@ -20,6 +20,7 @@ This job validates the pnpm workspace on Node.js 22:
 - `pnpm install --frozen-lockfile`
 - `pnpm --filter @flowpilot/api prisma:validate`
 - `pnpm --filter @flowpilot/api prisma:generate`
+- build shared packages used through workspace package exports
 - `pnpm lint`
 - `pnpm typecheck`
 - TypeScript unit and frontend tests
@@ -33,6 +34,7 @@ This job starts a PostgreSQL 16 service container and runs the API HTTP integrat
 
 - install workspace dependencies
 - generate the Prisma client
+- build shared packages used by API integration specs
 - apply Prisma migrations with `prisma migrate deploy`
 - run `tsx --test "src/**/*.integration-spec.ts"` for `@flowpilot/api`
 
@@ -60,6 +62,7 @@ Run the main validation locally with:
 pnpm install
 DATABASE_URL=postgresql://flowpilot:flowpilot@localhost:5432/flowpilot pnpm --filter @flowpilot/api prisma:validate
 pnpm --filter @flowpilot/api prisma:generate
+pnpm --filter @flowpilot/contracts --filter @flowpilot/config --filter @flowpilot/logger build
 pnpm lint
 pnpm typecheck
 pnpm -r --filter '!@flowpilot/api' test
