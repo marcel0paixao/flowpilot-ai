@@ -9,14 +9,10 @@ import {
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowRight,
-  Bot,
-  Braces,
   Clock3,
   Eye,
   GitBranch,
-  Globe2,
   History,
-  MousePointerClick,
   Network,
   Pencil,
   Plus,
@@ -31,6 +27,7 @@ import { Link, useParams } from "react-router-dom";
 
 import { useAuth } from "@/features/auth/auth-provider";
 import { WorkflowCanvas } from "@/features/workflow-canvas/workflow-canvas";
+import { getNodeCatalogEntry, NODE_LIBRARY } from "@/features/workflows/nodes/index";
 import { RunWorkflowButton } from "@/features/workflows/run-workflow-button";
 import {
   getNodeDefinitionIssueMessages,
@@ -49,7 +46,7 @@ import {
   restoreWorkflowVersion,
   updateWorkflow
 } from "@/shared/api/workflows";
-import { cn, formatDateTime, formatDuration, humanizeIdentifier, slugify } from "@/shared/lib/utils";
+import { cn, formatDateTime, formatDuration, humanizeIdentifier } from "@/shared/lib/utils";
 import { Badge } from "@/shared/ui/badge";
 import { Button } from "@/shared/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/ui/card";
@@ -107,44 +104,6 @@ const AI_PROVIDER_OPTIONS = [
     credentialRequired: true
   }
 ] as const;
-
-const NODE_LIBRARY = [
-  {
-    type: WORKFLOW_NODE_TYPES.manualTrigger,
-    title: "Manual trigger",
-    description: "Starts a workflow run from user-provided input.",
-    icon: MousePointerClick
-  },
-  {
-    type: WORKFLOW_NODE_TYPES.transformAction,
-    title: "Transform",
-    description: "Passes data through or picks fields from the payload.",
-    icon: Braces
-  },
-  {
-    type: WORKFLOW_NODE_TYPES.conditionAction,
-    title: "Condition",
-    description: "Evaluates a rule and records a route decision in the payload.",
-    icon: GitBranch
-  },
-  {
-    type: WORKFLOW_NODE_TYPES.httpRequestAction,
-    title: "HTTP request",
-    description: "Runs a mock or real HTTP request action in the worker.",
-    icon: Globe2
-  },
-  {
-    type: WORKFLOW_NODE_TYPES.aiPromptAction,
-    title: "AI prompt",
-    description: "Calls the AI orchestration boundary with a prompt.",
-    icon: Bot
-  }
-] as const satisfies readonly {
-  type: WorkflowNodeType;
-  title: string;
-  description: string;
-  icon: typeof Plus;
-}[];
 
 export function WorkflowDetailPage() {
   const { workspaceId = "", workflowId = "" } = useParams();
@@ -351,10 +310,15 @@ export function WorkflowDetailPage() {
     }));
   }
 
-  function addNode(type: WorkflowNodeType) {
+  function addNode(type: WorkflowNode["type"]) {
     updateDraftDefinition((currentDefinition) => {
       const nodeNumber = currentDefinition.nodes.length + 1;
-      const node = createNode(type, nodeNumber, currentDefinition);
+      const node = getNodeCatalogEntry(type)?.create(nodeNumber, currentDefinition);
+
+      if (!node) {
+        return currentDefinition;
+      }
+
       setSelectedNodeId(node.id);
       setSelectedEdgeId(undefined);
 
@@ -1605,27 +1569,7 @@ function WorkflowMetric({
 }
 
 function getNodeRuntimeDescription(type: string) {
-  if (type === "trigger.manual") {
-    return "Starts the execution with the input supplied by the user.";
-  }
-
-  if (type === "action.transform") {
-    return "Transforms the current payload before the next node runs.";
-  }
-
-  if (type === "action.condition") {
-    return "Evaluates a rule and adds the matched route decision to the payload.";
-  }
-
-  if (type === "action.httpRequest") {
-    return "Runs a mock or real HTTP request action in the worker.";
-  }
-
-  if (type === "action.aiPrompt") {
-    return "Runs an AI prompt through the configured orchestration provider.";
-  }
-
-  return "Runs as part of the workflow execution graph.";
+  return getNodeCatalogEntry(type)?.runtimeDescription ?? "Runs as part of the workflow execution graph.";
 }
 
 function cloneDefinition(definition: WorkflowDefinition): WorkflowDefinition {
@@ -1640,89 +1584,6 @@ function cloneDefinition(definition: WorkflowDefinition): WorkflowDefinition {
 
 function areDefinitionsEqual(left: WorkflowDefinition, right: WorkflowDefinition) {
   return JSON.stringify(left) === JSON.stringify(right);
-}
-
-function createNode(type: WorkflowNodeType, nodeNumber: number, definition: WorkflowDefinition): WorkflowNode {
-  const baseId = slugify(humanizeIdentifier(type)) || "node";
-  const id = getUniqueNodeId(baseId, definition);
-
-  if (type === WORKFLOW_NODE_TYPES.manualTrigger) {
-    return {
-      id,
-      type,
-      name: `Manual Trigger ${nodeNumber}`,
-      config: {}
-    };
-  }
-
-  if (type === WORKFLOW_NODE_TYPES.transformAction) {
-    return {
-      id,
-      type,
-      name: `Transform ${nodeNumber}`,
-      config: {
-        mode: "passthrough"
-      }
-    };
-  }
-
-  if (type === WORKFLOW_NODE_TYPES.conditionAction) {
-    return {
-      id,
-      type,
-      name: `Condition ${nodeNumber}`,
-      config: {
-        field: "priority",
-        operator: "equals",
-        value: "high",
-        trueLabel: "high_priority",
-        falseLabel: "standard_priority"
-      }
-    };
-  }
-
-  if (type === WORKFLOW_NODE_TYPES.httpRequestAction) {
-    return {
-      id,
-      type,
-      name: `HTTP Request ${nodeNumber}`,
-      config: {
-        mode: "mock",
-        method: "GET",
-        url: "https://example.test/webhook",
-        body: {},
-        timeoutMs: 5000
-      }
-    };
-  }
-
-  return {
-    id,
-    type: WORKFLOW_NODE_TYPES.aiPromptAction,
-    name: `AI Prompt ${nodeNumber}`,
-    config: {
-      provider: "deterministic",
-      model: "mock-flowpilot-llm",
-      systemPrompt: "You are a concise workflow assistant.",
-      prompt: "Summarize the current workflow payload for an operator.",
-      temperature: 0.2
-    }
-  };
-}
-
-function getUniqueNodeId(baseId: string, definition: WorkflowDefinition) {
-  const existingIds = new Set(definition.nodes.map((node) => node.id));
-
-  if (!existingIds.has(baseId)) {
-    return baseId;
-  }
-
-  let suffix = 2;
-  while (existingIds.has(`${baseId}-${suffix}`)) {
-    suffix += 1;
-  }
-
-  return `${baseId}-${suffix}`;
 }
 
 function getUniqueEdgeId(baseId: string, definition: WorkflowDefinition, ignoredEdgeId?: string) {

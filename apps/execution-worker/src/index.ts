@@ -32,6 +32,8 @@ import {
   AiOrchestratorClient,
   AiOrchestratorClientError
 } from "./ai-orchestrator-client.js";
+import { WorkflowExecutionWorkerError } from "./errors.js";
+import { executeWorkflowNode } from "./nodes/index.js";
 
 const logger = createLogger("execution-worker", "debug");
 
@@ -823,187 +825,12 @@ async function executeNode({
   nodeExecutionId: string;
   aiOrchestratorClient: AiOrchestratorClient;
 }): Promise<Record<string, unknown>> {
-  if (node.type === WORKFLOW_NODE_TYPES.manualTrigger) {
-    return input;
-  }
-
-  if (node.type === WORKFLOW_NODE_TYPES.transformAction) {
-    if (node.config.mode === "passthrough") {
-      return input;
-    }
-
-    const pickedKeys = node.config.pick ?? [];
-
-    return Object.fromEntries(
-      pickedKeys
-        .filter((key) => Object.prototype.hasOwnProperty.call(input, key))
-        .map((key) => [key, input[key]])
-    );
-  }
-
-  if (node.type === WORKFLOW_NODE_TYPES.conditionAction) {
-    const actualValue = getValueByPath(input, node.config.field);
-    const matched = evaluateCondition(actualValue, node.config.operator, node.config.value);
-
-    return {
-      ...input,
-      condition: {
-        field: node.config.field,
-        operator: node.config.operator,
-        expected: node.config.value ?? null,
-        actual: actualValue ?? null,
-        matched,
-        route: matched ? node.config.trueLabel : node.config.falseLabel
-      }
-    };
-  }
-
-  if (node.type === WORKFLOW_NODE_TYPES.aiPromptAction) {
-    return await aiOrchestratorClient.runPrompt({
-      workspaceId: message.workspaceId,
-      workflowId: message.payload.workflowId,
-      executionId: message.payload.executionId,
-      nodeExecutionId,
-      nodeId: node.id,
-      correlationId: message.correlationId,
-      input,
-      provider: node.config.provider,
-      credentialId: node.config.credentialId,
-      model: node.config.model,
-      systemPrompt: node.config.systemPrompt,
-      prompt: node.config.prompt,
-      temperature: node.config.temperature
-    });
-  }
-
-  if (node.type === WORKFLOW_NODE_TYPES.httpRequestAction && node.config.mode === "real") {
-    return await executeHttpRequestNode(node, input);
-  }
-
-  return {
-    status: "mocked",
-    request: {
-      mode: node.config.mode ?? "mock",
-      method: node.config.method,
-      url: node.config.url,
-      headers: node.config.headers ?? {},
-      body: {
-        ...(node.config.body ?? {}),
-        input
-      }
-    },
-    response: {
-      statusCode: 200,
-      body: {
-        ok: true,
-        echoedInput: input
-      }
-    }
-  };
-}
-
-async function executeHttpRequestNode(
-  node: Extract<WorkflowNode, { type: typeof WORKFLOW_NODE_TYPES.httpRequestAction }>,
-  input: Record<string, unknown>
-): Promise<Record<string, unknown>> {
-  const body = {
-    ...(node.config.body ?? {}),
-    input
-  };
-  const method = node.config.method;
-  const headers = {
-    "content-type": "application/json",
-    ...(node.config.headers ?? {})
-  };
-  const startedAt = Date.now();
-
-  try {
-    const response = await fetch(node.config.url, {
-      body: method === "GET" ? undefined : JSON.stringify(body),
-      headers,
-      method,
-      signal: AbortSignal.timeout(node.config.timeoutMs ?? 5_000)
-    });
-    const responseText = await response.text();
-
-    return {
-      status: response.ok ? "ok" : "http_error",
-      request: {
-        mode: "real",
-        method,
-        url: node.config.url,
-        headers,
-        body: method === "GET" ? null : body
-      },
-      response: {
-        statusCode: response.status,
-        headers: Object.fromEntries(response.headers.entries()),
-        body: parseHttpResponseBody(responseText),
-        durationMs: Date.now() - startedAt
-      }
-    };
-  } catch (error) {
-    throw new WorkflowExecutionWorkerError(
-      "http_request_failed",
-      error instanceof Error ? error.message : "HTTP request failed",
-      true,
-      { cause: error }
-    );
-  }
-}
-
-function parseHttpResponseBody(value: string): unknown {
-  if (!value) {
-    return null;
-  }
-
-  try {
-    return JSON.parse(value);
-  } catch {
-    return value;
-  }
-}
-
-function getValueByPath(input: Record<string, unknown>, path: string): unknown {
-  return path.split(".").reduce<unknown>((currentValue, segment) => {
-    if (!isRecord(currentValue)) {
-      return undefined;
-    }
-
-    return currentValue[segment];
-  }, input);
-}
-
-function evaluateCondition(
-  actualValue: unknown,
-  operator: string,
-  expectedValue: string | number | boolean | undefined
-): boolean {
-  if (operator === "exists") {
-    return actualValue !== undefined && actualValue !== null && actualValue !== "";
-  }
-
-  if (operator === "equals") {
-    return String(actualValue) === String(expectedValue);
-  }
-
-  if (operator === "notEquals") {
-    return String(actualValue) !== String(expectedValue);
-  }
-
-  if (operator === "contains") {
-    return String(actualValue ?? "").includes(String(expectedValue ?? ""));
-  }
-
-  if (operator === "greaterThan") {
-    return Number(actualValue) > Number(expectedValue);
-  }
-
-  if (operator === "lessThan") {
-    return Number(actualValue) < Number(expectedValue);
-  }
-
-  return false;
+  return await executeWorkflowNode(node, {
+    aiOrchestratorClient,
+    input,
+    message,
+    nodeExecutionId
+  });
 }
 
 async function recordAiTraceForSuccessfulNode(
@@ -1953,18 +1780,6 @@ function normalizeWorkerFailure(error: unknown): WorkerFailure {
     retryable: true,
     cause: error
   };
-}
-
-class WorkflowExecutionWorkerError extends Error {
-  constructor(
-    public readonly code: string,
-    message: string,
-    public readonly retryable: boolean,
-    options?: ErrorOptions
-  ) {
-    super(message, options);
-    this.name = "WorkflowExecutionWorkerError";
-  }
 }
 
 async function shutdown(resources: WorkerResources): Promise<void> {

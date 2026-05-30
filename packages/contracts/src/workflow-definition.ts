@@ -1,136 +1,32 @@
 import { z } from "zod";
 
-export const WORKFLOW_NODE_TYPES = {
-  manualTrigger: "trigger.manual",
-  transformAction: "action.transform",
-  conditionAction: "action.condition",
-  httpRequestAction: "action.httpRequest",
-  aiPromptAction: "action.aiPrompt"
-} as const;
-
-export const WORKFLOW_HTTP_METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE"] as const;
-export const WORKFLOW_CONDITION_OPERATORS = [
-  "exists",
-  "equals",
-  "notEquals",
-  "contains",
-  "greaterThan",
-  "lessThan"
-] as const;
-
-const workflowNodeIdSchema = z
-  .string()
-  .min(1)
-  .max(80)
-  .regex(/^[A-Za-z0-9][A-Za-z0-9._:-]*$/, {
-    message: "node ids must start with a letter or number and use letters, numbers, dots, colons, underscores, or hyphens"
-  });
-
-const workflowNodeNameSchema = z.string().min(1).max(120);
-
-const workflowNodeBaseSchema = z.object({
-  id: workflowNodeIdSchema,
-  name: workflowNodeNameSchema,
-  position: z
-    .object({
-      x: z.number().finite(),
-      y: z.number().finite()
-    })
-    .strict()
-    .optional()
-});
-
-export const manualTriggerNodeSchema = workflowNodeBaseSchema
-  .extend({
-    type: z.literal(WORKFLOW_NODE_TYPES.manualTrigger),
-    config: z.object({}).strict()
-  })
-  .strict();
-
-export const transformActionNodeSchema = workflowNodeBaseSchema
-  .extend({
-    type: z.literal(WORKFLOW_NODE_TYPES.transformAction),
-    config: z
-      .object({
-        mode: z.enum(["passthrough", "pick"]),
-        pick: z.array(z.string().min(1).max(120)).min(1).max(50).optional()
-      })
-      .strict()
-      .superRefine((config, context) => {
-        if (config.mode === "pick" && !config.pick) {
-          context.addIssue({
-            code: "custom",
-            message: "pick mode requires a non-empty pick list",
-            path: ["pick"]
-          });
-        }
-      })
-  })
-  .strict();
-
-export const conditionActionNodeSchema = workflowNodeBaseSchema
-  .extend({
-    type: z.literal(WORKFLOW_NODE_TYPES.conditionAction),
-    config: z
-      .object({
-        field: z.string().min(1).max(120),
-        operator: z.enum(WORKFLOW_CONDITION_OPERATORS),
-        value: z.union([z.string(), z.number(), z.boolean()]).optional(),
-        trueLabel: z.string().min(1).max(80).default("matched"),
-        falseLabel: z.string().min(1).max(80).default("not_matched")
-      })
-      .strict()
-      .superRefine((config, context) => {
-        if (config.operator !== "exists" && config.value === undefined) {
-          context.addIssue({
-            code: "custom",
-            message: "condition value is required for this operator",
-            path: ["value"]
-          });
-        }
-      })
-  })
-  .strict();
-
-export const httpRequestActionNodeSchema = workflowNodeBaseSchema
-  .extend({
-    type: z.literal(WORKFLOW_NODE_TYPES.httpRequestAction),
-    config: z
-      .object({
-        mode: z.enum(["mock", "real"]).default("mock"),
-        method: z.enum(WORKFLOW_HTTP_METHODS),
-        url: z.string().url(),
-        headers: z.record(z.string(), z.string()).optional(),
-        body: z.record(z.string(), z.unknown()).optional(),
-        timeoutMs: z.number().int().min(100).max(30_000).default(5_000)
-      })
-      .strict()
-  })
-  .strict();
-
-export const aiPromptActionNodeSchema = workflowNodeBaseSchema
-  .extend({
-    type: z.literal(WORKFLOW_NODE_TYPES.aiPromptAction),
-    config: z
-      .object({
-        prompt: z.string().min(1).max(2_000),
-        systemPrompt: z.string().min(1).max(2_000).optional(),
-        provider: z.string().min(1).max(80).default("deterministic"),
-        credentialId: z.string().min(1).max(120).optional(),
-        model: z.string().min(1).max(120).default("mock-flowpilot-llm"),
-        temperature: z.number().min(0).max(2).default(0.2)
-      })
-      .strict()
-  })
-  .strict();
-
-export const workflowNodeSchema = z.discriminatedUnion("type", [
-  manualTriggerNodeSchema,
-  transformActionNodeSchema,
+export {
+  aiPromptActionNodeSchema,
   conditionActionNodeSchema,
   httpRequestActionNodeSchema,
-  aiPromptActionNodeSchema
-]);
+  manualTriggerNodeSchema,
+  transformActionNodeSchema,
+  WORKFLOW_CONDITION_OPERATORS,
+  WORKFLOW_HTTP_METHODS,
+  WORKFLOW_NODE_TYPES,
+  workflowNodeIdSchema,
+  workflowNodeSchema,
+  type AiPromptActionNode,
+  type ConditionActionNode,
+  type HttpRequestActionNode,
+  type ManualTriggerNode,
+  type TransformActionNode,
+  type WorkflowConditionOperator,
+  type WorkflowHttpMethod,
+  type WorkflowNode,
+  type WorkflowNodeType
+} from "./workflow-nodes/index.js";
+import {
+  WORKFLOW_NODE_TYPES,
+  workflowNodeIdSchema,
+  workflowNodeSchema,
+  type WorkflowNode
+} from "./workflow-nodes/index.js";
 
 export const workflowEdgeSchema = z
   .object({
@@ -245,15 +141,6 @@ export const workflowDefinitionSchema = z
     validateAcyclicGraph(definition.nodes.map((node) => node.id), outgoingEdges, context);
   });
 
-export type WorkflowNodeType = (typeof WORKFLOW_NODE_TYPES)[keyof typeof WORKFLOW_NODE_TYPES];
-export type WorkflowHttpMethod = (typeof WORKFLOW_HTTP_METHODS)[number];
-export type WorkflowConditionOperator = (typeof WORKFLOW_CONDITION_OPERATORS)[number];
-export type ManualTriggerNode = z.infer<typeof manualTriggerNodeSchema>;
-export type TransformActionNode = z.infer<typeof transformActionNodeSchema>;
-export type ConditionActionNode = z.infer<typeof conditionActionNodeSchema>;
-export type HttpRequestActionNode = z.infer<typeof httpRequestActionNodeSchema>;
-export type AiPromptActionNode = z.infer<typeof aiPromptActionNodeSchema>;
-export type WorkflowNode = z.infer<typeof workflowNodeSchema>;
 export type WorkflowEdge = z.infer<typeof workflowEdgeSchema>;
 export type WorkflowDefinition = z.infer<typeof workflowDefinitionSchema>;
 

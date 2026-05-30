@@ -74,52 +74,69 @@ O workflow:
 
 ## Post Inicial Para LinkedIn
 
-Estou construindo o FlowPilot AI, uma plataforma SaaS multi-tenant de workflow automation com IA aplicada.
+Estou lançando o FlowPilot AI no meu portfólio.
 
-A ideia nasceu de um problema que acho cada vez mais importante: workflows com IA não podem ser apenas chamadas soltas para um modelo. Eles precisam ser executáveis, observáveis e comparáveis.
+É um SaaS de workflow automation com IA aplicada. A ideia é simples: se um workflow chama um modelo, essa chamada precisa ser executável, rastreável e mensurável.
 
-Em outras palavras: quando um workflow usa IA, eu quero saber qual provider foi usado, qual modelo respondeu, quanto tempo levou, quantos tokens consumiu, quanto custou, se falhou, por que falhou e como comparar esse comportamento com outros modelos no futuro.
+No MVP já dá para montar um fluxo visual, rodar a execução via RabbitMQ, chamar um AI Orchestrator em Python/FastAPI e ver traces com provider, modelo, tokens, latência, status e custo estimado.
 
-O FlowPilot AI já tem um MVP funcional com:
-
-- Workflow builder visual.
-- Execution worker assíncrono com RabbitMQ.
-- AI Orchestrator em Python/FastAPI.
-- Providers configuráveis no node de IA.
-- Credenciais criptografadas e workspace-scoped.
-- Traces de IA com tokens, latência, provider, modelo, status e custo estimado.
-- Tela de execução com node progress, timeline, payloads e observability.
-
-Na demo principal, criei um workflow de triagem de incidente:
+A demo principal é uma triagem de incidente:
 
 Manual Trigger -> Transform -> Condition -> HTTP Request -> AI Prompt -> Final Output
 
-O caso simula uma empresa SaaS recebendo um incidente de alta severidade em automações de vendas. O workflow normaliza o payload, avalia severidade, adiciona contexto, chama um modelo via AI Orchestrator e registra os dados operacionais da execução.
+O workflow recebe um incidente de alta severidade, normaliza os dados, adiciona contexto, chama um modelo via OpenRouter e registra o que aconteceu na execução.
 
-Stack usada:
+Stack:
 
-- NestJS/Fastify
-- React/Vite/TypeScript
-- PostgreSQL/Prisma
-- RabbitMQ
-- Redis
-- Docker Compose
-- Python/FastAPI
-- OpenRouter como primeiro provider real de LLM
+React, Vite, TypeScript, NestJS, Fastify, Prisma, PostgreSQL, RabbitMQ, Redis, Docker Compose, Python/FastAPI e OpenRouter.
 
-O objetivo do projeto não é ser “mais um app com IA”, mas um showcase de engenharia + IA aplicada: construir workflows reais, medir comportamento de modelos e preparar a base para decisões orientadas por dados.
+O que eu quis demonstrar aqui:
 
-Próximos passos:
+- arquitetura multi-tenant;
+- execução assíncrona com worker;
+- retries, DLQ, idempotência e outbox;
+- credenciais criptografadas por workspace;
+- observabilidade de IA dentro de um fluxo real;
+- CI com lint, typecheck, testes, build e validações Python.
 
-- Rodar modelos locais com Ollama.
-- Criar benchmarks multi-modelo.
-- Exportar traces para EDA.
-- Adicionar RAG com Qdrant.
-- Comparar custo, latência, confiabilidade e qualidade entre modelos cloud e locais.
+Ainda quero evoluir para Ollama, RAG, benchmarks e EDA em cima dos traces.
 
-Estou compartilhando a evolução do projeto como parte do meu portfólio em backend, AI engineering e ML systems.
+Mas este já é um recorte funcional do tipo de engenharia que eu gosto de construir: produto real, sistemas distribuídos e IA com dados operacionais, não só uma chamada solta para LLM.
 
-Feedbacks, conexões e oportunidades em backend/AI/ML systems são muito bem-vindos.
+Repo: https://github.com/marcel0paixao/flowpilot-ai
+
+## Initial LinkedIn Post - English
+
+I am adding FlowPilot AI to my portfolio.
+
+It is a workflow automation SaaS with applied AI. The core idea is simple: if a workflow calls a model, that call should be executable, traceable, and measurable.
+
+The MVP already supports a visual workflow builder, async execution through RabbitMQ, a Python/FastAPI AI Orchestrator, and AI traces with provider, model, tokens, latency, status, and estimated cost.
+
+The main demo is an incident triage workflow:
+
+Manual Trigger -> Transform -> Condition -> HTTP Request -> AI Prompt -> Final Output
+
+It receives a high-severity incident, normalizes the payload, adds context, calls a model through OpenRouter, and stores execution observability data.
+
+Stack:
+
+React, Vite, TypeScript, NestJS, Fastify, Prisma, PostgreSQL, RabbitMQ, Redis, Docker Compose, Python/FastAPI, and OpenRouter.
+
+What I wanted to show with this project:
+
+- multi-tenant architecture;
+- async worker execution;
+- retries, DLQ, idempotency, and outbox events;
+- encrypted workspace-scoped credentials;
+- AI observability inside a real workflow;
+- CI with lint, typecheck, tests, build, and Python validation.
+
+Next steps are Ollama, RAG, benchmarks, and EDA over the trace data.
+
+This is the kind of engineering I enjoy building: real product behavior, distributed systems, and AI with operational data, not just a standalone LLM call.
+
+Repo: https://github.com/marcel0paixao/flowpilot-ai
 
 ## Próximo Post Da Série
 

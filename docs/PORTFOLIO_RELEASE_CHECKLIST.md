@@ -83,7 +83,7 @@ Target duration: 30-60 seconds.
 - `docs/AI_ORCHESTRATOR.md` explains provider abstraction and AI roadmap.
 - `docs/ARCHITECTURE.md` explains service boundaries.
 - GitHub Actions passes for TypeScript lint/typecheck/tests/build, API integration tests, and Python Ruff/Pytest.
-- No raw API keys or private prompts are committed.
+- No raw API keys, private notes, or production credentials are committed.
 - Demo data is synthetic.
 
 ## Suggested Resume Bullet

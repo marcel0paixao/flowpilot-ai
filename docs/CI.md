@@ -52,7 +52,7 @@ The job uses the deterministic provider configuration and does not require exter
 
 ## Secrets
 
-The CI does not require repository secrets. It uses local-only test values for URLs and JWT/internal tokens. Do not add real API keys, provider tokens, private prompts, or production credentials to GitHub Actions configuration.
+The CI does not require repository secrets. It uses local-only test values for URLs and JWT/internal tokens. Do not add real API keys, provider tokens, private project notes, or production credentials to GitHub Actions configuration.
 
 ## Local Equivalents
 
