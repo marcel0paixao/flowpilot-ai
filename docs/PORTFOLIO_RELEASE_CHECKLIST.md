@@ -75,6 +75,8 @@ Target duration: 30-60 seconds.
 ## Repository Review Checklist
 
 - README describes what is implemented versus planned.
+- README shows the GitHub Actions CI badge.
+- README shows the short demo GIF or primary workflow screenshot near the top.
 - `docs/DEMO_GUIDE.md` has reproduction steps and screenshots.
 - `docs/CI.md` explains GitHub Actions coverage and local validation commands.
 - `docs/PORTFOLIO_DEMO_CASE_STUDY.md` explains the case study.

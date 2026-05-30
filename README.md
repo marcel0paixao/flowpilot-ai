@@ -1,6 +1,10 @@
 # FlowPilot AI
 
+[![CI](https://github.com/marcel0paixao/flowpilot-ai/actions/workflows/ci.yml/badge.svg)](https://github.com/marcel0paixao/flowpilot-ai/actions/workflows/ci.yml)
+
 Multi-tenant workflow automation platform with RabbitMQ execution, Python AI orchestration, OpenRouter-backed LLM nodes, encrypted credentials, and AI observability.
+
+![FlowPilot AI demo walkthrough](docs/assets/flowpilot-linkedin-demo.gif)
 
 ## Purpose
 
@@ -8,22 +12,37 @@ FlowPilot AI is an original portfolio project designed to demonstrate hands-on e
 
 The project is inspired by common enterprise automation patterns, but it does not copy proprietary code, internal names, private infrastructure, or confidential implementation details from any company or organization.
 
-## Core Capabilities
+## Implemented Today
 
 - Multi-tenant workspaces and role-based access control
 - Workflow definition, versioning, execution, and history
 - RabbitMQ-based asynchronous execution
-- Redis for cache, rate limiting, locks, and temporary runtime state
 - Visual workflow builder with manual trigger, transform, condition, HTTP request, and AI prompt nodes
+- Execution worker with retries, dead-letter handling, idempotency, and outbox-backed lifecycle events
 - Python/FastAPI AI Orchestrator with deterministic and OpenRouter providers
 - Workspace-scoped encrypted credentials for model providers
 - LLM observability with traces, latency, token usage, status, and estimated cost
 - Docker Compose local development environment
+- GitHub Actions CI for TypeScript lint/typecheck/tests/build, API integration tests, and Python Ruff/Pytest
 - Architecture documentation suitable for interviews and portfolio review
 
-Planned AI/data science capabilities include LangChain orchestration, RAG over documents, local model comparison with Ollama, benchmark exports, EDA notebooks, and simple model recommendation based on cost, latency, reliability, and quality.
+## Demo
 
-## Planned Services
+The main portfolio demo is `Demo - Real AI Incident Triage`: a workflow that normalizes an incident payload, evaluates severity, enriches context through a deterministic HTTP node, calls an AI prompt node through the Python orchestrator, and records execution plus AI trace data.
+
+| Workflow Builder | AI Traces |
+|---|---|
+| ![Workflow builder showing the incident triage workflow](docs/assets/demo-workflow-builder.png) | ![AI traces table with provider, model, tokens, cost, and latency](docs/assets/demo-ai-traces.png) |
+
+| Execution Summary | AI Node Configuration |
+|---|---|
+| ![Execution detail summary cards](docs/assets/demo-execution-summary.png) | ![AI node configuration panel](docs/assets/demo-ai-node-config.png) |
+
+See [Demo Guide](docs/DEMO_GUIDE.md) for reproduction steps and sample input.
+
+## Architecture
+
+### Services
 
 | Service | Responsibility |
 |---|---|
@@ -35,13 +54,20 @@ Planned AI/data science capabilities include LangChain orchestration, RAG over d
 | Observability Service | AI traces, execution logs, metrics, cost analytics |
 | Integration Service | Webhooks, HTTP requests, notifications, external adapters |
 
-## Local Infrastructure
+### Local Infrastructure
 
 - PostgreSQL for transactional data
 - RabbitMQ for service-to-service events and background execution
-- Redis for cache and runtime coordination
-- Qdrant or pgvector for vector search
-- Optional Langfuse for LLM tracing
+- Redis for cache, rate limiting, locks, and temporary runtime state
+- Qdrant as the planned local vector store for future RAG work
+
+## Planned Next Steps
+
+- Ollama/local model provider support
+- Benchmark exports for provider/model comparison
+- EDA notebooks over AI trace data
+- RAG document ingestion with Qdrant
+- Model recommendation based on cost, latency, reliability, and quality
 
 ## Monorepo Structure
 
