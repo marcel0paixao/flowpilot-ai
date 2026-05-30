@@ -134,3 +134,4 @@ RabbitMQ management UI will be available at `http://localhost:15672` with the lo
 - [Demo Guide](docs/DEMO_GUIDE.md)
 - [Portfolio Demo Case Study](docs/PORTFOLIO_DEMO_CASE_STUDY.md)
 - [Portfolio Launch Brief PT-BR](docs/PORTFOLIO_LAUNCH_BRIEF_PT_BR.md)
+- [Portfolio Release Checklist](docs/PORTFOLIO_RELEASE_CHECKLIST.md)

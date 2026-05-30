@@ -61,29 +61,65 @@ O workflow:
 - Observabilidade de IA com tokens, latência, status, provider, modelo e custo estimado.
 - Base para analytics, benchmarks, EDA e comparação de modelos.
 
+## Material Visual Pronto
+
+- Workflow builder: `docs/assets/demo-workflow-builder.png`
+- AI node config: `docs/assets/demo-ai-node-config.png`
+- Execution summary: `docs/assets/demo-execution-summary.png`
+- AI traces: `docs/assets/demo-ai-traces.png`
+- Timeline modal: `docs/assets/demo-timeline-modal.png`
+- Execution data/output: `docs/assets/demo-execution-data.png`
+- Credentials: `docs/assets/demo-credentials.png`
+- GIF curto: `docs/assets/flowpilot-linkedin-demo.gif`
+
 ## Post Inicial Para LinkedIn
 
 Estou construindo o FlowPilot AI, uma plataforma SaaS multi-tenant de workflow automation com IA aplicada.
 
-O objetivo do projeto é unir engenharia de software, sistemas distribuídos e Data Science aplicada em um produto realista:
+A ideia nasceu de um problema que acho cada vez mais importante: workflows com IA não podem ser apenas chamadas soltas para um modelo. Eles precisam ser executáveis, observáveis e comparáveis.
 
-- Backend em NestJS/Fastify com Prisma e PostgreSQL.
-- Execução assíncrona com RabbitMQ.
-- Worker com lifecycle events, retry e DLQ.
-- Frontend em React/Vite/TypeScript com workflow builder visual.
+Em outras palavras: quando um workflow usa IA, eu quero saber qual provider foi usado, qual modelo respondeu, quanto tempo levou, quantos tokens consumiu, quanto custou, se falhou, por que falhou e como comparar esse comportamento com outros modelos no futuro.
+
+O FlowPilot AI já tem um MVP funcional com:
+
+- Workflow builder visual.
+- Execution worker assíncrono com RabbitMQ.
 - AI Orchestrator em Python/FastAPI.
-- Integração real com LLM via OpenRouter.
-- Observabilidade de IA com provider, modelo, tokens, latência, status e custo estimado.
+- Providers configuráveis no node de IA.
+- Credenciais criptografadas e workspace-scoped.
+- Traces de IA com tokens, latência, provider, modelo, status e custo estimado.
+- Tela de execução com node progress, timeline, payloads e observability.
 
-Nesta demo, criei um workflow de triagem de incidente:
+Na demo principal, criei um workflow de triagem de incidente:
 
 Manual Trigger -> Transform -> Condition -> HTTP Request -> AI Prompt -> Final Output
 
-A execução real passou por 6 nodes, chamou um modelo via OpenRouter e registrou um AI trace com 843 tokens e cerca de 27s de latência do provider.
+O caso simula uma empresa SaaS recebendo um incidente de alta severidade em automações de vendas. O workflow normaliza o payload, avalia severidade, adiciona contexto, chama um modelo via AI Orchestrator e registra os dados operacionais da execução.
 
-Mais do que chamar uma API de LLM, a ideia é tratar IA como parte mensurável de um sistema: executar, observar, comparar e depois usar esses dados para benchmarks, EDA e decisões sobre custo, latência e confiabilidade.
+Stack usada:
 
-Esse projeto faz parte do meu portfólio para demonstrar backend, frontend, DevOps, workflow automation, LLM systems e Data Science aplicada.
+- NestJS/Fastify
+- React/Vite/TypeScript
+- PostgreSQL/Prisma
+- RabbitMQ
+- Redis
+- Docker Compose
+- Python/FastAPI
+- OpenRouter como primeiro provider real de LLM
+
+O objetivo do projeto não é ser “mais um app com IA”, mas um showcase de engenharia + IA aplicada: construir workflows reais, medir comportamento de modelos e preparar a base para decisões orientadas por dados.
+
+Próximos passos:
+
+- Rodar modelos locais com Ollama.
+- Criar benchmarks multi-modelo.
+- Exportar traces para EDA.
+- Adicionar RAG com Qdrant.
+- Comparar custo, latência, confiabilidade e qualidade entre modelos cloud e locais.
+
+Estou compartilhando a evolução do projeto como parte do meu portfólio em backend, AI engineering e ML systems.
+
+Feedbacks, conexões e oportunidades em backend/AI/ML systems são muito bem-vindos.
 
 ## Próximo Post Da Série
 

@@ -81,14 +81,39 @@ The execution detail page should show an AI trace with provider, model, status, 
 
 ## What To Capture For A Portfolio Demo
 
-Recommended screenshots:
+Reference screenshots:
 
-- Workflow builder showing the complete node chain.
-- Credentials page showing provider-based key management without exposing secrets.
-- Execution detail summary cards.
-- AI traces tab.
-- Timeline event modal.
-- Data tab with input and output.
+### Workflow Builder
+
+![Workflow builder showing the complete incident triage workflow](assets/demo-workflow-builder.png)
+
+### AI Node Configuration
+
+![AI node configuration with provider, model, credential, temperature, system prompt, and prompt](assets/demo-ai-node-config.png)
+
+### Execution Summary
+
+![Execution detail summary cards](assets/demo-execution-summary.png)
+
+### AI Traces
+
+![AI traces tab with provider, tokens, cost, and latency](assets/demo-ai-traces.png)
+
+### Execution Data
+
+![Execution data tab with input and output JSON](assets/demo-execution-data.png)
+
+### Timeline Event Modal
+
+![Timeline modal with event metadata and JSON payload](assets/demo-timeline-modal.png)
+
+### Credentials
+
+![Credentials page with provider-based key management](assets/demo-credentials.png)
+
+### Short GIF
+
+![Short FlowPilot AI demo walkthrough](assets/flowpilot-linkedin-demo.gif)
 
 Recommended talking points:
 

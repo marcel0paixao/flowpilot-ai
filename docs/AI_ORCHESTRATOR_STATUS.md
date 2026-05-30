@@ -98,7 +98,8 @@ Remaining MVP hardening:
 
 - Add a stable seeded or scripted demo fixture for the portfolio workflow. Completed.
 - Add a short public demo guide with reproduction steps. Completed.
-- Add screenshots to the public demo guide.
+- Add screenshots to the public demo guide. Completed.
+- Add a portfolio release checklist and demo video outline. Completed.
 - Add exportable trace/benchmark data for the first EDA notebook.
 
 ## Intermediate Phase
