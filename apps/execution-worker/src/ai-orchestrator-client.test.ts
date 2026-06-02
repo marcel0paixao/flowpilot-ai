@@ -127,6 +127,31 @@ test("AI orchestrator client maps semantic validation errors as non-retryable", 
   assert.equal(error.message, "Unknown AI provider: unknown");
 });
 
+test("AI orchestrator client maps provider configuration errors as non-retryable", async () => {
+  globalThis.fetch = (async () =>
+    Response.json(
+      {
+        detail: {
+          code: "ai_provider_configuration_error",
+          message: "OpenRouter provider requires credentialId",
+          provider: "openrouter"
+        }
+      },
+      {
+        status: 422
+      }
+    )) as typeof fetch;
+
+  const client = new AiOrchestratorClient("http://ai-orchestrator:8000");
+
+  const error = await captureAiOrchestratorError(() => client.runPrompt(validPromptInput()));
+
+  assert.equal(error.code, "ai_provider_configuration_error");
+  assert.equal(error.statusCode, 422);
+  assert.equal(error.retryable, false);
+  assert.equal(error.message, "OpenRouter provider requires credentialId");
+});
+
 test("AI orchestrator client treats provider rate limits as non-retryable", async () => {
   globalThis.fetch = (async () =>
     Response.json(

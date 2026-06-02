@@ -88,3 +88,21 @@ def test_prompt_run_rejects_unknown_provider() -> None:
             "provider": "unknown",
         }
     }
+
+
+def test_prompt_run_rejects_missing_provider_credential_id() -> None:
+    client = TestClient(app)
+    payload = load_prompt_request()
+    payload["config"]["provider"] = "openrouter"
+    payload["config"].pop("credentialId", None)
+
+    response = client.post("/v1/prompts/run", json=payload)
+
+    assert response.status_code == 422
+    assert response.json() == {
+        "detail": {
+            "code": "ai_provider_configuration_error",
+            "message": "OpenRouter provider requires credentialId",
+            "provider": "openrouter",
+        }
+    }

@@ -5,7 +5,10 @@ import httpx
 
 from flowpilot_ai_orchestrator.clients import CredentialClient
 from flowpilot_ai_orchestrator.clients.credentials import ensure_credential_supports
-from flowpilot_ai_orchestrator.providers.base import PromptProvider
+from flowpilot_ai_orchestrator.providers.base import (
+    PromptProvider,
+    ProviderConfigurationError,
+)
 from flowpilot_ai_orchestrator.providers.utils import (
     build_chat_messages,
     estimate_text_tokens,
@@ -52,7 +55,10 @@ class OpenRouterProvider(PromptProvider):
         compact_input = json.dumps(input_data, separators=(",", ":"), sort_keys=False)
 
         if config.credential_id is None:
-            raise RuntimeError("OpenRouter provider requires credentialId")
+            raise ProviderConfigurationError(
+                "OpenRouter provider requires credentialId",
+                provider=self.provider_name,
+            )
 
         credential = self._get_credential(context.workspace_id, config.credential_id)
 
@@ -139,7 +145,10 @@ class OpenRouterProvider(PromptProvider):
         )
 
         if credential is None:
-            raise RuntimeError("OpenRouter provider requires credentialId")
+            raise ProviderConfigurationError(
+                "OpenRouter provider requires credentialId",
+                provider=self.provider_name,
+            )
 
         return credential.value
 

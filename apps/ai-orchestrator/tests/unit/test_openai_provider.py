@@ -3,6 +3,7 @@ import pytest
 from openai import APIStatusError, APITimeoutError
 
 from flowpilot_ai_orchestrator.clients.credentials import CredentialSecret
+from flowpilot_ai_orchestrator.providers.base import ProviderConfigurationError
 from flowpilot_ai_orchestrator.providers.openai import provider as openai_provider_module
 from flowpilot_ai_orchestrator.providers.openai.provider import (
     OpenAiProvider,
@@ -111,7 +112,7 @@ def test_openai_provider_builds_request_and_returns_prompt_result(
 def test_openai_provider_requires_credential_id() -> None:
     credential_client = FakeCredentialClient()
 
-    with pytest.raises(RuntimeError, match="requires credentialId"):
+    with pytest.raises(ProviderConfigurationError, match="requires credentialId"):
         OpenAiProvider(credential_client=credential_client).run(
             context=make_context(),
             config=PromptRunConfig(

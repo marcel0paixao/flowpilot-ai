@@ -2,6 +2,7 @@ import httpx
 import pytest
 
 from flowpilot_ai_orchestrator.clients.credentials import CredentialSecret
+from flowpilot_ai_orchestrator.providers.base import ProviderConfigurationError
 from flowpilot_ai_orchestrator.providers.openrouter.provider import (
     OpenRouterProvider,
     OpenRouterProviderError,
@@ -121,7 +122,7 @@ def test_openrouter_provider_builds_request_and_returns_prompt_result(
 def test_openrouter_provider_requires_credential_id() -> None:
     credential_client = FakeCredentialClient()
 
-    with pytest.raises(RuntimeError, match="requires credentialId"):
+    with pytest.raises(ProviderConfigurationError, match="requires credentialId"):
         OpenRouterProvider(credential_client=credential_client).run(
             context=make_context(),
             config=PromptRunConfig(

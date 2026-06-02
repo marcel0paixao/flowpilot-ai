@@ -1,5 +1,6 @@
 from fastapi import FastAPI, HTTPException
 
+from flowpilot_ai_orchestrator.providers.base import ProviderConfigurationError
 from flowpilot_ai_orchestrator.providers.openai.provider import OpenAiProviderError
 from flowpilot_ai_orchestrator.providers.openrouter.provider import OpenRouterProviderError
 from flowpilot_ai_orchestrator.providers.registry import UnknownProviderError
@@ -25,6 +26,15 @@ def run_prompt(request: PromptRunRequest) -> PromptRunResponse:
                 "code": "unknown_ai_provider",
                 "message": str(error),
                 "provider": error.provider_name,
+            },
+        ) from error
+    except ProviderConfigurationError as error:
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "code": "ai_provider_configuration_error",
+                "message": str(error),
+                "provider": error.provider,
             },
         ) from error
     except OpenRouterProviderError as error:
