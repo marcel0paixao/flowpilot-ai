@@ -11,6 +11,10 @@ from flowpilot_ai_orchestrator.clients.credentials import (
     CredentialSecret,
 )
 from flowpilot_ai_orchestrator.main import app
+from flowpilot_ai_orchestrator.providers.openai.provider import (
+    OpenAiProvider,
+    OpenAiProviderError,
+)
 
 fixtures_dir = Path(__file__).resolve().parents[1] / "fixtures"
 
@@ -207,6 +211,62 @@ def test_prompt_run_returns_bad_gateway_when_openrouter_fails(
         "providerError": {
             "error": {
                 "message": "Rate limit exceeded",
+            },
+        },
+    }
+
+
+def test_prompt_run_returns_bad_gateway_when_openai_fails(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fake_run(self: OpenAiProvider, **_: object) -> None:
+        raise OpenAiProviderError(
+            "OpenAi request failed with status 429",
+            status_code=429,
+            provider_error={
+                "error": {
+                    "message": "You exceeded your current quota",
+                },
+            },
+        )
+
+    monkeypatch.setattr(OpenAiProvider, "run", fake_run)
+
+    client = TestClient(app)
+
+    response = client.post(
+        "/v1/prompts/run",
+        json={
+            "context": {
+                "workspaceId": "workspace-1",
+                "workflowId": "workflow-1",
+                "executionId": "execution-1",
+                "nodeExecutionId": "node-execution-1",
+                "nodeId": "ai-summary",
+                "correlationId": "correlation-1",
+            },
+            "config": {
+                "prompt": "Summarize this lead.",
+                "provider": "openai",
+                "credentialId": "credential-1",
+                "model": "gpt-4o-mini",
+                "temperature": 0.2,
+            },
+            "input": {
+                "leadId": "lead-1",
+            },
+        },
+    )
+
+    assert response.status_code == 502
+    assert response.json()["detail"] == {
+        "code": "ai_provider_error",
+        "provider": "openai",
+        "status": 429,
+        "message": "OpenAi request failed with status 429",
+        "providerError": {
+            "error": {
+                "message": "You exceeded your current quota",
             },
         },
     }

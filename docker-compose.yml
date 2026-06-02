@@ -180,6 +180,16 @@ services:
       context: ./apps/ai-orchestrator
       dockerfile: Dockerfile
     container_name: flowpilot-ai-orchestrator
+    command:
+      - uvicorn
+      - flowpilot_ai_orchestrator.main:app
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8000"
+      - --reload
+      - --reload-dir
+      - /app/src
     env_file:
       - ./apps/ai-orchestrator/.env
     environment:
@@ -189,6 +199,8 @@ services:
       AI_PROVIDER: deterministic
     ports:
       - "8000:8000"
+    volumes:
+      - ./apps/ai-orchestrator/src:/app/src
     healthcheck:
       test:
         [

@@ -1,5 +1,6 @@
 from flowpilot_ai_orchestrator.providers.base import PromptProvider
 from flowpilot_ai_orchestrator.providers.deterministic import DeterministicPromptProvider
+from flowpilot_ai_orchestrator.providers.openai import OpenAiProvider
 from flowpilot_ai_orchestrator.providers.openrouter import OpenRouterProvider
 
 
@@ -14,6 +15,7 @@ class ProviderRegistry:
         self._providers: dict[str, PromptProvider] = {
             "deterministic": DeterministicPromptProvider(),
             "openrouter": OpenRouterProvider(),
+            "openai": OpenAiProvider()
         }
 
     def get(self, name: str) -> PromptProvider:
