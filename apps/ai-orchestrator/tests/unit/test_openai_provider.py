@@ -4,7 +4,6 @@ from openai import APIStatusError, APITimeoutError
 
 from flowpilot_ai_orchestrator.clients.credentials import CredentialSecret
 from flowpilot_ai_orchestrator.providers.base import ProviderConfigurationError
-from flowpilot_ai_orchestrator.providers.openai import provider as openai_provider_module
 from flowpilot_ai_orchestrator.providers.openai.provider import (
     OpenAiProvider,
     OpenAiProviderError,
@@ -50,9 +49,7 @@ class FakeOpenAiResponse:
         return self.body
 
 
-def test_openai_provider_builds_request_and_returns_prompt_result(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+def test_openai_provider_builds_request_and_returns_prompt_result() -> None:
     captured: dict[str, object] = {}
 
     class FakeCompletions:
@@ -68,15 +65,22 @@ def test_openai_provider_builds_request_and_returns_prompt_result(
             captured["temperature"] = temperature
             return FakeOpenAiResponse()
 
-    class FakeOpenAI:
+    class FakeOpenAIClient:
         def __init__(self, *, api_key: str) -> None:
             captured["api_key"] = api_key
             self.chat = type("FakeChat", (), {"completions": FakeCompletions()})()
 
-    credential_client = FakeCredentialClient()
-    monkeypatch.setattr(openai_provider_module, "OpenAI", FakeOpenAI)
+    def fake_client_factory(api_key: str, timeout_seconds: float) -> FakeOpenAIClient:
+        captured["timeout_seconds"] = timeout_seconds
+        return FakeOpenAIClient(api_key=api_key)
 
-    result = OpenAiProvider(credential_client=credential_client).run(
+    credential_client = FakeCredentialClient()
+
+    result = OpenAiProvider(
+        credential_client=credential_client,
+        client_factory=fake_client_factory,
+        timeout_seconds=12.5,
+    ).run(
         context=make_context(),
         config=PromptRunConfig(
             prompt="Summarize this lead.",
@@ -91,6 +95,7 @@ def test_openai_provider_builds_request_and_returns_prompt_result(
     assert credential_client.calls == [("workspace-1", "credential-1")]
     assert captured == {
         "api_key": "sk-openai",
+        "timeout_seconds": 12.5,
         "model": "gpt-4o-mini",
         "temperature": 0.2,
         "messages": [
@@ -128,20 +133,20 @@ def test_openai_provider_requires_credential_id() -> None:
 
 
 def test_openai_provider_maps_timeout_errors(
-    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     class FakeCompletions:
         def create(self, **_: object) -> FakeOpenAiResponse:
             raise APITimeoutError(request=httpx.Request("POST", "https://api.openai.com"))
 
-    class FakeOpenAI:
+    class FakeOpenAIClient:
         def __init__(self, *, api_key: str) -> None:
             self.chat = type("FakeChat", (), {"completions": FakeCompletions()})()
 
-    monkeypatch.setattr(openai_provider_module, "OpenAI", FakeOpenAI)
-
     with pytest.raises(OpenAiProviderError, match="timed out"):
-        OpenAiProvider(credential_client=FakeCredentialClient()).run(
+        OpenAiProvider(
+            credential_client=FakeCredentialClient(),
+            client_factory=lambda api_key, timeout_seconds: FakeOpenAIClient(api_key=api_key),
+        ).run(
             context=make_context(),
             config=make_openai_config(),
             input_data={"leadId": "lead-1"},
@@ -149,7 +154,6 @@ def test_openai_provider_maps_timeout_errors(
 
 
 def test_openai_provider_maps_status_errors(
-    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     provider_error = {
         "error": {
@@ -163,14 +167,15 @@ def test_openai_provider_maps_status_errors(
             response = httpx.Response(429, json=provider_error, request=request)
             raise APIStatusError("OpenAI quota exceeded", response=response, body=provider_error)
 
-    class FakeOpenAI:
+    class FakeOpenAIClient:
         def __init__(self, *, api_key: str) -> None:
             self.chat = type("FakeChat", (), {"completions": FakeCompletions()})()
 
-    monkeypatch.setattr(openai_provider_module, "OpenAI", FakeOpenAI)
-
     with pytest.raises(OpenAiProviderError, match="status 429") as error:
-        OpenAiProvider(credential_client=FakeCredentialClient()).run(
+        OpenAiProvider(
+            credential_client=FakeCredentialClient(),
+            client_factory=lambda api_key, timeout_seconds: FakeOpenAIClient(api_key=api_key),
+        ).run(
             context=make_context(),
             config=make_openai_config(),
             input_data={"leadId": "lead-1"},
@@ -181,20 +186,20 @@ def test_openai_provider_maps_status_errors(
 
 
 def test_openai_provider_rejects_invalid_response(
-    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     class FakeCompletions:
         def create(self, **_: object) -> FakeOpenAiResponse:
             return FakeOpenAiResponse(body=[])
 
-    class FakeOpenAI:
+    class FakeOpenAIClient:
         def __init__(self, *, api_key: str) -> None:
             self.chat = type("FakeChat", (), {"completions": FakeCompletions()})()
 
-    monkeypatch.setattr(openai_provider_module, "OpenAI", FakeOpenAI)
-
     with pytest.raises(OpenAiProviderError, match="invalid response"):
-        OpenAiProvider(credential_client=FakeCredentialClient()).run(
+        OpenAiProvider(
+            credential_client=FakeCredentialClient(),
+            client_factory=lambda api_key, timeout_seconds: FakeOpenAIClient(api_key=api_key),
+        ).run(
             context=make_context(),
             config=make_openai_config(),
             input_data={"leadId": "lead-1"},
