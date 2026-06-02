@@ -1,11 +1,13 @@
 import { PrismaClient, WorkspaceRole } from "@prisma/client/index";
 import { WORKFLOW_NODE_TYPES, type WorkflowDefinition } from "@flowpilot/contracts";
 import { hash } from "bcryptjs";
+import { createCipheriv, createHash, randomBytes } from "node:crypto";
 import { config } from "dotenv";
 
 config({ path: new URL("../../../.env", import.meta.url), quiet: true });
 
 process.env.DATABASE_URL ??= "postgresql://flowpilot:flowpilot@localhost:5432/flowpilot";
+process.env.JWT_SECRET ??= "local-demo-secret-with-at-least-twenty-four-characters";
 
 const prisma = new PrismaClient();
 
@@ -244,6 +246,37 @@ async function main() {
       };
     })
   );
+  const ownerUser = seededUsers.find(({ membership }) => membership.role === WorkspaceRole.OWNER)?.user;
+  const claudeCredential = encryptCredential("sk-ant-demo-placeholder");
+
+  await prisma.integrationCredential.upsert({
+    where: {
+      workspaceId_type_name: {
+        workspaceId: workspace.id,
+        type: "claude",
+        name: "Demo Claude key"
+      }
+    },
+    create: {
+      workspaceId: workspace.id,
+      createdByUserId: ownerUser?.id,
+      name: "Demo Claude key",
+      type: "claude",
+      kind: "llm",
+      capabilities: ["llm.chat", "llm.structured_output"],
+      encryptedValue: claudeCredential.encryptedValue,
+      iv: claudeCredential.iv,
+      authTag: claudeCredential.authTag
+    },
+    update: {
+      kind: "llm",
+      capabilities: ["llm.chat", "llm.structured_output"],
+      encryptedValue: claudeCredential.encryptedValue,
+      iv: claudeCredential.iv,
+      authTag: claudeCredential.authTag
+    }
+  });
+
   const workflow = await prisma.workflow.upsert({
     where: {
       workspaceId_slug: {
@@ -341,6 +374,7 @@ async function main() {
   console.log(`Portfolio workflow: ${incidentTriageWorkflow.name}`);
   console.log(`Portfolio workflow ID: ${incidentTriageWorkflow.id}`);
   console.log(`Portfolio workflow slug: ${incidentTriageWorkflow.slug}`);
+  console.log("Seeded credential: Demo Claude key / claude / placeholder secret");
   console.log("");
   console.log("Demo credentials:");
 
@@ -353,6 +387,29 @@ async function main() {
   console.log(
     `curl -X POST http://localhost:3000/api/auth/login -H "Content-Type: application/json" -d '{"email":"owner@acme.test","password":"${demoPassword}","workspaceId":"${workspace.id}"}'`
   );
+}
+
+function encryptCredential(value: string) {
+  const iv = randomBytes(12);
+  const cipher = createCipheriv("aes-256-gcm", getEncryptionKey(), iv);
+  const encrypted = Buffer.concat([cipher.update(value, "utf8"), cipher.final()]);
+  const authTag = cipher.getAuthTag();
+
+  return {
+    encryptedValue: encrypted.toString("base64"),
+    iv: iv.toString("base64"),
+    authTag: authTag.toString("base64")
+  };
+}
+
+function getEncryptionKey() {
+  const secret = process.env.CREDENTIAL_ENCRYPTION_KEY ?? process.env.JWT_SECRET;
+
+  if (!secret) {
+    throw new Error("CREDENTIAL_ENCRYPTION_KEY or JWT_SECRET is required to seed credentials");
+  }
+
+  return createHash("sha256").update(secret).digest();
 }
 
 main()

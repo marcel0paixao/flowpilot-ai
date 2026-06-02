@@ -102,6 +102,12 @@ const AI_PROVIDER_OPTIONS = [
     label: "OpenAI",
     model: "gpt-4o-mini",
     credentialRequired: true
+  },
+  {
+    value: "claude",
+    label: "Claude",
+    model: "claude-3-5-haiku-latest",
+    credentialRequired: true
   }
 ] as const;
 

@@ -42,6 +42,12 @@ const CREDENTIAL_TYPES: Array<{
     label: "OpenAI",
     kind: "llm",
     description: "Direct OpenAI provider planned after the provider boundary stabilizes."
+  },
+  {
+    value: "claude",
+    label: "Claude",
+    kind: "llm",
+    description: "Anthropic Claude provider planned for model comparison workflows."
   }
 ];
 

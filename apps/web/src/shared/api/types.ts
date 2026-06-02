@@ -6,7 +6,7 @@ export type WorkflowExecutionStatus = "PENDING" | "RUNNING" | "SUCCEEDED" | "FAI
 export type WorkflowNodeExecutionStatus = "PENDING" | "RUNNING" | "SUCCEEDED" | "FAILED" | "SKIPPED";
 export type OutboxMessageStatus = "PENDING" | "PUBLISHED" | "FAILED";
 export type AiTraceStatus = "SUCCEEDED" | "FAILED";
-export type CredentialType = "openrouter" | "ollama" | "openai";
+export type CredentialType = "openrouter" | "ollama" | "openai" | "claude";
 export type CredentialKind = "llm" | "database" | "search" | "webhook" | "email";
 
 export interface User {
