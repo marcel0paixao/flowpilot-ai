@@ -52,6 +52,60 @@ def extract_openai_compatible_token_usage(
     )
 
 
+def extract_anthropic_content(response_body: dict[str, object]) -> str:
+    content_blocks = response_body.get("content")
+
+    if not isinstance(content_blocks, list) or not content_blocks:
+        raise ValueError("Anthropic response has no content blocks")
+
+    text_parts: list[str] = []
+
+    for block in content_blocks:
+        if not isinstance(block, dict):
+            continue
+
+        block_type = block.get("type")
+        text = block.get("text")
+
+        if block_type == "text" and isinstance(text, str) and text.strip():
+            text_parts.append(text)
+
+    content = "".join(text_parts).strip()
+
+    if not content:
+        raise ValueError("Anthropic response content is empty")
+
+    return content
+
+
+def extract_anthropic_stop_reason(response_body: dict[str, object]) -> str | None:
+    stop_reason = response_body.get("stop_reason")
+
+    return stop_reason if isinstance(stop_reason, str) else None
+
+
+def extract_anthropic_token_usage(
+    response_body: dict[str, object],
+) -> tuple[int | None, int | None]:
+    usage = response_body.get("usage")
+
+    if not isinstance(usage, dict):
+        return None, None
+
+    input_tokens = usage.get("input_tokens")
+    output_tokens = usage.get("output_tokens")
+
+    return (
+        input_tokens if is_non_negative_integer(input_tokens) else None,
+        output_tokens if is_non_negative_integer(output_tokens) else None,
+    )
+
+
+extract_anthropic_compatible_content = extract_anthropic_content
+extract_anthropic_compatible_finish_reason = extract_anthropic_stop_reason
+extract_anthropic_compatible_token_usage = extract_anthropic_token_usage
+
+
 def get_first_choice(response_body: dict[str, object]) -> dict[str, object] | None:
     choices = response_body.get("choices")
 
