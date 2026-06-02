@@ -1,5 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Bot, Loader2, Moon, Sun } from "lucide-react";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import { z } from "zod";
@@ -7,7 +8,7 @@ import { z } from "zod";
 import { useAuth } from "@/features/auth/auth-provider";
 import { useTheme } from "@/features/theme/theme-provider";
 import { login } from "@/shared/api/auth";
-import { ApiError } from "@/shared/api/http";
+import { ApiError, consumeSessionExpiredNotification } from "@/shared/api/http";
 import { Button } from "@/shared/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/ui/card";
 import { Input } from "@/shared/ui/input";
@@ -36,13 +37,18 @@ export function LoginPage() {
       workspaceId: DEMO_WORKSPACE_ID
     }
   });
+  const locationState = location.state as
+    | { from?: { pathname?: string }; sessionExpired?: boolean }
+    | null;
+  const fromPath = locationState?.from?.pathname;
+  const [sessionExpired] = useState(
+    () => Boolean(locationState?.sessionExpired) || consumeSessionExpiredNotification()
+  );
+  const error = form.formState.errors.root?.message;
 
   if (auth.isAuthenticated) {
     return <Navigate to="/app/workspaces" replace />;
   }
-
-  const error = form.formState.errors.root?.message;
-  const fromPath = (location.state as { from?: { pathname?: string } } | null)?.from?.pathname;
 
   async function onSubmit(values: LoginForm) {
     form.clearErrors("root");
@@ -115,6 +121,11 @@ export function LoginPage() {
             {error ? (
               <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-950 dark:text-red-200">
                 {error}
+              </p>
+            ) : null}
+            {sessionExpired && !error ? (
+              <p className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-100">
+                Your session expired. Sign in again to continue.
               </p>
             ) : null}
             <Button className="w-full" type="submit" disabled={form.formState.isSubmitting}>

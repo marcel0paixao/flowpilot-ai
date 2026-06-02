@@ -88,6 +88,27 @@ describe("App authentication flow", () => {
       );
     });
   });
+
+  it("clears the session and explains when an authenticated request expires", async () => {
+    server.use(
+      http.get(`${API_BASE_URL}/auth/me`, () => HttpResponse.json({ user: demoUser })),
+      http.get(`${API_BASE_URL}/workspaces`, () =>
+        HttpResponse.json({ message: "Invalid bearer token" }, { status: 401 })
+      )
+    );
+
+    window.localStorage.setItem("flowpilot.accessToken", "expired-token");
+    window.history.replaceState({}, "", "/app/workspaces");
+
+    render(<App />);
+
+    expect(await screen.findByText("Your session expired. Sign in again to continue.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Sign in" })).toBeInTheDocument();
+
+    await waitFor(() => {
+      expect(window.localStorage.getItem("flowpilot.accessToken")).toBeNull();
+    });
+  });
 });
 
 describe("Workspaces route", () => {

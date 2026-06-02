@@ -1,8 +1,24 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode
+} from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 
 import { getCurrentUser } from "@/shared/api/auth";
-import { ApiError, clearAccessToken, getAccessToken, setAccessToken } from "@/shared/api/http";
+import {
+  ApiError,
+  SESSION_EXPIRED_EVENT,
+  clearAccessToken,
+  clearSessionExpiredNotification,
+  getAccessToken,
+  setAccessToken
+} from "@/shared/api/http";
 import { queryKeys } from "@/shared/api/query-keys";
 import type { CurrentUser } from "@/shared/api/types";
 
@@ -19,6 +35,8 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
+  const location = useLocation();
+  const navigate = useNavigate();
   const [token, setToken] = useState(() => getAccessToken());
 
   const meQuery = useQuery({
@@ -28,13 +46,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     retry: false
   });
 
+  const expireSession = useCallback(() => {
+    clearAccessToken();
+    setToken(null);
+    queryClient.clear();
+
+    if (location.pathname !== "/login") {
+      navigate("/login", {
+        replace: true,
+        state: {
+          from: location,
+          sessionExpired: true
+        }
+      });
+    }
+  }, [location, navigate, queryClient]);
+
+  useEffect(() => {
+    window.addEventListener(SESSION_EXPIRED_EVENT, expireSession);
+
+    return () => {
+      window.removeEventListener(SESSION_EXPIRED_EVENT, expireSession);
+    };
+  }, [expireSession]);
+
   useEffect(() => {
     if (meQuery.error instanceof ApiError && meQuery.error.status === 401) {
-      clearAccessToken();
-      setToken(null);
-      queryClient.removeQueries({ queryKey: queryKeys.me });
+      expireSession();
     }
-  }, [meQuery.error, queryClient]);
+  }, [expireSession, meQuery.error]);
 
   const value = useMemo<AuthContextValue>(
     () => ({
@@ -43,12 +83,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isAuthenticated: Boolean(token),
       isLoading: Boolean(token) && meQuery.isLoading,
       signIn: (nextToken) => {
+        clearSessionExpiredNotification();
         setAccessToken(nextToken);
         setToken(nextToken);
         void queryClient.invalidateQueries({ queryKey: queryKeys.me });
       },
       signOut: () => {
         clearAccessToken();
+        clearSessionExpiredNotification();
         setToken(null);
         queryClient.clear();
       }

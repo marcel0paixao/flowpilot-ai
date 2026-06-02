@@ -2,6 +2,8 @@ const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, "") ?? "http://localhost:3000/api";
 
 const ACCESS_TOKEN_KEY = "flowpilot.accessToken";
+const SESSION_EXPIRED_KEY = "flowpilot.sessionExpired";
+export const SESSION_EXPIRED_EVENT = "flowpilot:session-expired";
 
 export class ApiError extends Error {
   constructor(
@@ -24,6 +26,22 @@ export function setAccessToken(token: string) {
 
 export function clearAccessToken() {
   window.localStorage.removeItem(ACCESS_TOKEN_KEY);
+}
+
+export function clearSessionExpiredNotification() {
+  window.sessionStorage.removeItem(SESSION_EXPIRED_KEY);
+}
+
+export function consumeSessionExpiredNotification() {
+  const hasExpiredSession = window.sessionStorage.getItem(SESSION_EXPIRED_KEY) === "true";
+  clearSessionExpiredNotification();
+
+  return hasExpiredSession;
+}
+
+export function notifySessionExpired() {
+  window.sessionStorage.setItem(SESSION_EXPIRED_KEY, "true");
+  window.dispatchEvent(new Event(SESSION_EXPIRED_EVENT));
 }
 
 export async function apiRequest<TResponse>(
@@ -51,6 +69,11 @@ export async function apiRequest<TResponse>(
 
   if (!response.ok) {
     const details = await readJsonSafely(response);
+
+    if (response.status === 401 && token) {
+      notifySessionExpired();
+    }
+
     throw new ApiError(getErrorMessage(details, response.statusText), response.status, details);
   }
 
