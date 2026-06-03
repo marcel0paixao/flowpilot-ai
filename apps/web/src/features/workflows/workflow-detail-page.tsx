@@ -108,6 +108,12 @@ const AI_PROVIDER_OPTIONS = [
     label: "Claude",
     model: "claude-3-5-haiku-latest",
     credentialRequired: true
+  },
+  {
+    value: "gemini",
+    label: "Gemini",
+    model: "gemini-2.5-flash",
+    credentialRequired: true
   }
 ] as const;
 

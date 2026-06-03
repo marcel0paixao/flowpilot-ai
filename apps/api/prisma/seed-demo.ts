@@ -248,6 +248,7 @@ async function main() {
   );
   const ownerUser = seededUsers.find(({ membership }) => membership.role === WorkspaceRole.OWNER)?.user;
   const claudeCredential = encryptCredential("sk-ant-demo-placeholder");
+  const geminiCredential = encryptCredential("gemini-demo-placeholder");
 
   await prisma.integrationCredential.upsert({
     where: {
@@ -274,6 +275,34 @@ async function main() {
       encryptedValue: claudeCredential.encryptedValue,
       iv: claudeCredential.iv,
       authTag: claudeCredential.authTag
+    }
+  });
+
+  await prisma.integrationCredential.upsert({
+    where: {
+      workspaceId_type_name: {
+        workspaceId: workspace.id,
+        type: "gemini",
+        name: "Demo Gemini key"
+      }
+    },
+    create: {
+      workspaceId: workspace.id,
+      createdByUserId: ownerUser?.id,
+      name: "Demo Gemini key",
+      type: "gemini",
+      kind: "llm",
+      capabilities: ["llm.chat", "llm.structured_output"],
+      encryptedValue: geminiCredential.encryptedValue,
+      iv: geminiCredential.iv,
+      authTag: geminiCredential.authTag
+    },
+    update: {
+      kind: "llm",
+      capabilities: ["llm.chat", "llm.structured_output"],
+      encryptedValue: geminiCredential.encryptedValue,
+      iv: geminiCredential.iv,
+      authTag: geminiCredential.authTag
     }
   });
 
@@ -375,6 +404,7 @@ async function main() {
   console.log(`Portfolio workflow ID: ${incidentTriageWorkflow.id}`);
   console.log(`Portfolio workflow slug: ${incidentTriageWorkflow.slug}`);
   console.log("Seeded credential: Demo Claude key / claude / placeholder secret");
+  console.log("Seeded credential: Demo Gemini key / gemini / placeholder secret");
   console.log("");
   console.log("Demo credentials:");
 

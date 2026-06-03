@@ -1,6 +1,8 @@
 import pytest
 
 from flowpilot_ai_orchestrator.providers.utils import (
+    build_anthropic_messages,
+    build_anthropic_system_prompt,
     build_chat_messages,
     estimate_text_tokens,
     extract_anthropic_content,
@@ -25,6 +27,29 @@ def test_build_chat_messages_includes_system_prompt_and_input_data() -> None:
 
     assert messages == [
         {"role": "system", "content": "Be concise."},
+        {
+            "role": "user",
+            "content": 'Summarize this lead.\n\nInput:\n{"leadId": "lead-1"}',
+        },
+    ]
+
+
+def test_build_anthropic_messages_omits_system_role() -> None:
+    config = PromptRunConfig(
+        prompt="Summarize this lead.",
+        systemPrompt="Be concise.",
+        provider="claude",
+        model="claude-3-5-haiku-latest",
+        temperature=0.2,
+    )
+
+    messages = build_anthropic_messages(
+        config=config,
+        input_data={"leadId": "lead-1"},
+    )
+
+    assert build_anthropic_system_prompt(config) == "Be concise."
+    assert messages == [
         {
             "role": "user",
             "content": 'Summarize this lead.\n\nInput:\n{"leadId": "lead-1"}',

@@ -48,6 +48,12 @@ const CREDENTIAL_TYPES: Array<{
     label: "Claude",
     kind: "llm",
     description: "Anthropic Claude provider planned for model comparison workflows."
+  },
+  {
+    value: "gemini",
+    label: "Gemini",
+    kind: "llm",
+    description: "Google Gemini provider planned for multimodal and low-cost model comparison."
   }
 ];
 
