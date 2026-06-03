@@ -10,6 +10,7 @@ from flowpilot_ai_orchestrator.clients.credentials import ensure_credential_supp
 from flowpilot_ai_orchestrator.providers.base import (
     PromptProvider,
     ProviderConfigurationError,
+    ProviderError,
 )
 from flowpilot_ai_orchestrator.providers.utils import (
     build_chat_messages,
@@ -54,7 +55,7 @@ class OpenAIClient(Protocol):
 OpenAIClientFactory = Callable[[str, float], OpenAIClient]
 
 
-class OpenAiProviderError(RuntimeError):
+class OpenAiProviderError(ProviderError):
     def __init__(
         self,
         message: str,
@@ -62,9 +63,12 @@ class OpenAiProviderError(RuntimeError):
         status_code: int | None = None,
         provider_error: object | None = None,
     ) -> None:
-        super().__init__(message)
-        self.status_code = status_code
-        self.provider_error = provider_error
+        super().__init__(
+            message,
+            provider="openai",
+            status_code=status_code,
+            provider_error=provider_error,
+        )
 
 
 class OpenAiProvider(PromptProvider):

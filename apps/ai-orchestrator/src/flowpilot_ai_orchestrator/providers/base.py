@@ -9,6 +9,25 @@ class ProviderConfigurationError(ValueError):
         super().__init__(message)
 
 
+class ProviderError(RuntimeError):
+    def __init__(
+        self,
+        message: str,
+        *,
+        provider: str,
+        code: str = "ai_provider_error",
+        status_code: int | None = None,
+        retryable: bool = True,
+        provider_error: object | None = None,
+    ) -> None:
+        super().__init__(message)
+        self.provider = provider
+        self.code = code
+        self.status_code = status_code
+        self.retryable = retryable
+        self.provider_error = provider_error
+
+
 class PromptProvider(ABC):
     provider_name: str
 

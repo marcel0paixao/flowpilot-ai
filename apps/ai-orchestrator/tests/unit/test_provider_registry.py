@@ -1,5 +1,6 @@
 import pytest
 
+from flowpilot_ai_orchestrator.providers.anthropic import AnthropicProvider
 from flowpilot_ai_orchestrator.providers.deterministic import DeterministicPromptProvider
 from flowpilot_ai_orchestrator.providers.openai import OpenAiProvider
 from flowpilot_ai_orchestrator.providers.openrouter import OpenRouterProvider
@@ -33,6 +34,24 @@ def test_provider_registry_returns_openai_provider() -> None:
     provider = registry.get("openai")
 
     assert isinstance(provider, OpenAiProvider)
+
+
+def test_provider_registry_returns_claude_provider_alias() -> None:
+    registry = ProviderRegistry()
+
+    provider = registry.get("claude")
+
+    assert isinstance(provider, AnthropicProvider)
+
+
+def test_provider_registry_reuses_anthropic_provider_instance_for_aliases() -> None:
+    registry = ProviderRegistry()
+
+    claude_provider = registry.get("claude")
+    anthropic_provider = registry.get("anthropic")
+
+    assert isinstance(claude_provider, AnthropicProvider)
+    assert claude_provider is anthropic_provider
 
 
 def test_provider_registry_rejects_unknown_provider() -> None:

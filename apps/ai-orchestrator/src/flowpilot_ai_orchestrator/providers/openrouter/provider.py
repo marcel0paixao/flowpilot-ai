@@ -8,6 +8,7 @@ from flowpilot_ai_orchestrator.clients.credentials import ensure_credential_supp
 from flowpilot_ai_orchestrator.providers.base import (
     PromptProvider,
     ProviderConfigurationError,
+    ProviderError,
 )
 from flowpilot_ai_orchestrator.providers.utils import (
     build_chat_messages,
@@ -25,7 +26,7 @@ from flowpilot_ai_orchestrator.schemas import (
 )
 
 
-class OpenRouterProviderError(RuntimeError):
+class OpenRouterProviderError(ProviderError):
     def __init__(
         self,
         message: str,
@@ -33,9 +34,12 @@ class OpenRouterProviderError(RuntimeError):
         status_code: int | None = None,
         provider_error: object | None = None,
     ) -> None:
-        super().__init__(message)
-        self.status_code = status_code
-        self.provider_error = provider_error
+        super().__init__(
+            message,
+            provider="openrouter",
+            status_code=status_code,
+            provider_error=provider_error,
+        )
 
 
 class OpenRouterProvider(PromptProvider):

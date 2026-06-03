@@ -11,6 +11,10 @@ from flowpilot_ai_orchestrator.clients.credentials import (
     CredentialSecret,
 )
 from flowpilot_ai_orchestrator.main import app
+from flowpilot_ai_orchestrator.providers.anthropic.provider import (
+    AnthropicProvider,
+    AnthropicProviderError,
+)
 from flowpilot_ai_orchestrator.providers.openai.provider import (
     OpenAiProvider,
     OpenAiProviderError,
@@ -267,6 +271,62 @@ def test_prompt_run_returns_bad_gateway_when_openai_fails(
         "providerError": {
             "error": {
                 "message": "You exceeded your current quota",
+            },
+        },
+    }
+
+
+def test_prompt_run_returns_bad_gateway_when_anthropic_fails(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fake_run(self: AnthropicProvider, **_: object) -> None:
+        raise AnthropicProviderError(
+            "Anthropic request failed with status 429",
+            status_code=429,
+            provider_error={
+                "error": {
+                    "message": "Rate limit exceeded",
+                },
+            },
+        )
+
+    monkeypatch.setattr(AnthropicProvider, "run", fake_run)
+
+    client = TestClient(app)
+
+    response = client.post(
+        "/v1/prompts/run",
+        json={
+            "context": {
+                "workspaceId": "workspace-1",
+                "workflowId": "workflow-1",
+                "executionId": "execution-1",
+                "nodeExecutionId": "node-execution-1",
+                "nodeId": "ai-summary",
+                "correlationId": "correlation-1",
+            },
+            "config": {
+                "prompt": "Summarize this lead.",
+                "provider": "claude",
+                "credentialId": "credential-1",
+                "model": "claude-3-5-haiku-latest",
+                "temperature": 0.2,
+            },
+            "input": {
+                "leadId": "lead-1",
+            },
+        },
+    )
+
+    assert response.status_code == 502
+    assert response.json()["detail"] == {
+        "code": "ai_provider_error",
+        "provider": "claude",
+        "status": 429,
+        "message": "Anthropic request failed with status 429",
+        "providerError": {
+            "error": {
+                "message": "Rate limit exceeded",
             },
         },
     }

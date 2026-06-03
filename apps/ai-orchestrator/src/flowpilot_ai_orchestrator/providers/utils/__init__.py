@@ -4,10 +4,10 @@ from flowpilot_ai_orchestrator.providers.utils.chat_messages import (
     build_chat_messages,
 )
 from flowpilot_ai_orchestrator.providers.utils.response_parsing import (
-    extract_anthropic_content,
     extract_anthropic_compatible_content,
     extract_anthropic_compatible_finish_reason,
     extract_anthropic_compatible_token_usage,
+    extract_anthropic_content,
     extract_anthropic_stop_reason,
     extract_anthropic_token_usage,
     extract_openai_compatible_content,

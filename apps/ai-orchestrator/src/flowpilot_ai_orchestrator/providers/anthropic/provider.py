@@ -3,13 +3,17 @@ import time
 from collections.abc import Callable
 from typing import Protocol
 
-from anthropic import APIConnectionError, APIStatusError, APITimeoutError, Anthropic
+from anthropic import Anthropic, APIConnectionError, APIStatusError, APITimeoutError
 
 from flowpilot_ai_orchestrator.clients import CredentialClient
-from flowpilot_ai_orchestrator.clients.credentials import ensure_credential_supports
+from flowpilot_ai_orchestrator.clients.credentials import (
+    CredentialClientError,
+    ensure_credential_supports,
+)
 from flowpilot_ai_orchestrator.providers.base import (
     PromptProvider,
     ProviderConfigurationError,
+    ProviderError,
 )
 from flowpilot_ai_orchestrator.providers.utils import (
     build_chat_messages,
@@ -54,7 +58,7 @@ class AnthropicClient(Protocol):
 AnthropicClientFactory = Callable[[str, float], AnthropicClient]
 
 
-class AnthropicProviderError(RuntimeError):
+class AnthropicProviderError(ProviderError):
     def __init__(
         self,
         message: str,
@@ -62,9 +66,12 @@ class AnthropicProviderError(RuntimeError):
         status_code: int | None = None,
         provider_error: object | None = None,
     ) -> None:
-        super().__init__(message)
-        self.status_code = status_code
-        self.provider_error = provider_error
+        super().__init__(
+            message,
+            provider="claude",
+            status_code=status_code,
+            provider_error=provider_error,
+        )
 
 
 class AnthropicProvider(PromptProvider):
@@ -172,9 +179,12 @@ class AnthropicProvider(PromptProvider):
             workspace_id=workspace_id, credential_id=credential_id
         )
 
+        if credential.type not in {"claude", "anthropic"}:
+            raise CredentialClientError("Credential type does not match provider")
+
         ensure_credential_supports(
             credential,
-            expected_type="anthropic",
+            expected_type=credential.type,
             expected_kind="llm",
             required_capability="llm.chat",
         )

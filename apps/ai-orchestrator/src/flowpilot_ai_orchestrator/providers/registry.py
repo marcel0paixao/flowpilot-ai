@@ -13,11 +13,14 @@ class UnknownProviderError(ValueError):
 
 class ProviderRegistry:
     def __init__(self) -> None:
+        anthropic_provider = AnthropicProvider()
+
         self._providers: dict[str, PromptProvider] = {
             "deterministic": DeterministicPromptProvider(),
             "openrouter": OpenRouterProvider(),
             "openai": OpenAiProvider(),
-            "anthropic": AnthropicProvider()
+            "claude": anthropic_provider,
+            "anthropic": anthropic_provider,
         }
 
     def get(self, name: str) -> PromptProvider:
